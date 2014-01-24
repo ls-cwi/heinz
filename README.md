@@ -10,6 +10,11 @@ Dependencies
 Compiling
 ---------
 
+Get heinz from github:
+
+    git clone <HTTPS clone URL (see on the right side of this page)>
+
+
 First, LEMON 1.3 needs to be installed:
 
     wget http://lemon.cs.elte.hu/pub/sources/lemon-1.3.tar.gz
