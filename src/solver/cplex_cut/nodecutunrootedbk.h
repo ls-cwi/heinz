@@ -607,9 +607,9 @@ inline void NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
           // add violated constraints
           for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
           {
-            const double x_j_value = it2->first;
+            //const double x_j_value = it2->first;
             const Node j = it2->second;
-            assert(_tol.less(minCutValue, x_j_value));
+            assert(_tol.less(minCutValue, it2->first));
             addViolatedConstraint(j, fwdDS, fwdS);
 
             nCuts++;
@@ -624,9 +624,9 @@ inline void NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
           {
             for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
             {
-              const double x_j_value = it2->first;
+              //const double x_j_value = it2->first;
               const Node j = it2->second;
-              assert(_tol.less(minCutValue, x_j_value));
+              assert(_tol.less(minCutValue, it2->first));
               addViolatedConstraint(j, bwdDS, bwdS);
               nBackCuts++;
               nCuts++;

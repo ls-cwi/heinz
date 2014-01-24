@@ -97,8 +97,6 @@ protected:
       Node root = *eqClassIt->begin();
       Node mappedRoot = pMwcsSubGraph->init(root);
 
-      const Graph& g = pMwcsSubGraph->getGraph();
-
       // first initialize
       pSolver->setLowerBound(LB);
       pSolver->init(mappedRoot);
