@@ -28,7 +28,7 @@ Note: On MaxOS 10.9, comment out the following two lines in `CMakeLists.txt` bef
     #ADD_SUBDIRECTORY(demo) 
     #ADD_SUBDIRECTORY(tools)
 
-Next, Heinz can be compiled:
+You can remove the LEMON sources now, i.e., `rm -rf lemon-1.3`. Next, Heinz can be compiled:
 
     mkdir build
     cd build
