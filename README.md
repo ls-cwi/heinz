@@ -22,6 +22,11 @@ First, LEMON 1.3 needs to be installed:
     cd lemon-1.3
     cmake -DCMAKE_INSTALL_PREFIX=~/lemon
     make install
+    
+Note: On MaxOS 10.9, comment out the following two lines in `CMakeLists.txt` before `make install`
+
+    #ADD_SUBDIRECTORY(demo) 
+    #ADD_SUBDIRECTORY(tools)
 
 Next, Heinz can be compiled:
 
