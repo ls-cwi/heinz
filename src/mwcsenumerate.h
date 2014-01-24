@@ -21,7 +21,7 @@
 #include "solver/mwcssizecutsolver.h"
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcssizetreesolver.h"
-#include "solver/mwcssizetreememsolver.h"
+//#include "solver/mwcssizetreememsolver.h"
 #include "preprocessing/mwcspreprocessrulenegdeg01.h"
 #include "preprocessing/mwcspreprocessruleposedge.h"
 #include "preprocessing/mwcspreprocessrulenegedge.h"
@@ -65,7 +65,7 @@ public:
   typedef MwcsTreeSolver<Graph, WeightNodeMap> MwcsTreeSolverType;
   typedef MwcsSizeCutSolver<Graph, WeightNodeMap> MwcsSizeCutSolverType;
   typedef MwcsSizeTreeSolver<Graph, WeightNodeMap> MwcsSizeTreeSolverType;
-  typedef MwcsSizeTreeMemSolver<Graph, WeightNodeMap> MwcsSizeTreeMemSolverType;
+  //typedef MwcsSizeTreeMemSolver<Graph, WeightNodeMap> MwcsSizeTreeMemSolverType;
 
   typedef MwcsPreprocessRuleNegDeg01<Graph, WeightNodeMap> MwcsPreprocessRuleNegDeg01Type;
   typedef MwcsPreprocessRulePosEdge<Graph, WeightNodeMap> MwcsPreprocessRulePosEdgeType;
@@ -201,7 +201,7 @@ protected:
         pResult = new MwcsTreeSolverType(*pMwcsSubGraph);
         break;
       case MwcsSizeSolverTreeDP:
-        pResult = new MwcsSizeTreeMemSolverType(*pMwcsSubGraph, _moduleSize);
+        pResult = new MwcsSizeTreeSolverType(*pMwcsSubGraph, _moduleSize);
         break;
       case MwcsSizeSolverCutNodeSeparatorBk:
         pResult = new MwcsSizeCutSolverType(*pMwcsSubGraph,
