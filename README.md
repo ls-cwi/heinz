@@ -33,6 +33,7 @@ You can remove the LEMON sources now, i.e., `rm -rf lemon-1.3`. Next, Heinz can 
     mkdir build
     cd build
     cmake ..
+    make
 
 In case auto-detection of LEMON or CPLEX fails, do
 
