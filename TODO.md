@@ -1,4 +1,3 @@
-* More sophisticated branching rules
+* More sophisticated branching rules (favor y-vars)
+* Use rooted formulation in unrooted call backs (addLocal)
 * User callback
-* Use rooted formulation in call backs (addLocal)
-* Exploit integrality in rooted lazy constraint call back

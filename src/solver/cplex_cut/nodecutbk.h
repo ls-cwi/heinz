@@ -1,3 +1,11 @@
+/*
+ * nodecutbk.h
+ *
+ *  Created on: 12-may-2013
+ *      Author: M. El-Kebir
+ */
+
+
 #ifndef NODECUTBK_H
 #define NODECUTBK_H
 
@@ -389,9 +397,9 @@ private:
     }
   }
 
-  void determineCutSet(const Digraph& h,
-                       const BkAlg& bk,
-                       NodeSet& dS)
+  void determineFwdCutSet(const Digraph& h,
+                          const BkAlg& bk,
+                          NodeSet& dS)
   {
     DiNode target = bk.getTarget();
     DiNodeList diS;
@@ -463,8 +471,13 @@ inline void NodeCutBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
   }
 
   int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-  DoubleVector max_x(nComp, 0);
-  NodeMatrix compMatrix(nComp, NodeVector());
+
+  typedef std::pair<double, Node> NodeWeightPair;
+  typedef std::vector<NodeWeightPair> NodeWeightPairVector;
+  typedef std::vector<NodeWeightPairVector> NodeWeightPairMatrix;
+
+  NodeWeightPairMatrix compMatrix(nComp, NodeWeightPairVector());
+
   for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
   {
     if (i == _root)
@@ -473,55 +486,63 @@ inline void NodeCutBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
     double x_i_value = x_values[_nodeMap[i]];
     int compIdx = (*_pComp)[i];
 
-    if (x_i_value > max_x[compIdx])
-      max_x[compIdx] = x_i_value;
+    compMatrix[compIdx].push_back(std::make_pair(x_i_value, i));
+  }
 
-    compMatrix[(*_pComp)[i]].push_back(i);
+  // sort compMatrix
+  for (int compIdx = 0; compIdx < nComp; compIdx++)
+  {
+    std::sort(compMatrix[compIdx].begin(), compMatrix[compIdx].end());
   }
 
   for (int compIdx = 0; compIdx < nComp; compIdx++)
   {
-    const double x_val = max_x[compIdx];
-    const NodeVector& nodes = compMatrix[compIdx];
-    if (nodes.size() == 0) continue;
-    const Node i = nodes.front();
-
-    _pBK->setSource(_diRoot);
-    _pBK->setTarget((*_pG2h2)[i]);
-    _pBK->setCap(_cap);
-
-    bool first = true;
-    bool nestedCut = false;
-    while (true)
+    bool foundCut = false;
+    const NodeWeightPairVector& compVector = compMatrix[compIdx];
+    for (typename NodeWeightPairVector::const_iterator it = compVector.begin();
+         !foundCut && it != compVector.end(); ++it)
     {
-      if (first)
-      {
-        _pBK->run();
-        first = false;
-      }
-      else
-      {
-        _pBK->run(true);
-      }
+      const double x_i_value = it->first;
+      const Node i = it->second;
 
-      // let's see if there's a violated constraint
-      double minCutValue = _pBK->maxFlow();
-      if (_tol.less(minCutValue, x_val))
+      _pBK->setSource(_diRoot);
+      _pBK->setTarget((*_pG2h2)[i]);
+      _pBK->setCap(_cap);
+
+      bool first = true;
+      bool nestedCut = false;
+      while (true)
       {
-        // determine N (forward)
-        NodeSet fwdDS;
-        determineCutSet(_h, *_pBK, fwdDS);
-
-        NodeSet bwdDS;
-        determineBwdCutSet(_h, *_pBK, bwdDS);
-
-        // add violated constraints
-        for (NodeVectorIt nodeIt = nodes.begin(); nodeIt != nodes.end(); nodeIt++)
+        if (first)
         {
-          double x_j_value = x_values[_nodeMap[*nodeIt]];
-          if (_tol.less(minCutValue, x_j_value))
+          _pBK->run();
+          first = false;
+        }
+        else
+        {
+          _pBK->run(true);
+        }
+
+        // let's see if there's a violated constraint
+        double minCutValue = _pBK->maxFlow();
+        if (_tol.less(minCutValue, x_i_value))
+        {
+          foundCut = true;
+
+          // determine N (forward)
+          NodeSet fwdDS;
+          determineFwdCutSet(_h, *_pBK, fwdDS);
+
+          NodeSet bwdDS;
+          determineBwdCutSet(_h, *_pBK, bwdDS);
+
+          // add violated constraints
+          for (typename NodeWeightPairVector::const_iterator it2 = compVector.begin(); it2 != compVector.end(); ++it2)
           {
-            addViolatedConstraint(*nodeIt, fwdDS);
+            //const double x_j_value = it2->first;
+            const Node j = it2->second;
+            assert(_tol.less(minCutValue, it2->first));
+            addViolatedConstraint(j, fwdDS);
 
             nCuts++;
             if (nestedCut)
@@ -529,53 +550,50 @@ inline void NodeCutBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
               nNestedCuts++;
             }
           }
-        }
 
-        if (fwdDS.size() != bwdDS.size() || fwdDS != bwdDS)
-        {
-          for (NodeVectorIt nodeIt = nodes.begin(); nodeIt != nodes.end(); nodeIt++)
+          if (fwdDS.size() != bwdDS.size() || fwdDS != bwdDS)
           {
-            double x_j_value = x_values[_nodeMap[*nodeIt]];
-            if (_tol.less(minCutValue, x_j_value))
+            for (typename NodeWeightPairVector::const_iterator it2 = compVector.begin(); it2 != compVector.end(); ++it2)
             {
-              addViolatedConstraint(*nodeIt, bwdDS);
+              //const double x_j_value = it2->first;
+              const Node j = it2->second;
+              assert(_tol.less(minCutValue, it2->first));
+              addViolatedConstraint(j, bwdDS);
               nBackCuts++;
               nCuts++;
             }
           }
-        }
 
-        // generate nested-cuts
-        for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
+          // generate nested-cuts
+          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
+          {
+            nestedCut = true;
+            // update the capactity to generate nested-cuts
+            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+          }
+
+          if (fwdDS.empty()) break;
+        }
+        else
         {
-          nestedCut = true;
-          // update the capactity to generate nested-cuts
-          _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+          break;
         }
-
-        nCuts++;
-
-        if (fwdDS.empty()) break;
-      }
-      else
-      {
-        break;
       }
     }
   }
 
   x_values.end();
-  std::cerr << "Generated " << nCuts
-            << " cuts of which " << nBackCuts << " are back-cuts and "
-            << nNestedCuts << " are nested cuts" << std::endl;
+  //std::cerr << "Generated " << nCuts
+  //          << " cuts of which " << nBackCuts << " are back-cuts and "
+  //          << nNestedCuts << " are nested cuts" << std::endl;
   //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 
-  std::cerr << "[";
-  for (int idx = 0; idx < nComp; idx++)
-  {
-    std::cerr << " " << compMatrix[idx].size();
-  }
-  std::cerr << " ]" << std::endl;
+  //std::cerr << "[";
+  //for (int idx = 0; idx < nComp; idx++)
+  //{
+  //  std::cerr << " " << compMatrix[idx].size();
+  //}
+  //std::cerr << " ]" << std::endl;
 }
 
 } // namespace mwcs

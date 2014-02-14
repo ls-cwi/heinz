@@ -36,6 +36,8 @@ public:
 
   typedef std::vector<Node> InvNodeIntMap;
   typedef std::vector<Arc> InvArcIntMap;
+  typedef typename Parent::NodeVector NodeVector;
+  typedef typename Parent::NodeVectorIt NodeVectorIt;
 
   using Parent::_mwcsGraph;
   using Parent::_root;
@@ -89,6 +91,23 @@ protected:
     return _cplex.solve();
   }
 
+private:
+  struct NodesDegComp
+  {
+  private:
+    const IntNodeMap& _deg;
+
+  public:
+    NodesDegComp(const IntNodeMap& deg)
+      : _deg(deg)
+    {
+    }
+
+    bool operator ()(Node u, Node v)
+    {
+      return _deg[u] > _deg[v];
+    }
+  };
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -171,11 +190,29 @@ inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
   if (_root == lemon::INVALID)
     _y = IloBoolVarArray(_env, _n);
 
+
+  // let's sort the nodes on degree
+  IntNodeMap deg(g);
+  _invNode.clear();
+  _invNode.reserve(_n);
+  for (NodeIt v(g); v != lemon::INVALID; ++v)
+  {
+    int d = 0;
+    for (IncEdgeIt e(g, v); e != lemon::INVALID; ++e) ++d;
+    deg[v] = d;
+    _invNode.push_back(v);
+  }
+
+  NodesDegComp comp(deg);
+  std::sort(_invNode.begin(), _invNode.end(), comp);
+
   char buf[1024];
 
   int i = 0;
-  for (NodeIt v(g); v != lemon::INVALID; ++v, i++)
+  for (NodeVectorIt it = _invNode.begin(); it != _invNode.end(); ++it, ++i)
   {
+    Node v = *it;
+
     // x_i = 0 if node i is not in the subgraph
     // x_i = 1 if node i is the subgraph
     snprintf(buf, 1024, "x_%s", _mwcsGraph.getLabel(v).c_str());
@@ -188,16 +225,12 @@ inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
       snprintf(buf, 1024, "y_%s", _mwcsGraph.getLabel(v).c_str());
       _y[i].setName(buf);
     }
-  }
 
-  _invNode.clear();
-  for (NodeIt n(g); n != lemon::INVALID; ++n)
-  {
-    (*_pNode)[n] = _invNode.size();
-    _invNode.push_back(n);
+    (*_pNode)[v] = i;
   }
 
   _invArc.clear();
+  _invArc.reserve(_m);
   for (ArcIt a(g); a != lemon::INVALID; ++a)
   {
     (*_pArc)[a] = _invArc.size();

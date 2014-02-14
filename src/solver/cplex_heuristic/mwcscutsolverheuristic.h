@@ -217,21 +217,21 @@ inline void MwcsCutSolverHeuristic<GR, NWGHT, NLBL, EWGHT>::main()
         if (_pMwcsSubTreeSolver->getSolutionWeight() > solutionWeight)
         {
           foundSolution = true;
-          bool foundRoot = false;
+          int foundRoot = _n;
           for (NodeIt n(_g); n != lemon::INVALID; ++n)
           {
             bool inSolution = _pMwcsSubTreeSolver->isNodeInSolution(n);
             solution[_nodeMap[n]] = (inSolution ? 1 : 0);
-            if (inSolution && !foundRoot && _weight[n] >= 0)
+
+            int id_n = _nodeMap[n];
+            solution[_n + id_n] = 0;
+            if (inSolution && _weight[n] >= 0 && id_n < foundRoot)
             {
-              solution[_n + _nodeMap[n]] = 1;
-              foundRoot = true;
-            }
-            else
-            {
-              solution[_n + _nodeMap[n]] = 0;
+              foundRoot = id_n;
             }
           }
+          assert(foundRoot != -1);
+          solution[_n + foundRoot] = 1;
 
           solutionWeight = _pMwcsSubTreeSolver->getSolutionWeight();
         }

@@ -265,7 +265,7 @@ private:
     {
       double x_i_value = x_values[_nodeMap[i]];
       if (!_tol.nonZero(x_i_value)) continue;
-      std::cerr << " " << _x[_nodeMap[i]].getName();
+      std::cerr << " " << _x[_nodeMap[i]].getName() << " (" << _g.id(i) << ", " << _weight[i] << ") " ;
     }
     std::cerr << std::endl;
   }
@@ -277,7 +277,7 @@ private:
     {
       double y_i_value = y_values[_nodeMap[i]];
       if (!_tol.nonZero(y_i_value)) continue;
-      std::cerr << " " << _y[_nodeMap[i]].getName();
+      std::cerr << " " << _y[_nodeMap[i]].getName() << " (" << _g.id(i) << ", " << _weight[i] << ") " ;
 
       if (getDirection(_y[_nodeMap[i]]) == CPX_BRANCH_UP)
         std::cerr << "*";
@@ -444,10 +444,10 @@ private:
     }
   }
 
-  void determineCutSet(const Digraph& h,
-                       const BkAlg& bk,
-                       NodeSet& dS,
-                       NodeSet& S)
+  void determineFwdCutSet(const Digraph& h,
+                          const BkAlg& bk,
+                          NodeSet& dS,
+                          NodeSet& S)
   {
     DiNode target = bk.getTarget();
     DiNodeList diS;
@@ -599,7 +599,7 @@ inline void NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
 
           // determine N (forward)
           NodeSet fwdS, fwdDS;
-          determineCutSet(_h, *_pBK, fwdDS, fwdS);
+          determineFwdCutSet(_h, *_pBK, fwdDS, fwdS);
 
           NodeSet bwdS, bwdDS;
           determineBwdCutSet(_h, *_pBK, bwdDS, bwdS);
@@ -641,7 +641,6 @@ inline void NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
             _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
           }
 
-          // is this needed?
           if (fwdDS.empty()) break;
         }
         else
@@ -661,12 +660,12 @@ inline void NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
 
 
   // COMMENTED OUT: 22-10-2013
-  //std::cerr << "[";
-  //for (int idx = 0; idx < nComp; idx++)
-  //{
-  //  std::cerr << " " << compMatrix[idx].size();
-  //}
-  //std::cerr << " ]" << std::endl;
+  std::cerr << "[";
+  for (int idx = 0; idx < nComp; idx++)
+  {
+    std::cerr << " " << compMatrix[idx].size();
+  }
+  std::cerr << " ]" << std::endl;
 
   //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 }

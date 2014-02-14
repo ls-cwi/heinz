@@ -146,18 +146,23 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
   IloCplex::LazyConstraintCallbackI* pCut = NULL;
   if (_root != lemon::INVALID)
   {
-    //_cplex.setParam(IloCplex::Cliques, -1);
-    //_cplex.setParam(IloCplex::Covers, -1);
-    //_cplex.setParam(IloCplex::FlowCovers, -1);
-    //_cplex.setParam(IloCplex::GUBCovers, -1);
-    //_cplex.setParam(IloCplex::FracCuts, -1);
-    //_cplex.setParam(IloCplex::MIRCuts, -1);
-    //_cplex.setParam(IloCplex::FlowPaths, -1);
-    //_cplex.setParam(IloCplex::ImplBd, -1);
-    //_cplex.setParam(IloCplex::DisjCuts, -1);
-    //_cplex.setParam(IloCplex::ZeroHalfCuts, -1);
-    //_cplex.setParam(IloCplex::MCFCuts, -1);
-
+    _cplex.setParam( IloCplex::HeurFreq      , -1 );
+    _cplex.setParam( IloCplex::Cliques       , -1 );
+    _cplex.setParam( IloCplex::Covers        , -1 );
+    _cplex.setParam( IloCplex::FlowCovers    , -1 );
+    _cplex.setParam( IloCplex::GUBCovers     , -1 );
+    _cplex.setParam( IloCplex::FracCuts      , -1 );
+    _cplex.setParam( IloCplex::MIRCuts       , -1 );
+    _cplex.setParam( IloCplex::FlowPaths     , -1 );
+    _cplex.setParam( IloCplex::ImplBd        , -1 );
+    _cplex.setParam( IloCplex::DisjCuts      , -1 );
+    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
+    _cplex.setParam( IloCplex::MCFCuts       , -1 );
+    _cplex.setParam( IloCplex::AggFill       ,  0 );
+    _cplex.setParam( IloCplex::PreInd        ,  0 );
+    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
+    _cplex.setParam( IloCplex::PreslvNd      , -1 );
+    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
     switch (_cutType)
     {
@@ -182,23 +187,23 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
   }
   else
   {
-    //_cplex.setParam(IloCplex::Cliques, -1);
-    //_cplex.setParam(IloCplex::Covers, -1);
-    //_cplex.setParam(IloCplex::FlowCovers, -1);
-    //_cplex.setParam(IloCplex::GUBCovers, -1);
-    //_cplex.setParam(IloCplex::FracCuts, -1);
-    //_cplex.setParam(IloCplex::MIRCuts, -1);
-    //_cplex.setParam(IloCplex::FlowPaths, -1);
-    //_cplex.setParam(IloCplex::ImplBd, -1);
-    //_cplex.setParam(IloCplex::DisjCuts, -1);
-    //_cplex.setParam(IloCplex::ZeroHalfCuts, -1);
-    //_cplex.setParam(IloCplex::MCFCuts, -1);
-//
-    //_cplex.setParam(IloCplex::AggFill, 0);
-    //_cplex.setParam(IloCplex::PreInd, 0);
-    //_cplex.setParam(IloCplex::RelaxPreInd, 0);
-    //_cplex.setParam(IloCplex::PreslvNd, -1);
-    //_cplex.setParam(IloCplex::RepeatPresolve, 0);
+    _cplex.setParam( IloCplex::HeurFreq      , -1 );
+    _cplex.setParam( IloCplex::Cliques       , -1 );
+    _cplex.setParam( IloCplex::Covers        , -1 );
+    _cplex.setParam( IloCplex::FlowCovers    , -1 );
+    _cplex.setParam( IloCplex::GUBCovers     , -1 );
+    _cplex.setParam( IloCplex::FracCuts      , -1 );
+    _cplex.setParam( IloCplex::MIRCuts       , -1 );
+    _cplex.setParam( IloCplex::FlowPaths     , -1 );
+    _cplex.setParam( IloCplex::ImplBd        , -1 );
+    _cplex.setParam( IloCplex::DisjCuts      , -1 );
+    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
+    _cplex.setParam( IloCplex::MCFCuts       , -1 );
+    _cplex.setParam( IloCplex::AggFill       ,  0 );
+    _cplex.setParam( IloCplex::PreInd        ,  0 );
+    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
+    _cplex.setParam( IloCplex::PreslvNd      , -1 );
+    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
     switch (_cutType)
     {
@@ -319,10 +324,13 @@ inline void MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
       else
       {
         // symmetry breaking
-        for (NodeIt j(g); j != i; ++j)
+        int id_i = (*_pNode)[i];
+
+        for (int id_j = 0; id_j < id_i; ++id_j)
         {
-          if (j == i || _mwcsGraph.getScore(j) < 0) continue;
-          _model.add(_y[(*_pNode)[i]] <= 1 - _x[(*_pNode)[j]]);
+          Node j = _invNode[id_j];
+          if (_mwcsGraph.getScore(j) < 0) continue;
+          _model.add(_y[id_i] <= 1 - _x[id_j]);
         }
       }
     }
