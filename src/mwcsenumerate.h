@@ -15,8 +15,6 @@
 #include "mwcsgraph.h"
 #include "mwcspreprocessedgraph.h"
 #include "solver/mwcssolver.h"
-#include "solver/mwcsscfsolver.h"
-#include "solver/mwcsmcfsolver.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcssizecutsolver.h"
 #include "solver/mwcstreesolver.h"
@@ -59,8 +57,6 @@ public:
   typedef lemon::FilterNodes<Graph, BoolNodeMap> SubGraph;
   typedef typename SubGraph::NodeIt SubNodeIt;
 
-  typedef MwcsSCFSolver<Graph, WeightNodeMap> MwcsScfSolverType;
-  typedef MwcsMCFSolver<Graph, WeightNodeMap> MwcsMcfSolverType;
   typedef MwcsCutSolver<Graph, WeightNodeMap> MwcsCutSolverType;
   typedef MwcsTreeSolver<Graph, WeightNodeMap> MwcsTreeSolverType;
   typedef MwcsSizeCutSolver<Graph, WeightNodeMap> MwcsSizeCutSolverType;
@@ -163,36 +159,8 @@ protected:
 
     switch (solver)
     {
-      case MwcsSolverSCF:
-        pResult = new MwcsScfSolverType(*pMwcsSubGraph);
-        break;
-      case MwcsSolverMCF:
-        pResult = new MwcsMcfSolverType(*pMwcsSubGraph);
-        break;
-      case MwcsSolverCutFlow:
-        pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_FLOW,
-                                        -1,
-                                        _timeLimit,
-                                        _multiThreading);
-        break;
-      case MwcsSolverCutFlowMin:
-        pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_FLOW_MIN,
-                                        -1,
-                                        _timeLimit,
-                                        _multiThreading);
-        break;
-      case MwcsSolverCutNodeSeparator:
-        pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR,
-                                        -1,
-                                        _timeLimit,
-                                        _multiThreading);
-        break;
       case MwcsSolverCutNodeSeparatorBk:
         pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR_BK,
                                         -1,
                                         _timeLimit,
                                         _multiThreading);
@@ -206,7 +174,6 @@ protected:
       case MwcsSizeSolverCutNodeSeparatorBk:
         pResult = new MwcsSizeCutSolverType(*pMwcsSubGraph,
                                             _moduleSize,
-                                            MwcsSizeCutSolverType::MWCS_CUT_NODE_SEPARATOR_BK,
                                             -1,
                                             _timeLimit,
                                             _multiThreading);

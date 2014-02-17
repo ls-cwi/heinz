@@ -29,17 +29,11 @@ set( Heinz_Hdr
   src/solver/mwcssolver.h
   src/solver/mwcstreeheuristicsolver.h
   src/solver/mwcstreesolver.h
-  src/solver/cplex_cut/flowcut.h
-  src/solver/cplex_cut/flowcutunrooted.h
-  src/solver/cplex_cut/flowmincut.h
-  src/solver/cplex_cut/nodecut.h
   src/solver/cplex_cut/nodecutbk.h
+  src/solver/cplex_cut/nodecutrootedbk.h
   src/solver/cplex_cut/nodecutunrootedbk.h
   src/solver/cplex_cut/bk_alg.h
-  src/solver/cplex_cut/nodecutunrooted.h
-  src/solver/mwcsflowsolver.h
-  src/solver/mwcsmcfsolver.h
-  src/solver/mwcsscfsolver.h
+  src/solver/mwcscplexsolver.h
   src/solver/mwcssizecutsolver.h
   src/solver/mwcssizetreememsolver.h
   src/solver/mwcssizetreesolver.h

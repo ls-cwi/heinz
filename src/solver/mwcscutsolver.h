@@ -24,14 +24,9 @@
 #include <lemon/preflow.h>
 
 #include "cplex_heuristic/mwcscutsolverheuristic.h"
-#include "cplex_cut/flowcut.h"
-#include "cplex_cut/flowmincut.h"
-#include "cplex_cut/nodecut.h"
-#include "cplex_cut/nodecutbk.h"
-#include "cplex_cut/flowcutunrooted.h"
-#include "cplex_cut/nodecutunrooted.h"
+#include "cplex_cut/nodecutrootedbk.h"
 #include "cplex_cut/nodecutunrootedbk.h"
-#include "mwcsflowsolver.h"
+#include "mwcscplexsolver.h"
 #include "mwcsanalyze.h"
 #include "parser/identityparser.h"
 
@@ -42,7 +37,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsCutSolver : public MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>
+class MwcsCutSolver : public MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -50,15 +45,10 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef MwcsFlowSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef MwcsCplexSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
   typedef MwcsCutSolverHeuristic<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsCutSolverHeuristicType;
 
-  typedef enum {
-    MWCS_CUT_FLOW,
-    MWCS_CUT_FLOW_MIN,
-    MWCS_CUT_NODE_SEPARATOR,
-    MWCS_CUT_NODE_SEPARATOR_BK } CutType;
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   using Parent::_mwcsGraph;
@@ -70,8 +60,6 @@ public:
   using Parent::_m;
   using Parent::_pNode;
   using Parent::_invNode;
-  using Parent::_pArc;
-  using Parent::_invArc;
   using Parent::_env;
   using Parent::_model;
   using Parent::_cplex;
@@ -92,7 +80,6 @@ public:
 
 public:
   MwcsCutSolver(const MwcsGraphType& mwcsGraph,
-                CutType cutType = MWCS_CUT_NODE_SEPARATOR,
                 int maxNumberOfCuts = -1,
                 int timeLimit = -1,
                 int multiThreading = 1);
@@ -109,7 +96,6 @@ private:
   typedef typename NodeSet::const_iterator NodeSetIt;
   typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
 
-  CutType _cutType;
   int _maxNumberOfCuts;
   int _timeLimit;
   int _multiThreading;
@@ -119,12 +105,10 @@ private:
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::MwcsCutSolver(const MwcsGraphType& mwcsGraph,
-                                                            CutType cutType,
                                                             int maxNumberOfCuts,
                                                             int timeLimit,
                                                             int multiThreading)
   : Parent(mwcsGraph)
-  , _cutType(cutType)
   , _maxNumberOfCuts(maxNumberOfCuts)
   , _timeLimit(timeLimit)
   , _multiThreading(multiThreading)
@@ -164,26 +148,9 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam( IloCplex::PreslvNd      , -1 );
     _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-    switch (_cutType)
-    {
-      case MWCS_CUT_FLOW_MIN:
-        pCut = new (_env) FlowCutMinCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                     *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_FLOW:
-        pCut = new (_env) FlowCutCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                  *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR:
-        pCut = new (_env) NodeCutCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                  *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR_BK:
-        pCut = new (_env) NodeCutBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                    *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                    pMutex);
-        break;
-    }
+    pCut = new (_env) NodeCutRootedBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
+                                                                pMutex);
   }
   else
   {
@@ -205,23 +172,9 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam( IloCplex::PreslvNd      , -1 );
     _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-    switch (_cutType)
-    {
-      case MWCS_CUT_FLOW:
-      case MWCS_CUT_FLOW_MIN:
-        pCut = new (_env) FlowCutUnrootedCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                          *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR:
-        pCut = new (_env) NodeCutUnrootedCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                          *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR_BK:
-        pCut = new (_env) NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                            *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                            pMutex);
-        break;
-    }
+    pCut = new (_env) NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                        _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
+                                                                        pMutex);
   }
 
   if (_timeLimit > 0)
@@ -240,7 +193,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 
   IloCplex::Callback cb2(new (_env) MwcsCutSolverHeuristicType(_env, _x, _y,
                                                                g, weight, _root,
-                                                               *_pNode, *_pArc,
+                                                               *_pNode,
                                                                _n, _m, pMutex));
   _cplex.use(cb2);
 

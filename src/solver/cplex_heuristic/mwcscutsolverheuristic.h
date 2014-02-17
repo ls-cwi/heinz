@@ -38,7 +38,6 @@ public:
                          const WeightNodeMap& weight,
                          Node root,
                          const IntNodeMap& nodeMap,
-                         const IntArcMap& arcMap,
                          int n,
                          int m,
                          IloFastMutex* pMutex);
@@ -63,7 +62,6 @@ private:
   const WeightNodeMap& _weight;
   const Node _root;
   const IntNodeMap& _nodeMap;
-  const IntArcMap& _arcMap;
   const int _n;
   const int _m;
   DoubleEdgeMap* _pEdgeCost;
@@ -95,7 +93,6 @@ inline MwcsCutSolverHeuristic<GR, NWGHT, NLBL, EWGHT>::MwcsCutSolverHeuristic(
       const WeightNodeMap& weight,
       Node root,
       const IntNodeMap& nodeMap,
-      const IntArcMap& arcMap,
       int n,
       int m,
       IloFastMutex* pMutex)
@@ -106,7 +103,6 @@ inline MwcsCutSolverHeuristic<GR, NWGHT, NLBL, EWGHT>::MwcsCutSolverHeuristic(
   , _weight(weight)
   , _root(root)
   , _nodeMap(nodeMap)
-  , _arcMap(arcMap)
   , _n(n)
   , _m(m)
   , _pEdgeCost(NULL)
@@ -136,7 +132,6 @@ inline MwcsCutSolverHeuristic<GR, NWGHT, NLBL, EWGHT>::MwcsCutSolverHeuristic(
   , _weight(other._weight)
   , _root(other._root)
   , _nodeMap(other._nodeMap)
-  , _arcMap(other._arcMap)
   , _n(other._n)
   , _m(other._m)
   , _pEdgeCost(NULL)

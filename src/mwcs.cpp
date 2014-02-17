@@ -23,8 +23,6 @@
 #include "preprocessing/mwcspreprocessrulenegedge.h"
 #include "preprocessing/mwcspreprocessruleposdeg01.h"
 #include "preprocessing/mwcspreprocessruleneghub.h"
-#include "solver/mwcsscfsolver.h"
-#include "solver/mwcsmcfsolver.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcstreeheuristicsolver.h"
@@ -50,8 +48,6 @@ typedef MwcsPreprocessRuleNegEdge<Graph> MwcsPreprocessRuleNegEdgeType;
 typedef MwcsPreprocessRulePosDeg01<Graph> MwcsPreprocessRulePosDeg01Type;
 typedef MwcsPreprocessRuleNegHub<Graph> MwcsPreprocessRuleNegHubType;
 typedef MwcsSolver<Graph> MwcsSolverType;
-typedef MwcsSCFSolver<Graph> MwcsSCFSolverType;
-typedef MwcsMCFSolver<Graph> MwcsMCFSolverType;
 typedef MwcsCutSolver<Graph> MwcsCutSolverType;
 typedef MwcsTreeSolver<Graph> MwcsTreeSolverType;
 typedef MwcsTreeHeuristicSolver<Graph> MwcsTreeHeuristicSolverType;
@@ -93,11 +89,6 @@ int main(int argc, char** argv)
     .refOption("e", "Edge list file", edgeFile, false)
     .refOption("n", "Node file", nodeFile, false)
     .refOption("f", "Formulation of the problem:\n"
-                        "     0 - Single Commodity Flow\n"
-                        "     1 - Multi Commodity Flow\n"
-                        "     2 - Cut formulation (Flow) \n"
-                        "     3 - Cut formulation (Flow-min)\n"
-                        "     4 - Cut formulation (Node-separator)\n"
                         "     5 - Cut formulation (Node-separator, BK, default)\n"
                         "     6 - Tree DP\n"
                         "     7 - Tree DP heuristic (fixed_edge)\n"
@@ -291,23 +282,8 @@ int main(int argc, char** argv)
         MwcsSolverType* pSolver = NULL;
         switch (formulation)
         {
-          case 0:
-            pSolver = new MwcsSCFSolverType(*pMwcs);
-            break;
-          case 1:
-            pSolver = new MwcsMCFSolverType(*pMwcs);
-            break;
-          case 2:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_FLOW, maxNumberOfCuts, timeLimit, multiThreading);
-            break;
-          case 3:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_FLOW_MIN, maxNumberOfCuts, timeLimit, multiThreading);
-            break;
-          case 4:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR, maxNumberOfCuts, timeLimit, multiThreading);
-            break;
           case 5:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR_BK, maxNumberOfCuts, timeLimit, multiThreading);
+            pSolver = new MwcsCutSolverType(*pMwcs, maxNumberOfCuts, timeLimit, multiThreading);
             break;
           case 6:
             if (rootNode == lemon::INVALID && !enumerationMode)
