@@ -31,7 +31,9 @@ set( Heinz_Hdr
   src/solver/mwcstreesolver.h
   src/solver/cplex_cut/nodecutbk.h
   src/solver/cplex_cut/nodecutrootedbk.h
+  src/solver/cplex_cut/nodecutrootedbkcallback.h
   src/solver/cplex_cut/nodecutunrootedbk.h
+  src/solver/cplex_cut/nodecutunrootedbkcallback.h
   src/solver/cplex_cut/bk_alg.h
   src/solver/mwcscplexsolver.h
   src/solver/mwcssizecutsolver.h

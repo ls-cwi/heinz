@@ -24,8 +24,8 @@
 #include <lemon/preflow.h>
 
 #include "cplex_heuristic/mwcscutsolverheuristic.h"
-#include "cplex_cut/nodecutrootedbk.h"
-#include "cplex_cut/nodecutunrootedbk.h"
+#include "cplex_cut/nodecutrootedbkcallback.h"
+#include "cplex_cut/nodecutunrootedbkcallback.h"
 #include "mwcscplexsolver.h"
 #include "mwcsanalyze.h"
 #include "parser/identityparser.h"
@@ -127,7 +127,8 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pMutex = new IloFastMutex();
   }
 
-  IloCplex::LazyConstraintCallbackI* pCut = NULL;
+  IloCplex::LazyConstraintCallbackI* pLazyCut = NULL;
+  IloCplex::UserCutCallbackI* pUserCut = NULL;
   if (_root != lemon::INVALID)
   {
     _cplex.setParam( IloCplex::HeurFreq      , -1 );
@@ -148,9 +149,12 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam( IloCplex::PreslvNd      , -1 );
     _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-    pCut = new (_env) NodeCutRootedBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                pMutex);
+    pLazyCut = new (_env) NodeCutRootedBkLazyCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                              _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
+                                                                              pMutex);
+    pUserCut = new (_env) NodeCutRootedBkUserCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                              _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
+                                                                              pMutex);
   }
   else
   {
@@ -172,9 +176,13 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam( IloCplex::PreslvNd      , -1 );
     _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-    pCut = new (_env) NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                        _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                        pMutex);
+    pLazyCut = new (_env) NodeCutUnrootedBkLazyCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                                _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
+                                                                                pMutex);
+    //pUserCut = new (_env) NodeCutUnrootedBkUserCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+    //                                                                            _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
+    //                                                                            pMutex);
+
   }
 
   if (_timeLimit > 0)
@@ -188,7 +196,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam(IloCplex::Threads, _multiThreading);
   }
 
-  IloCplex::Callback cb(pCut);
+  IloCplex::Callback cb(pLazyCut);
   _cplex.use(cb);
 
   IloCplex::Callback cb2(new (_env) MwcsCutSolverHeuristicType(_env, _x, _y,
@@ -197,10 +205,17 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
                                                                _n, _m, pMutex));
   _cplex.use(cb2);
 
+  IloCplex::Callback cb3(pUserCut);
+  _cplex.use(cb3);
+
   //exportModel("/tmp/model.lp");
   bool res = _cplex.solve();
   cb.end();
   cb2.end();
+  cb3.end();
+
+  _cplex.setParam(IloCplex::MIPInterval, 2);
+  _cplex.setParam(IloCplex::MIPDisplay, 5);
 
   if (res)
   {

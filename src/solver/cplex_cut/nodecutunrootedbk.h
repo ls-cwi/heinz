@@ -11,17 +11,9 @@
 #include <ilcplex/ilocplex.h>
 #include <ilcplex/ilocplexi.h>
 #include <ilconcert/ilothread.h>
-#include <lemon/tolerance.h>
 #include <lemon/time_measure.h>
-#include <lemon/smart_graph.h>
-#include <lemon/adaptors.h>
-#include <vector>
-#include <set>
-#include <queue>
-#include <stack>
-#include <list>
-#include <algorithm>
-#include "bk_alg.h"
+#include <lemon/connectivity.h>
+#include "nodecutbk.h"
 
 namespace nina {
 namespace mwcs {
@@ -30,101 +22,103 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class NodeCutUnrootedBkCallback : public IloCplex::LazyConstraintCallbackI
+class NodeCutUnrootedBk : public NodeCutBk<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
   typedef NWGHT WeightNodeMap;
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
+  typedef NodeCutBk<GR, NWGHT, NLBL, EWGHT> Parent;
 
+protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  typedef lemon::SmartDigraph Digraph;
-  typedef typename Digraph::Arc DiArc;
-  typedef typename Digraph::Node DiNode;
-  typedef typename Digraph::NodeIt DiNodeIt;
-  typedef typename Digraph::ArcIt DiArcIt;
-  typedef typename Digraph::InArcIt DiInArcIt;
-  typedef typename Digraph::OutArcIt DiOutArcIt;
+  typedef typename Parent::Digraph Digraph;
+  typedef typename Parent::DiArc DiArc;
+  typedef typename Parent::DiNode DiNode;
+  typedef typename Parent::DiNodeIt DiNodeIt;
+  typedef typename Parent::DiArcIt DiArcIt;
+  typedef typename Parent::DiInArcIt DiInArcIt;
+  typedef typename Parent::DiOutArcIt DiOutArcIt;
+  typedef typename Parent::DiNodeNodeMap DiNodeNodeMap;
+  typedef typename Parent::NodeDiNodeMap NodeDiNodeMap;
+  typedef typename Parent::NodeDiArcMap NodeDiArcMap;
+  typedef typename Parent::CapacityMap CapacityMap;
+  typedef typename Parent::NodeVector NodeVector;
+  typedef typename Parent::NodeVectorIt NodeVectorIt;
+  typedef typename Parent::NodeMatrix NodeMatrix;
+  typedef typename Parent::DoubleVector DoubleVector;
+  typedef typename Parent::NodeSet NodeSet;
+  typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::DiArcSet DiArcSet;
+  typedef typename Parent::DiArcSetIt DiArcSetIt;
+  typedef typename Parent::NodeQueue NodeQueue;
+  typedef typename Parent::DiNodeQueue DiNodeQueue;
+  typedef typename Parent::DiNodeSet DiNodeSet;
+  typedef typename Parent::DiNodeList DiNodeList;
+  typedef typename Parent::DiNodeListIt DiNodeListIt;
+  typedef typename Parent::SubGraph SubGraph;
+  typedef typename Parent::SubNodeIt SubNodeIt;
+  typedef typename Parent::BkAlg BkAlg;
+  typedef typename Parent::DiBoolNodeMap DiBoolNodeMap;
 
-  typedef typename Digraph::template NodeMap<Node> DiNodeNodeMap;
-  typedef typename Graph::template NodeMap<DiNode> NodeDiNodeMap;
-  typedef typename Graph::template NodeMap<DiArc> NodeDiArcMap;
-  typedef typename Digraph::ArcMap<double> CapacityMap;
+  using Parent::_x;
+  using Parent::_g;
+  using Parent::_weight;
+  using Parent::_root;
+  using Parent::_nodeMap;
+  using Parent::_n;
+  using Parent::_m;
+  using Parent::_maxNumberOfCuts;
+  using Parent::_comp;
+  using Parent::_tol;
+  using Parent::_h;
+  using Parent::_cap;
+  using Parent::_pG2h1;
+  using Parent::_pG2h2;
+  using Parent::_h2g;
+  using Parent::_diRoot;
+  using Parent::_pBK;
+  using Parent::_marked;
+  using Parent::_pMutex;
+  using Parent::_pNodeFilterMap;
+  using Parent::_pSubG;
+  using Parent::_pComp;
+  using Parent::lock;
+  using Parent::unlock;
+  using Parent::printNonZeroVars;
+  using Parent::addConstraint;
 
-  NodeCutUnrootedBkCallback(IloEnv env,
-                            IloBoolVarArray x,
-                            IloBoolVarArray y,
-                            const Graph& g,
-                            const WeightNodeMap& weight,
-                            const IntNodeMap& nodeMap,
-                            int n,
-                            int m,
-                            int maxNumberOfCuts,
-                            const IntNodeMap& comp,
-                            IloFastMutex* pMutex)
-    : IloCplex::LazyConstraintCallbackI(env)
-    , _x(x)
+  IloBoolVarArray _y;
+  NodeDiArcMap* _pG2hRootArc;
+
+public:
+  NodeCutUnrootedBk(IloBoolVarArray x,
+                    IloBoolVarArray y,
+                    const Graph& g,
+                    const WeightNodeMap& weight,
+                    const IntNodeMap& nodeMap,
+                    int n,
+                    int m,
+                    int maxNumberOfCuts,
+                    const IntNodeMap& comp,
+                    IloFastMutex* pMutex)
+    : Parent(x, g, weight, lemon::INVALID, nodeMap, n, m, maxNumberOfCuts, comp, pMutex)
     , _y(y)
-    , _g(g)
-    , _weight(weight)
-    , _nodeMap(nodeMap)
-    , _n(n)
-    , _m(m)
-    , _maxNumberOfCuts(maxNumberOfCuts)
-    , _comp(comp)
-    , _tol()
-    , _h()
-    , _cap(_h)
-    , _pG2h1(NULL)
-    , _pG2h2(NULL)
-    , _h2g(_h)
     , _pG2hRootArc(NULL)
-    , _diRoot(lemon::INVALID)
-    , _pBK(NULL)
-    , _marked(_h, false)
-    , _pMutex(pMutex)
-    , _pNodeFilterMap(NULL)
-    , _pComp(NULL)
   {
     lock();
-    _pG2h1 = new NodeDiNodeMap(_g);
-    _pG2h2 = new NodeDiNodeMap(_g);
     _pG2hRootArc = new NodeDiArcMap(_g);
-    _pNodeFilterMap = new BoolNodeMap(_g);
-    _pSubG = new SubGraph(_g, *_pNodeFilterMap);
-    _pComp = new IntNodeMap(_g);
     unlock();
 
     init();
     _pBK = new BkAlg(_h, _cap);
   }
 
-  NodeCutUnrootedBkCallback(const NodeCutUnrootedBkCallback& other)
-    : IloCplex::LazyConstraintCallbackI(other)
-    , _x(other._x)
+  NodeCutUnrootedBk(const NodeCutUnrootedBk& other)
+    : Parent(other)
     , _y(other._y)
-    , _g(other._g)
-    , _weight(other._weight)
-    , _nodeMap(other._nodeMap)
-    , _n(other._n)
-    , _m(other._m)
-    , _maxNumberOfCuts(other._maxNumberOfCuts)
-    , _comp(other._comp)
-    , _tol(other._tol)
-    , _h()
-    , _cap(_h)
-    , _pG2h1(NULL)
-    , _pG2h2(NULL)
-    , _h2g(_h)
     , _pG2hRootArc(NULL)
-    , _diRoot(lemon::INVALID)
-    , _pBK(NULL)
-    , _marked(_h, false)
-    , _pMutex(other._pMutex)
-    , _pNodeFilterMap(NULL)
-    , _pSubG(NULL)
-    , _pComp(NULL)
   {
     typename Digraph::template NodeMap<DiNode> nodeMap(other._h);
     typename Digraph::template ArcMap<DiArc> arcMap(other._h);
@@ -160,125 +154,170 @@ public:
     _pBK = new BkAlg(_h, _cap);
   }
 
-  virtual ~NodeCutUnrootedBkCallback()
+  virtual ~NodeCutUnrootedBk()
   {
-    delete _pBK;
-
     lock();
-    delete _pG2h1;
-    delete _pG2h2;
     delete _pG2hRootArc;
-    delete _pSubG;
-    delete _pNodeFilterMap;
-    delete _pComp;
     unlock();
   }
 
 protected:
-  virtual void main();
-  virtual IloCplex::CallbackI* duplicateCallback() const
+  template<class CBK>
+  void separate(CBK& cbk)
   {
-    return (new (getEnv()) NodeCutUnrootedBkCallback(*this));
-  }
+    //lemon::Timer t;
+    IloNumArray x_values(cbk.getEnv(), _n);
+    cbk.getValues(x_values, _x);
 
-private:
-  IloBoolVarArray _x;
-  IloBoolVarArray _y;
-  const Graph& _g;
-  const WeightNodeMap& _weight;
-  const IntNodeMap& _nodeMap;
-  const int _n;
-  const int _m;
-  const int _maxNumberOfCuts;
-  const IntNodeMap& _comp;
-  const lemon::Tolerance<double> _tol;
+    IloNumArray y_values(cbk.getEnv(), _n);
+    cbk.getValues(y_values, _y);
 
-  typedef nina::BkFlowAlg<Digraph> BkAlg;
-  typedef typename Digraph::NodeMap<bool> DiBoolNodeMap;
-  Digraph _h;
-  CapacityMap _cap;
-  NodeDiNodeMap* _pG2h1;
-  NodeDiNodeMap* _pG2h2;
-  DiNodeNodeMap _h2g;
-  NodeDiArcMap* _pG2hRootArc;
-  DiNode _diRoot;
-  BkAlg* _pBK;
-  DiBoolNodeMap _marked;
-  IloFastMutex* _pMutex;
+    computeCapacities(_cap, x_values, y_values);
 
-  typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
-  typedef typename SubGraph::NodeIt SubNodeIt;
-  BoolNodeMap* _pNodeFilterMap;
-  const SubGraph* _pSubG;
-  IntNodeMap* _pComp;
+    int nCuts = 0;
+    int nBackCuts = 0;
+    int nNestedCuts = 0;
 
-  typedef std::vector<Node> NodeVector;
-  typedef typename NodeVector::const_iterator NodeVectorIt;
-  typedef std::vector<NodeVector> NodeMatrix;
-  typedef std::vector<double> DoubleVector;
-  typedef std::set<Node> NodeSet;
-  typedef typename NodeSet::const_iterator NodeSetIt;
-  typedef std::set<DiArc> DiArcSet;
-  typedef typename DiArcSet::const_iterator DiArcSetIt;
+    //printNonZeroX(x_values);
+    // COMMENTED OUT: 22-10-2013
+    printNonZeroVars(cbk, _y, y_values);
+    lemon::mapFill(_g, *_pNodeFilterMap, false);
 
-  typedef std::queue<Node> NodeQueue;
-  typedef std::queue<DiNode> DiNodeQueue;
-  typedef std::set<DiNode> DiNodeSet;
-  typedef std::list<DiNode> DiNodeList;
-  typedef DiNodeList::const_iterator DiNodeListIt;
-
-  void lock()
-  {
-    if (_pMutex)
-      _pMutex->lock();
-  }
-
-  void unlock()
-  {
-    if (_pMutex)
-      _pMutex->unlock();
-  }
-
-  void printNodeSet(const NodeSet& nodes) const
-  {
-    bool first = true;
-    for (NodeSetIt it = nodes.begin(); it != nodes.end(); it++)
-    {
-      if (!first)
-        std::cout << " ";
-      else
-        first = false;
-
-      std::cout << _x[_nodeMap[*it]];
-    }
-    std::cout << std::endl;
-  }
-
-  void printNonZeroX(IloNumArray x_values) const
-  {
-    std::cerr << getNnodes() << ":";
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
       double x_i_value = x_values[_nodeMap[i]];
-      if (!_tol.nonZero(x_i_value)) continue;
-      std::cerr << " " << _x[_nodeMap[i]].getName() << " (" << _g.id(i) << ", " << _weight[i] << ") " ;
+      if (_tol.nonZero(x_i_value))
+        _pNodeFilterMap->set(i, true);
     }
-    std::cerr << std::endl;
-  }
 
-  void printNonZeroY(IloNumArray y_values) const
-  {
-    std::cerr << getNnodes() << ":";
-    for (NodeIt i(_g); i != lemon::INVALID; ++i)
+    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
+
+    typedef std::pair<double, Node> NodeWeightPair;
+    typedef std::vector<NodeWeightPair> NodeWeightPairVector;
+    typedef std::vector<NodeWeightPairVector> NodeWeightPairMatrix;
+
+    NodeWeightPairMatrix compMatrix(nComp, NodeWeightPairVector());
+
+    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
     {
-      double y_i_value = y_values[_nodeMap[i]];
-      if (!_tol.nonZero(y_i_value)) continue;
-      std::cerr << " " << _y[_nodeMap[i]].getName() << " (" << _g.id(i) << ", " << _weight[i] << ") " ;
+      double x_i_value = x_values[_nodeMap[i]];
+      int compIdx = (*_pComp)[i];
 
-      if (getDirection(_y[_nodeMap[i]]) == CPX_BRANCH_UP)
-        std::cerr << "*";
+      compMatrix[compIdx].push_back(std::make_pair(x_i_value, i));
     }
-    std::cerr << std::endl;
+
+    // sort compMatrix
+    for (int compIdx = 0; compIdx < nComp; compIdx++)
+    {
+      std::sort(compMatrix[compIdx].begin(), compMatrix[compIdx].end());
+    }
+
+    for (int compIdx = 0; compIdx < nComp; compIdx++)
+    {
+      bool foundCut = false;
+      const NodeWeightPairVector& compVector = compMatrix[compIdx];
+      for (typename NodeWeightPairVector::const_iterator it = compVector.begin();
+           !foundCut && it != compVector.end(); ++it)
+      {
+        const double x_i_value = it->first;
+        const Node i = it->second;
+
+        _pBK->setSource(_diRoot);
+        _pBK->setTarget((*_pG2h2)[i]);
+        _pBK->setCap(_cap);
+
+        bool first = true;
+        bool nestedCut = false;
+        while (true)
+        {
+          if (first)
+          {
+            _pBK->run();
+            first = false;
+          }
+          else
+          {
+            _pBK->run(true);
+          }
+
+          // let's see if there's a violated constraint
+          double minCutValue = _pBK->maxFlow();
+          if (_tol.less(minCutValue, x_i_value))
+          {
+            foundCut = true;
+
+            // determine N (forward)
+            NodeSet fwdS, fwdDS;
+            determineFwdCutSet(_h, *_pBK, fwdDS, fwdS);
+
+            NodeSet bwdS, bwdDS;
+            determineBwdCutSet(_h, *_pBK, bwdDS, bwdS);
+
+            // add violated constraints
+            for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
+            {
+              //const double x_j_value = it2->first;
+              const Node j = it2->second;
+              assert(_tol.less(minCutValue, it2->first));
+              addViolatedConstraint(cbk, j, fwdDS, fwdS);
+
+              nCuts++;
+              if (nestedCut)
+              {
+                nNestedCuts++;
+              }
+            }
+
+            if (fwdDS.size() != bwdDS.size() || fwdS.size() != bwdS.size() ||
+                fwdDS != bwdDS || bwdS != fwdS)
+            {
+              for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
+              {
+                //const double x_j_value = it2->first;
+                const Node j = it2->second;
+                assert(_tol.less(minCutValue, it2->first));
+                addViolatedConstraint(cbk, j, bwdDS, bwdS);
+                nBackCuts++;
+                nCuts++;
+              }
+            }
+
+            // generate nested-cuts
+            for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
+            {
+              nestedCut = true;
+              // update the capactity to generate nested-cuts
+              _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+            }
+
+            if (fwdDS.empty()) break;
+          }
+          else
+          {
+            break;
+          }
+        }
+      }
+    }
+
+    x_values.end();
+    y_values.end();
+
+    //std::cerr << "Generated " << nCuts
+    //          << " cuts of which " << nBackCuts << " are back-cuts and "
+    //          << nNestedCuts << " are nested cuts" << std::endl;
+
+
+    // COMMENTED OUT: 22-10-2013
+    std::cerr << "[";
+    for (int idx = 0; idx < nComp; idx++)
+    {
+      std::cerr << " " << compMatrix[idx].size();
+    }
+    std::cerr << " ]" << std::endl;
+
+    //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
+
   }
 
   void init()
@@ -341,16 +380,17 @@ private:
     }
   }
 
-  void addViolatedConstraint(Node target, const NodeSet& dS, const NodeSet& S)
+  template<class CBK>
+  void addViolatedConstraint(CBK& cbk, Node target, const NodeSet& dS, const NodeSet& S)
   {
     if (dS.empty() && S.empty())
     {
       //std::cout << getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <= 0" << std::endl;
-      add(_x[_nodeMap[target]] <= 0);
+      addConstraint(_x[_nodeMap[target]] <= 0);
     }
     else
     {
-      IloExpr expr(getEnv());
+      IloExpr expr(cbk.getEnv());
 
       //bool first = true;
       //std::cout << getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <=";
@@ -373,7 +413,7 @@ private:
       //std::cout << std::endl;
 
       IloConstraint constraint = _x[_nodeMap[target]] <= expr;
-      add(constraint);
+      addConstraint(constraint);
       constraint.end();
 
       expr.end();
@@ -508,163 +548,6 @@ private:
     }
   }
 };
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>::main()
-{
-  //lemon::Timer t;
-  IloNumArray x_values(getEnv(), _n);
-  getValues(x_values, _x);
-
-  IloNumArray y_values(getEnv(), _n);
-  getValues(y_values, _y);
-
-  computeCapacities(_cap, x_values, y_values);
-
-  int nCuts = 0;
-  int nBackCuts = 0;
-  int nNestedCuts = 0;
-
-  //printNonZeroX(x_values);
-  // COMMENTED OUT: 22-10-2013
-  printNonZeroY(y_values);
-  lemon::mapFill(_g, *_pNodeFilterMap, false);
-
-  for (NodeIt i(_g); i != lemon::INVALID; ++i)
-  {
-    double x_i_value = x_values[_nodeMap[i]];
-    if (_tol.nonZero(x_i_value))
-      _pNodeFilterMap->set(i, true);
-  }
-
-  int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-
-  typedef std::pair<double, Node> NodeWeightPair;
-  typedef std::vector<NodeWeightPair> NodeWeightPairVector;
-  typedef std::vector<NodeWeightPairVector> NodeWeightPairMatrix;
-
-  NodeWeightPairMatrix compMatrix(nComp, NodeWeightPairVector());
-
-  for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
-  {
-    double x_i_value = x_values[_nodeMap[i]];
-    int compIdx = (*_pComp)[i];
-
-    compMatrix[compIdx].push_back(std::make_pair(x_i_value, i));
-  }
-
-  // sort compMatrix
-  for (int compIdx = 0; compIdx < nComp; compIdx++)
-  {
-    std::sort(compMatrix[compIdx].begin(), compMatrix[compIdx].end());
-  }
-
-  for (int compIdx = 0; compIdx < nComp; compIdx++)
-  {
-    bool foundCut = false;
-    const NodeWeightPairVector& compVector = compMatrix[compIdx];
-    for (typename NodeWeightPairVector::const_iterator it = compVector.begin();
-         !foundCut && it != compVector.end(); ++it)
-    {
-      const double x_i_value = it->first;
-      const Node i = it->second;
-
-      _pBK->setSource(_diRoot);
-      _pBK->setTarget((*_pG2h2)[i]);
-      _pBK->setCap(_cap);
-
-      bool first = true;
-      bool nestedCut = false;
-      while (true)
-      {
-        if (first)
-        {
-          _pBK->run();
-          first = false;
-        }
-        else
-        {
-          _pBK->run(true);
-        }
-
-        // let's see if there's a violated constraint
-        double minCutValue = _pBK->maxFlow();
-        if (_tol.less(minCutValue, x_i_value))
-        {
-          foundCut = true;
-
-          // determine N (forward)
-          NodeSet fwdS, fwdDS;
-          determineFwdCutSet(_h, *_pBK, fwdDS, fwdS);
-
-          NodeSet bwdS, bwdDS;
-          determineBwdCutSet(_h, *_pBK, bwdDS, bwdS);
-
-          // add violated constraints
-          for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
-          {
-            //const double x_j_value = it2->first;
-            const Node j = it2->second;
-            assert(_tol.less(minCutValue, it2->first));
-            addViolatedConstraint(j, fwdDS, fwdS);
-
-            nCuts++;
-            if (nestedCut)
-            {
-              nNestedCuts++;
-            }
-          }
-
-          if (fwdDS.size() != bwdDS.size() || fwdS.size() != bwdS.size() ||
-              fwdDS != bwdDS || bwdS != fwdS)
-          {
-            for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
-            {
-              //const double x_j_value = it2->first;
-              const Node j = it2->second;
-              assert(_tol.less(minCutValue, it2->first));
-              addViolatedConstraint(j, bwdDS, bwdS);
-              nBackCuts++;
-              nCuts++;
-            }
-          }
-
-          // generate nested-cuts
-          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
-          {
-            nestedCut = true;
-            // update the capactity to generate nested-cuts
-            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
-          }
-
-          if (fwdDS.empty()) break;
-        }
-        else
-        {
-          break;
-        }
-      }
-    }
-  }
-
-  x_values.end();
-  y_values.end();
-
-  //std::cerr << "Generated " << nCuts
-  //          << " cuts of which " << nBackCuts << " are back-cuts and "
-  //          << nNestedCuts << " are nested cuts" << std::endl;
-
-
-  // COMMENTED OUT: 22-10-2013
-  std::cerr << "[";
-  for (int idx = 0; idx < nComp; idx++)
-  {
-    std::cerr << " " << compMatrix[idx].size();
-  }
-  std::cerr << " ]" << std::endl;
-
-  //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
-}
 
 } // namespace mwcs
 } // namespace nina
