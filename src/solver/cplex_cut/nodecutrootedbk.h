@@ -86,6 +86,7 @@ protected:
   using Parent::_pComp;
   using Parent::lock;
   using Parent::unlock;
+  using Parent::printNonZeroVars;
   using Parent::addConstraint;
 
 public:
@@ -157,6 +158,8 @@ protected:
     int nCuts = 0;
     int nBackCuts = 0;
     int nNestedCuts = 0;
+
+    //printNonZeroVars(cbk, _x, x_values);
 
     lemon::mapFill(_g, *_pNodeFilterMap, false);
 
@@ -234,9 +237,9 @@ protected:
             determineBwdCutSet(_h, *_pBK, bwdDS);
 
             // add violated constraints
-            for (typename NodeWeightPairVector::const_iterator it2 = compVector.begin(); it2 != compVector.end(); ++it2)
+            for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
             {
-              const double x_j_value = it2->first;
+              //const double x_j_value = it2->first;
               const Node j = it2->second;
               assert(_tol.less(minCutValue, it2->first));
               addViolatedConstraint(cbk, j, fwdDS);
@@ -250,7 +253,7 @@ protected:
 
             if (fwdDS.size() != bwdDS.size() || fwdDS != bwdDS)
             {
-              for (typename NodeWeightPairVector::const_iterator it2 = compVector.begin(); it2 != compVector.end(); ++it2)
+              for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
               {
                 //const double x_j_value = it2->first;
                 const Node j = it2->second;
@@ -290,7 +293,10 @@ protected:
     {
       std::cerr << " " << compMatrix[idx].size();
     }
-    std::cerr << " ]" << std::endl;
+    std::cerr << " ]"// << std::endl;
+              << " Generated " << nCuts
+              << " cuts of which " << nBackCuts << " are back-cuts and "
+              << nNestedCuts << " are nested cuts" << std::endl;
 
   }
 
@@ -379,21 +385,21 @@ protected:
   {
     if (dS.empty())
     {
-      //std::cout << getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <= 0" << std::endl;
+      //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <= 0" << std::endl;
       addConstraint(_x[_nodeMap[target]] <= 0);
     }
     else
     {
       IloExpr expr(cbk.getEnv());
 
-      //bool first = true;
-      //std::cout << getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <=";
+      bool first = true;
+      //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <=";
       for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
       {
         expr += _x[_nodeMap[*nodeIt]];
 
         //std::cout << (first ? " " : " + ") << _x[_nodeMap[*nodeIt]].getName();
-        //first = false;
+        first = false;
       }
       //std::cout << std::endl;
 

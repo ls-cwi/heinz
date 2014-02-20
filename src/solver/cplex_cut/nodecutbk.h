@@ -204,7 +204,7 @@ protected:
       double i_value = values[_nodeMap[i]];
       if (!_tol.nonZero(i_value)) continue;
       std::cerr << " " << variables[_nodeMap[i]].getName()
-                << " (" << _g.id(i) << ", " << _weight[i] << ") " ;
+                << " (" << _g.id(i) << ", " << _weight[i] << ", " << i_value << ") " ;
 
       if (cbk.getDirection(variables[_nodeMap[i]]) == CPX_BRANCH_UP)
         std::cerr << "*";

@@ -114,7 +114,7 @@ public:
 protected:
   virtual void main()
   {
-    std::cerr << "L: " << getNnodes() << std::endl;
+    //std::cerr << "L: " << getNnodes() << std::endl;
     separate(*this);
   }
 
@@ -230,7 +230,7 @@ public:
 protected:
   virtual void main()
   {
-    std::cerr << "U: " << getNnodes() << std::endl;
+    //std::cerr << "U: " << getNnodes() << std::endl;
     separate(*this);
   }
 
