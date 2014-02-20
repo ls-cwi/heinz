@@ -97,15 +97,15 @@ protected:
 
 public:
   NodeCutBk(IloBoolVarArray x,
-                    const Graph& g,
-                    const WeightNodeMap& weight,
-                    Node root,
-                    const IntNodeMap& nodeMap,
-                    int n,
-                    int m,
-                    int maxNumberOfCuts,
-                    const IntNodeMap& comp,
-                    IloFastMutex* pMutex)
+            const Graph& g,
+            const WeightNodeMap& weight,
+            Node root,
+            const IntNodeMap& nodeMap,
+            int n,
+            int m,
+            int maxNumberOfCuts,
+            const IntNodeMap& comp,
+            IloFastMutex* pMutex)
     : _x(x)
     , _g(g)
     , _weight(weight)
@@ -212,7 +212,9 @@ protected:
     std::cerr << std::endl;
   }
 
-  void printNodeSet(const NodeSet& nodes) const
+  void printNodeSet(const NodeSet& nodes,
+                    IloBoolVarArray variables,
+                    IloNumArray values) const
   {
     bool first = true;
     for (NodeSetIt it = nodes.begin(); it != nodes.end(); it++)
@@ -222,7 +224,7 @@ protected:
       else
         first = false;
 
-      std::cout << _x[_nodeMap[*it]];
+      std::cout << values[_nodeMap[*it]];
     }
     std::cout << std::endl;
   }

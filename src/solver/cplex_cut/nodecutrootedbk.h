@@ -88,6 +88,7 @@ protected:
   using Parent::unlock;
   using Parent::printNonZeroVars;
   using Parent::addConstraint;
+  using Parent::printNodeSet;
 
 public:
   NodeCutRootedBk(IloBoolVarArray x,
@@ -227,14 +228,28 @@ protected:
           double minCutValue = _pBK->maxFlow();
           if (_tol.less(minCutValue, x_i_value))
           {
+            std::cout << x_i_value << " - " << minCutValue << " = " << x_i_value - minCutValue << std::endl;
             foundCut = true;
 
             // determine N (forward)
             NodeSet fwdDS;
             determineFwdCutSet(_h, *_pBK, fwdDS);
 
+            printNodeSet(fwdDS, _x, x_values);
+
+            //double m = 0;
+            //for (NodeSetIt it = fwdDS.begin(); it != fwdDS.end(); ++it)
+            //{
+            //  if (!_tol.nonZero(x_values[_nodeMap[*it]]))
+            //    m += 1e-9;
+            //  else
+            //    m += x_values[_nodeMap[*it]];
+            //}
+            //assert(!_tol.different(m, minCutValue));
+
             NodeSet bwdDS;
             determineBwdCutSet(_h, *_pBK, bwdDS);
+
 
             // add violated constraints
             for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
