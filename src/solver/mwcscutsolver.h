@@ -179,9 +179,9 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pLazyCut = new (_env) NodeCutUnrootedBkLazyCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
                                                                                 _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
                                                                                 pMutex);
-    //pUserCut = new (_env) NodeCutUnrootedBkUserCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-    //                                                                            _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-    //                                                                            pMutex);
+    pUserCut = new (_env) NodeCutUnrootedBkUserCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                                _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
+                                                                                pMutex);
 
   }
 

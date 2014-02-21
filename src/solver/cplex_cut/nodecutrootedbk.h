@@ -89,6 +89,7 @@ protected:
   using Parent::printNonZeroVars;
   using Parent::addConstraint;
   using Parent::printNodeSet;
+  using Parent::isUser;
 
 public:
   NodeCutRootedBk(IloBoolVarArray x,
@@ -196,6 +197,7 @@ protected:
       std::sort(compMatrix[compIdx].begin(), compMatrix[compIdx].end());
     }
 
+    _pBK->setSource(_diRoot);
     for (int compIdx = 0; compIdx < nComp; compIdx++)
     {
       bool foundCut = false;
@@ -206,7 +208,6 @@ protected:
         const double x_i_value = it->first;
         const Node i = it->second;
 
-        _pBK->setSource(_diRoot);
         _pBK->setTarget((*_pG2h2)[i]);
         _pBK->setCap(_cap);
 
@@ -226,30 +227,38 @@ protected:
 
           // let's see if there's a violated constraint
           double minCutValue = _pBK->maxFlow();
+          //std::cout << _x[_nodeMap[i]].getName() << ": " << x_i_value << " - " << minCutValue << " = " << x_i_value - minCutValue << std::endl;
           if (_tol.less(minCutValue, x_i_value))
           {
-            std::cout << x_i_value << " - " << minCutValue << " = " << x_i_value - minCutValue << std::endl;
             foundCut = true;
 
             // determine N (forward)
             NodeSet fwdDS;
             determineFwdCutSet(_h, *_pBK, fwdDS);
 
-            printNodeSet(fwdDS, _x, x_values);
+            //printNodeSet(fwdDS, _x, x_values);
+            //exit(1);
 
             //double m = 0;
-            //for (NodeSetIt it = fwdDS.begin(); it != fwdDS.end(); ++it)
+            //for (NodeSetIt it3 = fwdDS.begin(); it3 != fwdDS.end(); ++it3)
             //{
-            //  if (!_tol.nonZero(x_values[_nodeMap[*it]]))
+            //  if (!_tol.nonZero(x_values[_nodeMap[*it3]]))
             //    m += 1e-9;
             //  else
-            //    m += x_values[_nodeMap[*it]];
+            //    m += x_values[_nodeMap[*it3]];
             //}
-            //assert(!_tol.different(m, minCutValue));
+            //if (_tol.different(m, minCutValue))
+            //{
+            //  std::cout << "m != minCutValue: " << m << " != " << minCutValue << std::endl;
+            //  std::cout << "Max flow: " << _pBK->maxFlow() << std::endl;
+            //  std::cout << "BK cut-set:" << std::endl;
+            //  _pBK->run();
+            //  _pBK->printFlow(std::cout, true);
+            //  exit(1);
+            //}
 
             NodeSet bwdDS;
             determineBwdCutSet(_h, *_pBK, bwdDS);
-
 
             // add violated constraints
             for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
@@ -310,6 +319,7 @@ protected:
     }
     std::cerr << " ]"// << std::endl;
               << " Generated " << nCuts
+              << (isUser() ? " user" : " lazy")
               << " cuts of which " << nBackCuts << " are back-cuts and "
               << nNestedCuts << " are nested cuts" << std::endl;
 
@@ -323,6 +333,7 @@ protected:
     // - for every edge (i,j) there are two arcs
     //   in h: (i2,j1) and (j2,i1) with capacties 1
     _h.clear();
+    _diRoot = _h.addNode();
 
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
@@ -340,7 +351,6 @@ protected:
       }
       else
       {
-        _diRoot = _h.addNode();
         _pG2h1->set(i, _diRoot);
         _pG2h2->set(i, _diRoot);
         _h2g[_diRoot] = _root;
@@ -455,6 +465,17 @@ protected:
           _marked[u] = true;
         }
       }
+
+      for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
+      {
+        DiNode u = _h.target(a);
+
+        if (!_marked[u] && _tol.nonZero(bk.revResCap(a)))
+        {
+          queue.push(u);
+          _marked[u] = true;
+        }
+      }
     }
 
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
@@ -506,6 +527,17 @@ protected:
           _marked[w] = true;
         }
       }
+
+      for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
+      {
+        DiNode w = _h.source(a);
+
+        if (!_marked[w] && _tol.nonZero(bk.revResCap(a)))
+        {
+          queue.push(w);
+          _marked[w] = true;
+        }
+      }
     }
 
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
@@ -518,9 +550,10 @@ protected:
         DiNode w = h.target(a);
         if (!_marked[w] && w != target)
         {
+          assert(v != _diRoot);
           //std::cout << _h.id(v) << " -> "
           //          << _h.id(w) << " "
-          //          << bk.flow(a) << "/" << bk.cap(a) << std::endl;
+          //          << bk.flow(a) << "/" << bk.cap(a) << " : " << bk.resCap(a) << std::endl;
           dS.insert(_h2g[w]);
         }
       }

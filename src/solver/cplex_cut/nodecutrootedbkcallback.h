@@ -83,6 +83,7 @@ protected:
   using Parent::lock;
   using Parent::unlock;
   using Parent::separate;
+  using Parent::isUser;
 
 public:
   NodeCutRootedBkLazyCallback(IloEnv env,
@@ -126,6 +127,11 @@ protected:
   virtual void addConstraint(IloConstraint con)
   {
     add(con);
+  }
+
+  virtual bool isUser() const
+  {
+    return false;
   }
 };
 
@@ -199,6 +205,7 @@ protected:
   using Parent::lock;
   using Parent::unlock;
   using Parent::separate;
+  using Parent::isUser;
 
 public:
   NodeCutRootedBkUserCallback(IloEnv env,
@@ -241,7 +248,12 @@ protected:
 
   virtual void addConstraint(IloConstraint con)
   {
-    add(con);
+    addLocal(con);
+  }
+
+  virtual bool isUser() const
+  {
+    return true;
   }
 };
 

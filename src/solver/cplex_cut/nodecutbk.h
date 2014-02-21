@@ -192,6 +192,8 @@ protected:
 
   virtual void init() = 0;
 
+  virtual bool isUser() const = 0;
+
   virtual void addConstraint(IloConstraint con) = 0;
 
   void printNonZeroVars(IloCplex::ControlCallbackI& cbk,

@@ -88,6 +88,7 @@ protected:
   using Parent::unlock;
   using Parent::printNonZeroVars;
   using Parent::addConstraint;
+  using Parent::isUser;
 
   IloBoolVarArray _y;
   NodeDiArcMap* _pG2hRootArc;
@@ -180,7 +181,7 @@ protected:
 
     //printNonZeroX(x_values);
     // COMMENTED OUT: 22-10-2013
-    printNonZeroVars(cbk, _y, y_values);
+    //printNonZeroVars(cbk, _y, y_values);
     lemon::mapFill(_g, *_pNodeFilterMap, false);
 
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
@@ -304,17 +305,18 @@ protected:
     y_values.end();
 
     //std::cerr << "Generated " << nCuts
+    //          << (isUser() ? " user" : " lazy")
     //          << " cuts of which " << nBackCuts << " are back-cuts and "
     //          << nNestedCuts << " are nested cuts" << std::endl;
 
 
     // COMMENTED OUT: 22-10-2013
-    std::cerr << "[";
-    for (int idx = 0; idx < nComp; idx++)
-    {
-      std::cerr << " " << compMatrix[idx].size();
-    }
-    std::cerr << " ]" << std::endl;
+    //std::cerr << "[";
+    //for (int idx = 0; idx < nComp; idx++)
+    //{
+    //  std::cerr << " " << compMatrix[idx].size();
+    //}
+    //std::cerr << " ]" << std::endl;
 
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 
@@ -450,6 +452,17 @@ protected:
           _marked[u] = true;
         }
       }
+
+      for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
+      {
+        DiNode u = _h.target(a);
+
+        if (!_marked[u] && _tol.nonZero(bk.revResCap(a)))
+        {
+          queue.push(u);
+          _marked[u] = true;
+        }
+      }
     }
 
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
@@ -505,6 +518,17 @@ protected:
         DiNode w = _h.target(a);
 
         if (!_marked[w] && _tol.nonZero(bk.resCap(a)))
+        {
+          queue.push(w);
+          _marked[w] = true;
+        }
+      }
+
+      for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
+      {
+        DiNode w = _h.source(a);
+
+        if (!_marked[w] && _tol.nonZero(bk.revResCap(a)))
         {
           queue.push(w);
           _marked[w] = true;

@@ -49,6 +49,7 @@ public:
   void incCap(Arc a, double c);
   void setCap(const CapacityMap& cap);
   double resCap(Arc a) const;
+  double revResCap(Arc a) const;
   double cap(Arc a) const;
   double run(bool reuse = false);
   double flow(Arc a) const;
@@ -60,7 +61,7 @@ public:
   void setSource(Node source);
   void setTarget(Node target);
 
-  void printFlow(std::ostream& out) const;
+  void printFlow(std::ostream& out, bool cutOnly = false) const;
   void printCut(std::ostream& out) const;
 
 private:
@@ -211,6 +212,13 @@ double BkFlowAlg<DGR>::resCap(Arc a) const
 }
 
 template<typename DGR>
+double BkFlowAlg<DGR>::revResCap(Arc a) const
+{
+  BkArc* pBkArc = _bkArc[a];
+  return pBkArc->sister->r_cap;
+}
+
+template<typename DGR>
 double BkFlowAlg<DGR>::cap(Arc a) const
 {
   return _cap[a];
@@ -231,7 +239,9 @@ template<typename DGR>
 void BkFlowAlg<DGR>::setTarget(Node target)
 {
   if (_target != lemon::INVALID)
+  {
     _pBK->set_trcap(_bkNode[_target], 0);
+  }
 
   const double max = std::numeric_limits<double>::max();
   _target = target;
@@ -239,7 +249,7 @@ void BkFlowAlg<DGR>::setTarget(Node target)
 }
 
 template<typename DGR>
-void BkFlowAlg<DGR>::printFlow(std::ostream& out) const
+void BkFlowAlg<DGR>::printFlow(std::ostream& out, bool cutOnly) const
 {
   for (ArcIt a(_g); a != lemon::INVALID; ++a)
   {
@@ -247,12 +257,14 @@ void BkFlowAlg<DGR>::printFlow(std::ostream& out) const
     Node w = _g.target(a);
     if (cut(a))
     {
+      out << _g.id(a) << " : ";
       out << _g.id(v) << " -> " << _g.id(w)
           << " * " << flow(a) << "/" << _cap[a]
           << std::endl;
     }
-    else
+    else if (!cutOnly)
     {
+      out << _g.id(a) << " : ";
       out << _g.id(v) << " -> " << _g.id(w)
           << "   " << flow(a) << "/" << _cap[a]
           << std::endl;
