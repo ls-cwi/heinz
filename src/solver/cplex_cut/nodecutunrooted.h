@@ -81,9 +81,9 @@ public:
   {
   }
 
-//  virtual ~NodeCutUnrootedLazyConstraint()
-//  {
-//  }
+  virtual ~NodeCutUnrootedLazyConstraint()
+  {
+  }
 
 protected:
   virtual void main()
@@ -93,7 +93,6 @@ protected:
 
   virtual IloCplex::CallbackI* duplicateCallback() const
   {
-    std::cout << "Duplicate!" << std::endl;
     return (new (getEnv()) NodeCutUnrootedLazyConstraint(*this));
   }
 
@@ -169,18 +168,18 @@ protected:
         }
       }
 
-      std::cerr << "[";
-      for (int idx = 0; idx < nComp; idx++)
-      {
-        std::cerr << " " << compMatrix[idx].size();
-      }
-      std::cerr << " ]" << std::endl;
+//      std::cerr << "[";
+//      for (int idx = 0; idx < nComp; idx++)
+//      {
+//        std::cerr << " " << compMatrix[idx].size();
+//      }
+//      std::cerr << " ]" << std::endl;
     }
     
     x_values.end();
     y_values.end();
     
-    std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
+//    std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
   }
 };
 
@@ -247,6 +246,7 @@ protected:
   using Parent::_diRoot;
   using Parent::_pBK;
   using Parent::_marked;
+  using Parent::_cutCount;
 
   using Parent::lock;
   using Parent::unlock;
@@ -435,7 +435,7 @@ protected:
     x_values.end();
     y_values.end();
     
-    std::cerr << "Generated " << nCuts
+    std::cerr <<  "#" << _cutCount << ": generated " << nCuts
               << " user cuts of which " << nBackCuts << " are back-cuts and "
               << nNestedCuts << " are nested cuts" << std::endl;
     
