@@ -336,17 +336,15 @@ protected:
     int nCuts = 0;
     int nBackCuts = 0;
     int nNestedCuts = 0;
-    
-    //printNonZeroVars(cbk, _y, y_values);
-    
+
+    _pBK->setSource(_diRoot);
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
       // skip if node was already considered or its x-value is 0
       if (!(*_pNodeBoolMap)[i]) continue;
 
       const double x_i_value = x_values[_nodeMap[i]];
-      
-      _pBK->setSource(_diRoot);
+    
       _pBK->setTarget((*_pG2h2)[i]);
       _pBK->setCap(_cap);
       
@@ -381,8 +379,8 @@ protected:
           determineBwdCutSet(_h, *_pBK, bwdDS, bwdS);
           
           bool backCuts = fwdDS.size() != bwdDS.size() ||
-          fwdS.size() != bwdS.size() ||
-          fwdDS != bwdDS || bwdS != fwdS;
+                          fwdS.size() != bwdS.size() ||
+                          fwdDS != bwdDS || bwdS != fwdS;
           
           // add violated constraints for all nodes j in fwdS with x_j >= x_i
           for (NodeSetIt it2 = fwdS.begin(); it2 != fwdS.end(); ++it2)
@@ -438,13 +436,6 @@ protected:
     std::cerr <<  "#" << _cutCount << ": generated " << nCuts
               << " user cuts of which " << nBackCuts << " are back-cuts and "
               << nNestedCuts << " are nested cuts" << std::endl;
-    
-    //    std::cerr << "[";
-    //    for (int idx = 0; idx < nComp; idx++)
-    //    {
-    //      std::cerr << " " << compMatrix[idx].size();
-    //    }
-    //    std::cerr << " ]" << std::endl;
     
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }

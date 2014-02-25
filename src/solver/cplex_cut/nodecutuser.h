@@ -139,6 +139,7 @@ public:
     , _cap(_h)
     , _pG2h1(NULL)
     , _pG2h2(NULL)
+    , _pG2hRootArc(NULL)
     , _h2g(_h)
     , _diRoot(lemon::INVALID)
     , _pBK(NULL)

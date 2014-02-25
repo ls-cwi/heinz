@@ -32,7 +32,6 @@ set( Heinz_Hdr
   src/solver/cplex_cut/nodecut.h
   src/solver/cplex_cut/nodecutuser.h
   src/solver/cplex_cut/nodecutlazy.h
-  src/solver/cplex_cut/nodecutrootedbk.h
   src/solver/cplex_cut/nodecutrooted.h
   src/solver/cplex_cut/nodecutunrooted.h
   src/solver/cplex_cut/bk_alg.h

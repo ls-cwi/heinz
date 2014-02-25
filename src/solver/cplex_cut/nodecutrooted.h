@@ -103,63 +103,66 @@ protected:
     typedef std::vector<NodeSet> NodeSetVector;
     typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
     
+    for (NodeIt i(_g); i != lemon::INVALID; ++i)
+    {
+      int idx_i = _nodeMap[i];
+      _pNodeBoolMap->set(i, _tol.nonZero(x_values[idx_i]));
+    }
+    
     const int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (nComp == 1)
+    if (nComp > 1)
     {
-      // nothing to separate...
-      return;
-    }
-    
-    NodeSetVector compMatrix(nComp, NodeSet());
-    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
-    {
-      int compIdx = (*_pComp)[i];
-      compMatrix[compIdx].insert(i);
-    }
-    
-    int nCuts = 0;
-    for (int compIdx = 0; compIdx < nComp; compIdx++)
-    {
-      const NodeSet& S = compMatrix[compIdx];
-      
-      if (S.find(_root) != S.end())
+      NodeSetVector compMatrix(nComp, NodeSet());
+      for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
       {
-        // nothing to separate as root is in S
-        continue;
+        int compIdx = (*_pComp)[i];
+        compMatrix[compIdx].insert(i);
       }
       
-      // determine dS
-      NodeSet dS;
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      int nCuts = 0;
+      for (int compIdx = 0; compIdx < nComp; compIdx++)
       {
-        const Node i = *it;
-        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        const NodeSet& S = compMatrix[compIdx];
+        
+        if (S.find(_root) != S.end())
         {
-          const Node j = _g.target(a);
-          if (S.find(j) == S.end())
+          // nothing to separate as root is in S
+          continue;
+        }
+        
+        // determine dS
+        NodeSet dS;
+        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+        {
+          const Node i = *it;
+          for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
           {
-            dS.insert(j);
+            const Node j = _g.target(a);
+            if (S.find(j) == S.end())
+            {
+              dS.insert(j);
+            }
           }
+        }
+        
+        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+        {
+          const Node i = *it;
+          addViolatedConstraint(*this, i, dS);
+          ++nCuts;
         }
       }
       
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-      {
-        const Node i = *it;
-        addViolatedConstraint(*this, i, dS);
-        ++nCuts;
-      }
+//      std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
+//      std::cerr << "[";
+//      for (int idx = 0; idx < nComp; idx++)
+//      {
+//        std::cerr << " " << compMatrix[idx].size();
+//      }
+//      std::cerr << " ]" << std::endl;
     }
     
     x_values.end();
-    
-    //    std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
-    //    std::cerr << "[";
-    //    for (int idx = 0; idx < nComp; idx++)
-    //    {
-    //      std::cerr << " " << compMatrix[idx].size();
-    //    }
-    //    std::cerr << " ]" << std::endl;
   }
 };
 
@@ -226,6 +229,7 @@ protected:
   using Parent::_diRoot;
   using Parent::_pBK;
   using Parent::_marked;
+  using Parent::_cutCount;
   
   using Parent::lock;
   using Parent::unlock;
@@ -233,6 +237,7 @@ protected:
   using Parent::determineBwdCutSet;
   using Parent::addViolatedConstraint;
   using Parent::getEnv;
+  using Parent::getValues;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -297,7 +302,179 @@ protected:
 
   void separate()
   {
-    // todo
+    IloNumArray x_values(getEnv(), _n);
+    getValues(x_values, _x);
+    
+    computeCapacities(_cap, x_values);
+    
+    int nCuts = 0;
+    int nBackCuts = 0;
+    int nNestedCuts = 0;
+
+    _pBK->setSource(_diRoot);
+    _pNodeBoolMap->set(_root, false);
+    for (NodeIt i(_g); i != lemon::INVALID; ++i)
+    {
+      // skip if node was already considered or its x-value is 0
+      if (!(*_pNodeBoolMap)[i]) continue;
+      
+      const double x_i_value = x_values[_nodeMap[i]];
+      
+      _pBK->setTarget((*_pG2h2)[i]);
+      _pBK->setCap(_cap);
+
+      bool nestedCut = false;
+      bool first = true;
+      while (true)
+      {
+        if (first)
+        {
+          _pBK->run();
+          first = false;
+        }
+        else
+        {
+          _pBK->run(true);
+        }
+        
+        // let's see if there's a violated constraint
+        double minCutValue = _pBK->maxFlow();
+        if (_tol.less(minCutValue, x_i_value))
+        {
+          // determine N (forward)
+          NodeSet fwdDS;
+          determineFwdCutSet(_h, *_pBK, fwdDS);
+          
+          // numerical instability may cause minCutValue < x_i_value
+          // even though there is nothing to cut
+          if (fwdDS.empty()) break;
+          
+          // determine N (forward)
+          NodeSet bwdDS;
+          determineBwdCutSet(_h, *_pBK, bwdDS);
+          
+          bool backCuts = fwdDS.size() != bwdDS.size() || fwdDS != bwdDS;
+          
+          // add violated constraints
+          _pNodeBoolMap->set(i, false);
+          addViolatedConstraint(*this, i, fwdDS);
+          ++nCuts;
+          if (nestedCut) ++nNestedCuts;
+          
+          if (backCuts)
+          {
+            addViolatedConstraint(*this, i, bwdDS);
+            ++nCuts;
+            ++nBackCuts;
+          }
+          
+          // generate nested-cuts
+          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
+          {
+            nestedCut = true;
+            // update the capactity to generate nested-cuts
+            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+          }
+        }
+        else
+        {
+          break;
+        }
+      }
+
+//      std::cerr <<  "#" << _cutCount << ": generated " << nCuts
+//                << " user cuts of which " << nBackCuts << " are back-cuts and "
+//                << nNestedCuts << " are nested cuts" << std::endl;
+    }
+    
+    x_values.end();
+  }
+  
+  void computeCapacities(CapacityMap& capacity,
+                         IloNumArray x_values)
+  {
+    // cap((i,j)) = x_i
+    for (NodeIt v(_g); v != lemon::INVALID; ++v)
+    {
+      double val = x_values[_nodeMap[v]];
+      if (!_tol.nonZero(val))
+      {
+        _pNodeBoolMap->set(v, false);
+        val = 10 * _epsilon;
+      }
+      else
+      {
+        _pNodeBoolMap->set(v, true);
+      }
+      
+      DiNode v1 = (*_pG2h1)[v];
+      DiOutArcIt a(_h, v1);
+      
+      if (a != lemon::INVALID)
+      {
+        capacity[a] = val;
+      }
+      else
+      {
+        assert(v == _root);
+      }
+    }
+  }
+  
+  void determineBwdCutSet(const Digraph& h,
+                          const BkAlg& bk,
+                          NodeSet& dS)
+  {
+    DiNode target = bk.getTarget();
+    DiNodeList diS;
+    determineBwdCutSet(h, bk, target, diS);
+    
+    for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
+    {
+      DiNode v = *nodeIt;
+      assert(_marked[v]);
+      if (v == target) continue;
+      
+      for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
+      {
+        DiNode u = h.source(a);
+        if (!_marked[u])
+        {
+          //std::cout << _h.id(u) << " -> "
+          //          << _h.id(v) << " "
+          //          << bk.flow(a) << "/" << bk.cap(a) << std::endl;
+          dS.insert(_h2g[v]);
+        }
+      }
+    }
+  }
+  
+  void determineFwdCutSet(const Digraph& h,
+                          const BkAlg& bk,
+                          NodeSet& dS)
+  {
+    DiNode target = bk.getTarget();
+    DiNodeList diS;
+    determineFwdCutSet(h, bk, diS);
+    
+    for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
+    {
+      DiNode v = *nodeIt;
+      assert(_marked[v]);
+      
+      for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
+      {
+        DiNode w = h.target(a);
+        if (!_marked[w] && w != target)
+        {
+          assert(v != _diRoot);
+          //std::cout << _h.id(v) << " -> "
+          //          << _h.id(w) << " "
+          //          << bk.flow(a) << "/" << bk.cap(a) << " : " << bk.resCap(a) << std::endl;
+          dS.insert(_h2g[w]);
+        }
+      }
+    }
   }
   
   void init()
