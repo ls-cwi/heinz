@@ -27,8 +27,8 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class NodeCutUser : public NodeCut<GR, NWGHT, NLBL, EWGHT>,
-                    public IloCplex::UserCutCallbackI
+class NodeCutUser : public IloCplex::UserCutCallbackI,
+                    public NodeCut<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -112,8 +112,8 @@ public:
               int m,
               int maxNumberOfCuts,
               IloFastMutex* pMutex)
-    : Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
-    , IloCplex::UserCutCallbackI(env)
+    : IloCplex::UserCutCallbackI(env)
+    , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
     , _h()
     , _cap(_h)
     , _pG2h1(NULL)
@@ -133,8 +133,8 @@ public:
   }
   
   NodeCutUser(const NodeCutUser& other)
-    : Parent(other)
-    , IloCplex::UserCutCallbackI(other)
+    : IloCplex::UserCutCallbackI(other)
+    , Parent(other)
     , _h()
     , _cap(_h)
     , _pG2h1(NULL)

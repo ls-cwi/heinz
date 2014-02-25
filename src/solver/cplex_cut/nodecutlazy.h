@@ -27,8 +27,8 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class NodeCutLazy : public NodeCut<GR, NWGHT, NLBL, EWGHT>,
-                    public IloCplex::LazyConstraintCallbackI
+class NodeCutLazy : public IloCplex::LazyConstraintCallbackI,
+                    public NodeCut<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -76,8 +76,8 @@ public:
               int m,
               int maxNumberOfCuts,
               IloFastMutex* pMutex)
-    : Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
-    , IloCplex::LazyConstraintCallbackI(env)
+    : IloCplex::LazyConstraintCallbackI(env)
+    , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
     , _pSubG(NULL)
     , _pComp(NULL)
   {
@@ -88,8 +88,8 @@ public:
   }
   
   NodeCutLazy(const NodeCutLazy& other)
-    : Parent(other)
-    , IloCplex::LazyConstraintCallbackI(other)
+    : IloCplex::LazyConstraintCallbackI(other)
+    , Parent(other)
     , _pSubG(NULL)
     , _pComp(NULL)
   {
