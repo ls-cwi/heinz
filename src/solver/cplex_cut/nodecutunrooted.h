@@ -122,67 +122,65 @@ protected:
     typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
     
     const int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (nComp == 1)
-    {
-      // nothing to separate...
-      return;
-    }
-
-    NodeSetVector compMatrix(nComp, NodeSet());
-    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
-    {
-      int compIdx = (*_pComp)[i];
-      compMatrix[compIdx].insert(i);
-    }
-    
     int nCuts = 0;
-    for (int compIdx = 0; compIdx < nComp; compIdx++)
+    if (nComp != 1)
     {
-      const NodeSet& S = compMatrix[compIdx];
-      
-      NodeSet S_cap_Y;
-      std::set_intersection(S.begin(), S.end(),
-                            Y.begin(), Y.end(),
-                            std::inserter(S_cap_Y, S_cap_Y.begin()));
-      
-      if (!S_cap_Y.empty())
+      NodeSetVector compMatrix(nComp, NodeSet());
+      for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
       {
-        continue;
+        int compIdx = (*_pComp)[i];
+        compMatrix[compIdx].insert(i);
       }
-      
-      // determine dS
-      NodeSet dS;
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+
+      for (int compIdx = 0; compIdx < nComp; compIdx++)
       {
-        const Node i = *it;
-        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        const NodeSet& S = compMatrix[compIdx];
+
+        NodeSet S_cap_Y;
+        std::set_intersection(S.begin(), S.end(),
+                              Y.begin(), Y.end(),
+                              std::inserter(S_cap_Y, S_cap_Y.begin()));
+
+        if (!S_cap_Y.empty())
         {
-          const Node j = _g.target(a);
-          if (S.find(j) == S.end())
+          continue;
+        }
+
+        // determine dS
+        NodeSet dS;
+        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+        {
+          const Node i = *it;
+          for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
           {
-            dS.insert(j);
+            const Node j = _g.target(a);
+            if (S.find(j) == S.end())
+            {
+              dS.insert(j);
+            }
           }
         }
+
+        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+        {
+          const Node i = *it;
+          addViolatedConstraint(*this, i, dS, S);
+          ++nCuts;
+        }
       }
-      
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+
+      std::cerr << "[";
+      for (int idx = 0; idx < nComp; idx++)
       {
-        const Node i = *it;
-        addViolatedConstraint(*this, i, dS, S);
-        ++nCuts;
+        std::cerr << " " << compMatrix[idx].size();
       }
+      std::cerr << " ]" << std::endl;
     }
     
     x_values.end();
     y_values.end();
     
     std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
-    std::cerr << "[";
-    for (int idx = 0; idx < nComp; idx++)
-    {
-      std::cerr << " " << compMatrix[idx].size();
-    }
-    std::cerr << " ]" << std::endl;
   }
 };
 
