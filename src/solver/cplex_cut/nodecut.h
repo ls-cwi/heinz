@@ -50,7 +50,11 @@ protected:
   BoolNodeMap* _pNodeBoolMap;
   IloFastMutex* _pMutex;
 
-  static const double _epsilon = 1e-8;
+  // 1e-5 is the epsilon that CPLEX uses (for deciding integrality),
+  // i.e. if |x| < 1e-5 it's considered to be 0 by CPLEX.
+  // if 1 - |x| < 1e-5 it's considered to be 1 by CPLEX.
+  // we use the same epsilon to separate violated cuts.
+  static const double _epsilon = 1e-5;
 
 public:
   NodeCut(IloBoolVarArray x,

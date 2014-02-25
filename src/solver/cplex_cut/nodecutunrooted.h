@@ -433,9 +433,9 @@ protected:
     x_values.end();
     y_values.end();
     
-    std::cerr <<  "#" << _cutCount << ": generated " << nCuts
-              << " user cuts of which " << nBackCuts << " are back-cuts and "
-              << nNestedCuts << " are nested cuts" << std::endl;
+//    std::cerr <<  "#" << _cutCount << ": generated " << nCuts
+//              << " user cuts of which " << nBackCuts << " are back-cuts and "
+//              << nNestedCuts << " are nested cuts" << std::endl;
     
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }

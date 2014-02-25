@@ -238,6 +238,7 @@ protected:
   using Parent::addViolatedConstraint;
   using Parent::getEnv;
   using Parent::getValues;
+  using Parent::printNodeSet;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -345,8 +346,19 @@ protected:
           NodeSet fwdDS;
           determineFwdCutSet(_h, *_pBK, fwdDS);
           
+          double m = 0;
+          for (NodeSetIt it = fwdDS.begin(); it != fwdDS.end(); ++it)
+          {
+            m += _cap[DiOutArcIt(_h, (*_pG2h1)[*it])];
+          }
+          if (_tol.different(m, minCutValue))
+          {
+            printNodeSet(fwdDS, _x, x_values);
+            assert(false);
+          }
+          
           // numerical instability may cause minCutValue < x_i_value
-          // even though there is nothing to cut
+          // even though there is nothing to cut ( || fwdDS.find(i) != fwdDS.end())
           if (fwdDS.empty()) break;
           
           // determine N (forward)

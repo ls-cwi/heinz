@@ -181,6 +181,8 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 
   }
 
+  _cplex.setParam(IloCplex::MIPInterval, 1);
+  
   if (_timeLimit > 0)
   {
     _cplex.setParam(IloCplex::TiLim, _timeLimit);
