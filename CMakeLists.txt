@@ -29,11 +29,12 @@ set( Heinz_Hdr
   src/solver/mwcssolver.h
   src/solver/mwcstreeheuristicsolver.h
   src/solver/mwcstreesolver.h
-  src/solver/cplex_cut/nodecutbk.h
+  src/solver/cplex_cut/nodecut.h
+  src/solver/cplex_cut/nodecutuser.h
+  src/solver/cplex_cut/nodecutlazy.h
   src/solver/cplex_cut/nodecutrootedbk.h
-  src/solver/cplex_cut/nodecutrootedbkcallback.h
-  src/solver/cplex_cut/nodecutunrootedbk.h
-  src/solver/cplex_cut/nodecutunrootedbkcallback.h
+  src/solver/cplex_cut/nodecutrooted.h
+  src/solver/cplex_cut/nodecutunrooted.h
   src/solver/cplex_cut/bk_alg.h
   src/solver/mwcscplexsolver.h
   src/solver/mwcssizecutsolver.h
@@ -129,6 +130,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Debug Release Profile" FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
+SET(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libstdc++")
 set(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -g -ggdb -O0 -DDEBUG -DVERBOSE")
 set(CMAKE_CXX_FLAGS_RELEASE "-Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_PROFILE "-Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -g -ggdb -DNDEBUG")

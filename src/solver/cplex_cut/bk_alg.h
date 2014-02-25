@@ -58,8 +58,8 @@ public:
   double maxFlow() const;
   Node getSource() const { return _source; }
   Node getTarget() const { return _target; }
-  void setSource(Node source);
-  void setTarget(Node target);
+  void setSource(Node source, bool mark = false);
+  void setTarget(Node target, bool mark = false);
 
   void printFlow(std::ostream& out, bool cutOnly = false) const;
   void printCut(std::ostream& out) const;
@@ -225,22 +225,36 @@ double BkFlowAlg<DGR>::cap(Arc a) const
 }
 
 template<typename DGR>
-void BkFlowAlg<DGR>::setSource(Node source)
+void BkFlowAlg<DGR>::setSource(Node source, bool mark)
 {
   if (_source != lemon::INVALID)
     _pBK->set_trcap(_bkNode[_source], 0);
 
+  if (mark)
+  {
+    assert(_source != lemon::INVALID);
+    _pBK->mark_node(_bkNode[_source]);
+    _pBK->mark_node(_bkNode[source]);
+  }
+  
   const double max = std::numeric_limits<double>::max();
   _source = source;
   _pBK->add_tweights(_bkNode[_source], max, 0);
 }
 
 template<typename DGR>
-void BkFlowAlg<DGR>::setTarget(Node target)
+void BkFlowAlg<DGR>::setTarget(Node target, bool mark)
 {
   if (_target != lemon::INVALID)
   {
     _pBK->set_trcap(_bkNode[_target], 0);
+  }
+  
+  if (mark)
+  {
+    assert(_target != lemon::INVALID);
+    _pBK->mark_node(_bkNode[_target]);
+    _pBK->mark_node(_bkNode[target]);
   }
 
   const double max = std::numeric_limits<double>::max();

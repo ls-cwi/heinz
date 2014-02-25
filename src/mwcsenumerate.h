@@ -116,6 +116,11 @@ public:
                      _moduleWeight,
                      -std::numeric_limits<double>::max());
   }
+  
+  void setMaxNumberOfCuts(int maxNumberOfCuts)
+  {
+    _maxNumberOfCuts = maxNumberOfCuts;
+  }
 
 protected:
   MwcsGraphType& _mwcsGraph;
@@ -126,6 +131,7 @@ protected:
   int _timeLimit;
   int _multiThreading;
   int _moduleSize;
+  int _maxNumberOfCuts;
 
   typedef typename Graph::template NodeMap<Node> NodeMap;
 
@@ -161,7 +167,7 @@ protected:
     {
       case MwcsSolverCutNodeSeparatorBk:
         pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        -1,
+                                        _maxNumberOfCuts,
                                         _timeLimit,
                                         _multiThreading);
         break;
@@ -174,7 +180,7 @@ protected:
       case MwcsSizeSolverCutNodeSeparatorBk:
         pResult = new MwcsSizeCutSolverType(*pMwcsSubGraph,
                                             _moduleSize,
-                                            -1,
+                                            _maxNumberOfCuts,
                                             _timeLimit,
                                             _multiThreading);
         break;

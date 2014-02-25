@@ -235,6 +235,7 @@ int main(int argc, char** argv)
         MwcsEnumerateCompType mwcsEnumerate(*pMwcs);
         mwcsEnumerate.setTimeLimit(timeLimit);
         mwcsEnumerate.setMultiThreading(multiThreading);
+        mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
         mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), preprocess);
 
         const Graph& g = pMwcs->getOrgGraph();

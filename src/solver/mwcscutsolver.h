@@ -24,8 +24,8 @@
 #include <lemon/preflow.h>
 
 #include "cplex_heuristic/mwcscutsolverheuristic.h"
-#include "cplex_cut/nodecutrootedbkcallback.h"
-#include "cplex_cut/nodecutunrootedbkcallback.h"
+#include "cplex_cut/nodecutrooted.h"
+#include "cplex_cut/nodecutunrooted.h"
 #include "mwcscplexsolver.h"
 #include "mwcsanalyze.h"
 #include "parser/identityparser.h"
@@ -131,57 +131,53 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
   IloCplex::UserCutCallbackI* pUserCut = NULL;
   if (_root != lemon::INVALID)
   {
-    _cplex.setParam( IloCplex::HeurFreq      , -1 );
-    _cplex.setParam( IloCplex::Cliques       , -1 );
-    _cplex.setParam( IloCplex::Covers        , -1 );
-    _cplex.setParam( IloCplex::FlowCovers    , -1 );
-    _cplex.setParam( IloCplex::GUBCovers     , -1 );
-    _cplex.setParam( IloCplex::FracCuts      , -1 );
-    _cplex.setParam( IloCplex::MIRCuts       , -1 );
-    _cplex.setParam( IloCplex::FlowPaths     , -1 );
-    _cplex.setParam( IloCplex::ImplBd        , -1 );
-    _cplex.setParam( IloCplex::DisjCuts      , -1 );
-    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
-    _cplex.setParam( IloCplex::MCFCuts       , -1 );
-    _cplex.setParam( IloCplex::AggFill       ,  0 );
-    _cplex.setParam( IloCplex::PreInd        ,  0 );
-    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
-    _cplex.setParam( IloCplex::PreslvNd      , -1 );
-    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
+//    _cplex.setParam( IloCplex::HeurFreq      , -1 );
+//    _cplex.setParam( IloCplex::Cliques       , -1 );
+//    _cplex.setParam( IloCplex::Covers        , -1 );
+//    _cplex.setParam( IloCplex::FlowCovers    , -1 );
+//    _cplex.setParam( IloCplex::GUBCovers     , -1 );
+//    _cplex.setParam( IloCplex::FracCuts      , -1 );
+//    _cplex.setParam( IloCplex::MIRCuts       , -1 );
+//    _cplex.setParam( IloCplex::FlowPaths     , -1 );
+//    _cplex.setParam( IloCplex::ImplBd        , -1 );
+//    _cplex.setParam( IloCplex::DisjCuts      , -1 );
+//    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
+//    _cplex.setParam( IloCplex::MCFCuts       , -1 );
+//    _cplex.setParam( IloCplex::AggFill       ,  0 );
+//    _cplex.setParam( IloCplex::PreInd        ,  0 );
+//    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
+//    _cplex.setParam( IloCplex::PreslvNd      , -1 );
+//    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-    pLazyCut = new (_env) NodeCutRootedBkLazyCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                              _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                              pMutex);
-    pUserCut = new (_env) NodeCutRootedBkUserCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                              _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                              pMutex);
+    pLazyCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                              _n, _m, _maxNumberOfCuts, pMutex);
+    pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                       _n, _m, _maxNumberOfCuts, pMutex);
   }
   else
   {
-    _cplex.setParam( IloCplex::HeurFreq      , -1 );
-    _cplex.setParam( IloCplex::Cliques       , -1 );
-    _cplex.setParam( IloCplex::Covers        , -1 );
-    _cplex.setParam( IloCplex::FlowCovers    , -1 );
-    _cplex.setParam( IloCplex::GUBCovers     , -1 );
-    _cplex.setParam( IloCplex::FracCuts      , -1 );
-    _cplex.setParam( IloCplex::MIRCuts       , -1 );
-    _cplex.setParam( IloCplex::FlowPaths     , -1 );
-    _cplex.setParam( IloCplex::ImplBd        , -1 );
-    _cplex.setParam( IloCplex::DisjCuts      , -1 );
-    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
-    _cplex.setParam( IloCplex::MCFCuts       , -1 );
-    _cplex.setParam( IloCplex::AggFill       ,  0 );
-    _cplex.setParam( IloCplex::PreInd        ,  0 );
-    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
-    _cplex.setParam( IloCplex::PreslvNd      , -1 );
-    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
+//    _cplex.setParam( IloCplex::HeurFreq      , -1 );
+//    _cplex.setParam( IloCplex::Cliques       , -1 );
+//    _cplex.setParam( IloCplex::Covers        , -1 );
+//    _cplex.setParam( IloCplex::FlowCovers    , -1 );
+//    _cplex.setParam( IloCplex::GUBCovers     , -1 );
+//    _cplex.setParam( IloCplex::FracCuts      , -1 );
+//    _cplex.setParam( IloCplex::MIRCuts       , -1 );
+//    _cplex.setParam( IloCplex::FlowPaths     , -1 );
+//    _cplex.setParam( IloCplex::ImplBd        , -1 );
+//    _cplex.setParam( IloCplex::DisjCuts      , -1 );
+//    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
+//    _cplex.setParam( IloCplex::MCFCuts       , -1 );
+//    _cplex.setParam( IloCplex::AggFill       ,  0 );
+//    _cplex.setParam( IloCplex::PreInd        ,  0 );
+//    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
+//    _cplex.setParam( IloCplex::PreslvNd      , -1 );
+//    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-    pLazyCut = new (_env) NodeCutUnrootedBkLazyCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                                _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                                pMutex);
-    pUserCut = new (_env) NodeCutUnrootedBkUserCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                                _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                                pMutex);
+    pLazyCut = new (_env) NodeCutUnrootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                                _n, _m, _maxNumberOfCuts, pMutex);
+    pUserCut = new (_env) NodeCutUnrootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                         _n, _m, _maxNumberOfCuts, pMutex);
 
   }
 

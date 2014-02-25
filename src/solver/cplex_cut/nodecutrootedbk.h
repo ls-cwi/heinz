@@ -70,7 +70,6 @@ protected:
   using Parent::_n;
   using Parent::_m;
   using Parent::_maxNumberOfCuts;
-  using Parent::_comp;
   using Parent::_tol;
   using Parent::_h;
   using Parent::_cap;
@@ -84,12 +83,15 @@ protected:
   using Parent::_pNodeFilterMap;
   using Parent::_pSubG;
   using Parent::_pComp;
+  using Parent::_epsilon;
   using Parent::lock;
   using Parent::unlock;
   using Parent::printNonZeroVars;
   using Parent::addConstraint;
   using Parent::printNodeSet;
   using Parent::isUser;
+  using Parent::determineFwdCutSet;
+  using Parent::determineBwdCutSet;
 
 public:
   NodeCutRootedBk(IloBoolVarArray x,
@@ -100,9 +102,8 @@ public:
                   int n,
                   int m,
                   int maxNumberOfCuts,
-                  const IntNodeMap& comp,
                   IloFastMutex* pMutex)
-    : Parent(x, g, weight, root, nodeMap, n, m, maxNumberOfCuts, comp, pMutex)
+    : Parent(x, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
   {
     init();
     _pBK = new BkAlg(_h, _cap);
@@ -239,26 +240,23 @@ protected:
             //printNodeSet(fwdDS, _x, x_values);
             //exit(1);
 
-            //double m = 0;
-            //for (NodeSetIt it3 = fwdDS.begin(); it3 != fwdDS.end(); ++it3)
-            //{
-            //  if (!_tol.nonZero(x_values[_nodeMap[*it3]]))
-            //    m += 1e-9;
-            //  else
-            //    m += x_values[_nodeMap[*it3]];
-            //}
-            //if (_tol.different(m, minCutValue))
-            //{
-            //  std::cout << "m != minCutValue: " << m << " != " << minCutValue << std::endl;
-            //  std::cout << "Max flow: " << _pBK->maxFlow() << std::endl;
-            //  std::cout << "BK cut-set:" << std::endl;
-            //  _pBK->run();
-            //  _pBK->printFlow(std::cout, true);
-            //  exit(1);
-            //}
-
-            NodeSet bwdDS;
-            determineBwdCutSet(_h, *_pBK, bwdDS);
+            double m = 0;
+            for (NodeSetIt it3 = fwdDS.begin(); it3 != fwdDS.end(); ++it3)
+            {
+              if (!_tol.nonZero(x_values[_nodeMap[*it3]]))
+                m += 10 * _epsilon;
+              else
+                m += x_values[_nodeMap[*it3]];
+            }
+            if (_tol.different(m, minCutValue))
+            {
+              std::cout << "m != minCutValue: " << m << " != " << minCutValue << std::endl;
+              std::cout << "Max flow: " << _pBK->maxFlow() << std::endl;
+              std::cout << "BK cut-set:" << std::endl;
+              _pBK->run();
+              _pBK->printFlow(std::cout, true);
+              exit(1);
+            }
 
             // add violated constraints
             for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
@@ -274,19 +272,21 @@ protected:
                 nNestedCuts++;
               }
             }
-
-            if (fwdDS.size() != bwdDS.size() || fwdDS != bwdDS)
-            {
-              for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
-              {
-                //const double x_j_value = it2->first;
-                const Node j = it2->second;
-                assert(_tol.less(minCutValue, it2->first));
-                addViolatedConstraint(cbk, j, bwdDS);
-                nBackCuts++;
-                nCuts++;
-              }
-            }
+            
+//            NodeSet bwdDS;
+//            determineBwdCutSet(_h, *_pBK, bwdDS);
+//            if (fwdDS.size() != bwdDS.size() || fwdDS != bwdDS)
+//            {
+//              for (typename NodeWeightPairVector::const_iterator it2 = it; it2 != compVector.end(); ++it2)
+//              {
+//                //const double x_j_value = it2->first;
+//                const Node j = it2->second;
+//                assert(_tol.less(minCutValue, it2->first));
+//                addViolatedConstraint(cbk, j, bwdDS);
+//                nBackCuts++;
+//                nCuts++;
+//              }
+//            }
 
             // generate nested-cuts
             for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
@@ -307,10 +307,6 @@ protected:
     }
 
     x_values.end();
-    //std::cerr << "Generated " << nCuts
-    //          << " cuts of which " << nBackCuts << " are back-cuts and "
-    //          << nNestedCuts << " are nested cuts" << std::endl;
-    //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 
     std::cerr << "[";
     for (int idx = 0; idx < nComp; idx++)
@@ -393,7 +389,7 @@ protected:
     for (NodeIt v(_g); v != lemon::INVALID; ++v)
     {
       double val = x_values[_nodeMap[v]];
-      if (!_tol.nonZero(val)) val = 1e-9;
+      if (!_tol.nonZero(val)) val = 10 * _epsilon;
 
       DiNode v1 = (*_pG2h1)[v];
       DiOutArcIt a(_h, v1);
@@ -412,19 +408,21 @@ protected:
     {
       //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <= 0" << std::endl;
       addConstraint(_x[_nodeMap[target]] <= 0);
+      // shouldn't happen if we consider components separately! is that true?
+      assert(false);
     }
     else
     {
       IloExpr expr(cbk.getEnv());
 
-      bool first = true;
+      //bool first = true;
       //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <=";
       for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
       {
         expr += _x[_nodeMap[*nodeIt]];
 
         //std::cout << (first ? " " : " + ") << _x[_nodeMap[*nodeIt]].getName();
-        first = false;
+        //first = false;
       }
       //std::cout << std::endl;
 
@@ -440,43 +438,9 @@ protected:
                           const BkAlg& bk,
                           NodeSet& dS)
   {
-    DiNodeList diS;
     DiNode target = bk.getTarget();
-
-    lemon::mapFill(_h, _marked, false);
-
-    DiNodeQueue queue;
-    queue.push(target);
-    _marked[target] = true;
-
-    while (!queue.empty())
-    {
-      DiNode v = queue.front();
-      queue.pop();
-      diS.push_back(v);
-
-      for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
-      {
-        DiNode u = _h.source(a);
-
-        if (!_marked[u] && _tol.nonZero(bk.resCap(a)))
-        {
-          queue.push(u);
-          _marked[u] = true;
-        }
-      }
-
-      for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
-      {
-        DiNode u = _h.target(a);
-
-        if (!_marked[u] && _tol.nonZero(bk.revResCap(a)))
-        {
-          queue.push(u);
-          _marked[u] = true;
-        }
-      }
-    }
+    DiNodeList diS;
+    determineBwdCutSet(h, bk, target, diS);
 
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
     {
@@ -504,41 +468,7 @@ protected:
   {
     DiNode target = bk.getTarget();
     DiNodeList diS;
-
-    lemon::mapFill(_h, _marked, false);
-
-    DiNodeQueue queue;
-    queue.push(_diRoot);
-    _marked[_diRoot] = true;
-
-    while (!queue.empty())
-    {
-      DiNode v = queue.front();
-      queue.pop();
-      diS.push_back(v);
-
-      for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
-      {
-        DiNode w = _h.target(a);
-
-        if (!_marked[w] && _tol.nonZero(bk.resCap(a)))
-        {
-          queue.push(w);
-          _marked[w] = true;
-        }
-      }
-
-      for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
-      {
-        DiNode w = _h.source(a);
-
-        if (!_marked[w] && _tol.nonZero(bk.revResCap(a)))
-        {
-          queue.push(w);
-          _marked[w] = true;
-        }
-      }
-    }
+    determineFwdCutSet(h, bk, diS);
 
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
     {

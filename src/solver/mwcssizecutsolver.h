@@ -25,8 +25,8 @@
 
 #include "mwcscplexsolver.h"
 #include "mwcsanalyze.h"
-#include "cplex_cut/nodecutrootedbkcallback.h"
-#include "cplex_cut/nodecutunrootedbkcallback.h"
+#include "cplex_cut/nodecutrooted.h"
+#include "cplex_cut/nodecutunrooted.h"
 #include "parser/identityparser.h"
 
 namespace nina {
@@ -145,9 +145,8 @@ inline bool MwcsSizeCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     //_cplex.setParam(IloCplex::ZeroHalfCuts, -1);
     //_cplex.setParam(IloCplex::MCFCuts, -1);
 
-    pCut = new (_env) NodeCutRootedBkLazyCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                          _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                          pMutex);
+    pCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                          _n, _m, _maxNumberOfCuts, pMutex);
   }
   else
   {
@@ -169,9 +168,8 @@ inline bool MwcsSizeCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     //_cplex.setParam(IloCplex::PreslvNd, -1);
     //_cplex.setParam(IloCplex::RepeatPresolve, 0);
 
-    pCut = new (_env) NodeCutUnrootedBkLazyCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                            _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                            pMutex);
+    pCut = new (_env) NodeCutUnrootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                            _n, _m, _maxNumberOfCuts, pMutex);
   }
 
   IloCplex::Callback cb(pCut);
