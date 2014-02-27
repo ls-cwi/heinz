@@ -258,6 +258,7 @@ protected:
   using Parent::addViolatedConstraint;
   using Parent::getEnv;
   using Parent::getValues;
+  using Parent::getNnodes;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -325,38 +326,24 @@ protected:
   {
     return (new (getEnv()) NodeCutUnrootedUserCut(*this));
   }
-
-  void separate()
+  
+  void separateMinCut(const IloNumArray& x_values,
+                      int& nCuts, int& nBackCuts, int& nNestedCuts)
   {
-    IloNumArray x_values(getEnv(), _n);
-    getValues(x_values, _x);
-    
-    IloNumArray y_values(getEnv(), _n);
-    getValues(y_values, _y);
-    
-    computeCapacities(_cap, x_values, y_values);
-    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (nComp > 1)
-      std::cout << "Yaaayyy! " << nComp << std::endl;
-    
-    int nCuts = 0;
-    int nBackCuts = 0;
-    int nNestedCuts = 0;
-
     _pBK->setSource(_diRoot);
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
       // skip if node was already considered or its x-value is 0
       if (!(*_pNodeBoolMap)[i]) continue;
-
+      
       const double x_i_value = x_values[_nodeMap[i]];
-    
+      
       _pBK->setTarget((*_pG2h2)[i]);
       _pBK->setCap(_cap);
       
       bool nestedCut = false;
       bool first = true;
-//      while (true)
+      //      while (true)
       {
         if (first)
         {
@@ -367,7 +354,7 @@ protected:
         {
           _pBK->run(false);
         }
-          
+        
         // let's see if there's a violated constraint
         double minCutValue = _pBK->maxFlow();
         if (_tol.less(minCutValue, x_i_value))
@@ -376,10 +363,10 @@ protected:
           NodeSet fwdS, fwdDS;
           determineFwdCutSet(_h, *_pBK, fwdDS, fwdS);
           
-//          std::cout << x_i_value << "\t"
-//                    << minCutValue << "\t"
-//                    << fwdS.size() << "\t"
-//                    << fwdDS.size() << std::endl;
+          //          std::cout << x_i_value << "\t"
+          //                    << minCutValue << "\t"
+          //                    << fwdS.size() << "\t"
+          //                    << fwdDS.size() << std::endl;
           
           // numerical instability may cause minCutValue < x_i_value
           // even though there is nothing to cut
@@ -390,8 +377,8 @@ protected:
           determineBwdCutSet(_h, *_pBK, bwdDS, bwdS);
           
           bool backCuts = fwdDS.size() != bwdDS.size() ||
-                          fwdS.size() != bwdS.size() ||
-                          fwdDS != bwdDS || bwdS != fwdS;
+          fwdS.size() != bwdS.size() ||
+          fwdDS != bwdDS || bwdS != fwdS;
           
           // add violated constraints for all nodes j in fwdS with x_j >= x_i
           for (NodeSetIt it2 = fwdS.begin(); it2 != fwdS.end(); ++it2)
@@ -427,24 +414,97 @@ protected:
           }
           
           // generate nested-cuts
-//          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); ++nodeIt)
-//          {
-//            nestedCut = true;
-//            // update the capactity to generate nested-cuts
-//            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
-//          }
+          //          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); ++nodeIt)
+          //          {
+          //            nestedCut = true;
+          //            // update the capactity to generate nested-cuts
+          //            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+          //          }
         }
-//        else
-//        {
-//          break;
-//        }
+        //        else
+        //        {
+        //          break;
+        //        }
       }
+    }
+  }
+  
+  void separateConnectedComponents(const IloNumArray& x_values,
+                                   const int nComp,
+                                   const Node root,
+                                   int& nCuts)
+  {
+    typedef std::vector<NodeSet> NodeSetVector;
+    typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
+    
+    NodeSetVector compMatrix(nComp, NodeSet());
+    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
+    {
+      int compIdx = (*_pComp)[i];
+      compMatrix[compIdx].insert(i);
+    }
+    
+    for (int compIdx = 0; compIdx < nComp; compIdx++)
+    {
+      const NodeSet& S = compMatrix[compIdx];
+      if (S.find(root) != S.end())
+      {
+        continue;
+      }
+      
+      // determine dS
+      NodeSet dS;
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        const Node i = *it;
+        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        {
+          const Node j = _g.target(a);
+          if (S.find(j) == S.end())
+          {
+            dS.insert(j);
+          }
+        }
+      }
+      
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        const Node i = *it;
+        addViolatedConstraint(*this, i, dS, S);
+        ++nCuts;
+      }
+    }
+  }
+
+  void separate()
+  {
+    IloNumArray x_values(getEnv(), _n);
+    getValues(x_values, _x);
+    
+    IloNumArray y_values(getEnv(), _n);
+    getValues(y_values, _y);
+    
+    Node root = computeCapacities(_cap, x_values, y_values);
+    
+    int nCuts = 0;
+    int nBackCuts = 0;
+    int nNestedCuts = 0;
+
+    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
+    if (/*nComp == 1 || */getNnodes() == 0)
+    {
+      separateMinCut(x_values, nCuts, nBackCuts, nNestedCuts);
+    }
+    else if (nComp > 1)
+    {
+      separateConnectedComponents(x_values, nComp, root, nCuts);
     }
     
     x_values.end();
     y_values.end();
     
-    std::cerr <<  "#" << _cutCount << ": generated " << nCuts
+    std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
+              << ": generated " << nCuts
               << " user cuts of which " << nBackCuts << " are back-cuts and "
               << nNestedCuts << " are nested cuts" << std::endl;
     
@@ -575,7 +635,7 @@ protected:
     }
   }
   
-  NodeSet computeCapacities(CapacityMap& capacity,
+  Node computeCapacities(CapacityMap& capacity,
                             IloNumArray x_values,
                             IloNumArray y_values)
   {
@@ -610,7 +670,8 @@ protected:
       capacity[(*_pG2hRootArc)[v]] = val;
     }
     
-    return Y;
+    assert(Y.size() == 1);
+    return *Y.begin();
   }
 };
 
