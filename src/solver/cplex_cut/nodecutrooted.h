@@ -220,6 +220,7 @@ protected:
   using Parent::_pNodeBoolMap;
   using Parent::_pMutex;
   using Parent::_epsilon;
+  using Parent::_cutEpsilon;
   using Parent::_h;
   using Parent::_cap;
   using Parent::_pG2h1;
@@ -412,7 +413,7 @@ protected:
       if (!_tol.nonZero(val))
       {
         _pNodeBoolMap->set(v, false);
-        val = 10 * _epsilon;
+        val = 10* _cutEpsilon;
       }
       else
       {

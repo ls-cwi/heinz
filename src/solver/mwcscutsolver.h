@@ -23,7 +23,8 @@
 #include <lemon/adaptors.h>
 #include <lemon/preflow.h>
 
-#include "cplex_heuristic/mwcscutsolverheuristic.h"
+#include "cplex_heuristic/heuristicrooted.h"
+#include "cplex_heuristic/heuristicunrooted.h"
 #include "cplex_cut/nodecutrooted.h"
 #include "cplex_cut/nodecutunrooted.h"
 #include "mwcscplexsolver.h"
@@ -47,7 +48,8 @@ public:
 
   typedef MwcsCplexSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
-  typedef MwcsCutSolverHeuristic<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsCutSolverHeuristicType;
+  typedef HeuristicRooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicRootedType;
+  typedef HeuristicUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicUnrootedType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -129,6 +131,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 
   IloCplex::LazyConstraintCallbackI* pLazyCut = NULL;
   IloCplex::UserCutCallbackI* pUserCut = NULL;
+  IloCplex::HeuristicCallbackI* pHeuristic = NULL;
   if (_root != lemon::INVALID)
   {
 //    _cplex.setParam( IloCplex::HeurFreq      , -1 );
@@ -153,6 +156,11 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
                                                                               _n, _m, _maxNumberOfCuts, pMutex);
     pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
                                                                        _n, _m, _maxNumberOfCuts, pMutex);
+    
+    pHeuristic = new (_env) HeuristicRootedType(_env, _x,
+                                                g, weight, _root,
+                                                *_pNode,
+                                                _n, _m, pMutex);
   }
   else
   {
@@ -179,6 +187,10 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pUserCut = new (_env) NodeCutUnrootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
                                                                          _n, _m, _maxNumberOfCuts, pMutex);
 
+    pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y,
+                                                  g, weight,
+                                                  *_pNode,
+                                                  _n, _m, pMutex);
   }
 
   _cplex.setParam(IloCplex::MIPInterval, 1);
@@ -197,10 +209,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
   IloCplex::Callback cb(pLazyCut);
   _cplex.use(cb);
 
-  IloCplex::Callback cb2(new (_env) MwcsCutSolverHeuristicType(_env, _x, _y,
-                                                               g, weight, _root,
-                                                               *_pNode,
-                                                               _n, _m, pMutex));
+  IloCplex::Callback cb2(pHeuristic);
   _cplex.use(cb2);
 
   IloCplex::Callback cb3(pUserCut);
@@ -219,6 +228,24 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
   {
     std::cerr << "[" << _cplex.getObjValue() << ", "
               << _cplex.getBestObjValue() << "]" << std::endl;
+    // print overview
+    std::cerr << "# Cover cuts: " << _cplex.getNcuts(IloCplex::CutCover) << std::endl;
+    std::cerr << "# GUB cover cuts: " << _cplex.getNcuts(IloCplex::CutGubCover) << std::endl;
+    std::cerr << "# Flow cover cuts: " << _cplex.getNcuts(IloCplex::CutFlowCover) << std::endl;
+    std::cerr << "# Clique cuts: " << _cplex.getNcuts(IloCplex::CutClique) << std::endl;
+    std::cerr << "# Fractional cuts: " << _cplex.getNcuts(IloCplex::CutFrac) << std::endl;
+    std::cerr << "# MCF cuts: " << _cplex.getNcuts(IloCplex::CutMCF) << std::endl;
+    std::cerr << "# MIR cuts: " << _cplex.getNcuts(IloCplex::CutMir) << std::endl;
+    std::cerr << "# Flow path cuts: " << _cplex.getNcuts(IloCplex::CutFlowPath) << std::endl;
+    std::cerr << "# Implied bound cuts: " << _cplex.getNcuts(IloCplex::CutImplBd) << std::endl;
+    std::cerr << "# Zero-half cuts: " << _cplex.getNcuts(IloCplex::CutZeroHalf) << std::endl;
+    std::cerr << "# Local cover cuts: " << _cplex.getNcuts(IloCplex::CutLocalCover) << std::endl;
+    std::cerr << "# Tighten cuts: " << _cplex.getNcuts(IloCplex::CutTighten) << std::endl;
+    std::cerr << "# Obj disj cuts: " << _cplex.getNcuts(IloCplex::CutObjDisj) << std::endl;
+    std::cerr << "# Lift-and-project cuts: " << _cplex.getNcuts(IloCplex::CutLiftProj) << std::endl;
+    std::cerr << "# User cuts: " << _cplex.getNcuts(IloCplex::CutUser) << std::endl;
+    std::cerr << "# Table cuts: " << _cplex.getNcuts(IloCplex::CutTable) << std::endl;
+    std::cerr << "# Soln pool cuts: " << _cplex.getNcuts(IloCplex::CutSolnPool) << std::endl;
   }
   else
   {

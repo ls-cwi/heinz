@@ -40,7 +40,8 @@ set( Heinz_Hdr
   src/solver/mwcssizetreememsolver.h
   src/solver/mwcssizetreesolver.h
   src/solver/cplex_heuristic/mwcssizecutsolverheuristic.h
-  src/solver/cplex_heuristic/mwcscutsolverheuristic.h
+  src/solver/cplex_heuristic/heuristicrooted.h
+  src/solver/cplex_heuristic/heuristicunrooted.h
   src/solver/mwcscutsolver.h
   src/mwcsgraph.h
   src/mwcspreprocessedgraph.h

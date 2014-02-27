@@ -237,6 +237,7 @@ protected:
   using Parent::_pNodeBoolMap;
   using Parent::_pMutex;
   using Parent::_epsilon;
+  using Parent::_cutEpsilon;
   using Parent::_h;
   using Parent::_cap;
   using Parent::_pG2h1;
@@ -247,6 +248,8 @@ protected:
   using Parent::_pBK;
   using Parent::_marked;
   using Parent::_cutCount;
+  using Parent::_pSubG;
+  using Parent::_pComp;
 
   using Parent::lock;
   using Parent::unlock;
@@ -332,6 +335,9 @@ protected:
     getValues(y_values, _y);
     
     computeCapacities(_cap, x_values, y_values);
+    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
+    if (nComp > 1)
+      std::cout << "Yaaayyy! " << nComp << std::endl;
     
     int nCuts = 0;
     int nBackCuts = 0;
@@ -350,7 +356,7 @@ protected:
       
       bool nestedCut = false;
       bool first = true;
-      //        while (true)
+//      while (true)
       {
         if (first)
         {
@@ -369,6 +375,11 @@ protected:
           // determine N (forward)
           NodeSet fwdS, fwdDS;
           determineFwdCutSet(_h, *_pBK, fwdDS, fwdS);
+          
+//          std::cout << x_i_value << "\t"
+//                    << minCutValue << "\t"
+//                    << fwdS.size() << "\t"
+//                    << fwdDS.size() << std::endl;
           
           // numerical instability may cause minCutValue < x_i_value
           // even though there is nothing to cut
@@ -416,26 +427,26 @@ protected:
           }
           
           // generate nested-cuts
-          //            for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
-          //            {
-          //              nestedCut = true;
-          //              // update the capactity to generate nested-cuts
-          //              _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
-          //            }
+//          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); ++nodeIt)
+//          {
+//            nestedCut = true;
+//            // update the capactity to generate nested-cuts
+//            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+//          }
         }
-        //          else
-        //          {
-        //            break;
-        //          }
+//        else
+//        {
+//          break;
+//        }
       }
     }
     
     x_values.end();
     y_values.end();
     
-//    std::cerr <<  "#" << _cutCount << ": generated " << nCuts
-//              << " user cuts of which " << nBackCuts << " are back-cuts and "
-//              << nNestedCuts << " are nested cuts" << std::endl;
+    std::cerr <<  "#" << _cutCount << ": generated " << nCuts
+              << " user cuts of which " << nBackCuts << " are back-cuts and "
+              << nNestedCuts << " are nested cuts" << std::endl;
     
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }
@@ -577,7 +588,7 @@ protected:
       if (!_tol.nonZero(val))
       {
         _pNodeBoolMap->set(v, false);
-        val = 10 * _epsilon;
+        val = 10 * _cutEpsilon;
       }
       else
       {
@@ -590,7 +601,7 @@ protected:
       val = y_values[_nodeMap[v]];
       if (!_tol.nonZero(val))
       {
-        val = 10 * _epsilon;
+        val = 10 * _cutEpsilon;
       }
       else
       {

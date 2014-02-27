@@ -13,7 +13,6 @@
 #include <ilconcert/ilothread.h>
 #include <lemon/tolerance.h>
 #include <lemon/smart_graph.h>
-#include <lemon/adaptors.h>
 #include <vector>
 #include <set>
 #include <queue>
@@ -48,6 +47,8 @@ public:
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
+  using Parent::_pSubG;
+  using Parent::_pComp;
   using Parent::_pMutex;
   using Parent::_epsilon;
   
@@ -56,13 +57,6 @@ public:
   
 protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  
-  typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
-  typedef typename SubGraph::NodeIt SubNodeIt;
-  
-protected:
-  const SubGraph* _pSubG;
-  IntNodeMap* _pComp;
   
 public:
   NodeCutLazy(IloEnv env,
@@ -78,33 +72,17 @@ public:
               IloFastMutex* pMutex)
     : IloCplex::LazyConstraintCallbackI(env)
     , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
-    , _pSubG(NULL)
-    , _pComp(NULL)
   {
-    lock();
-    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
-    _pComp = new IntNodeMap(_g);
-    unlock();
   }
   
   NodeCutLazy(const NodeCutLazy& other)
     : IloCplex::LazyConstraintCallbackI(other)
     , Parent(other)
-    , _pSubG(NULL)
-    , _pComp(NULL)
   {
-    lock();
-    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
-    _pComp = new IntNodeMap(_g);
-    unlock();
   }
   
   virtual ~NodeCutLazy()
   {
-    lock();
-    delete _pSubG;
-    delete _pComp;
-    unlock();
   }
   
 protected:

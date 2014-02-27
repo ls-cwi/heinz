@@ -11,6 +11,7 @@
 #include <ilcplex/ilocplex.h>
 #include <ilcplex/ilocplexi.h>
 #include <ilconcert/ilothread.h>
+#include <lemon/adaptors.h>
 #include <lemon/tolerance.h>
 #include <set>
 
@@ -29,12 +30,15 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
+protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   typedef std::vector<Node> NodeVector;
   typedef typename NodeVector::const_iterator NodeVectorIt;
   typedef std::vector<NodeVector> NodeMatrix;
   typedef std::set<Node> NodeSet;
   typedef typename NodeSet::const_iterator NodeSetIt;
+  typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
+  typedef typename SubGraph::NodeIt SubNodeIt;
 
 protected:
   IloBoolVarArray _x;
@@ -48,6 +52,8 @@ protected:
   const int _maxNumberOfCuts;
   const lemon::Tolerance<double> _tol;
   BoolNodeMap* _pNodeBoolMap;
+  const SubGraph* _pSubG;
+  IntNodeMap* _pComp;
   IloFastMutex* _pMutex;
 
   // 1e-5 is the epsilon that CPLEX uses (for deciding integrality),
@@ -78,10 +84,14 @@ public:
     , _maxNumberOfCuts(maxNumberOfCuts)
     , _tol(_epsilon)
     , _pNodeBoolMap(NULL)
+    , _pSubG(NULL)
+    , _pComp(NULL)
     , _pMutex(pMutex)
   {
     lock();
     _pNodeBoolMap = new BoolNodeMap(_g);
+    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
+    _pComp = new IntNodeMap(_g);
     unlock();
   }
 
@@ -97,10 +107,14 @@ public:
     , _maxNumberOfCuts(other._maxNumberOfCuts)
     , _tol(other._tol)
     , _pNodeBoolMap(NULL)
+    , _pSubG(NULL)
+    , _pComp(NULL)
     , _pMutex(other._pMutex)
   {
     lock();
     _pNodeBoolMap = new BoolNodeMap(_g);
+    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
+    _pComp = new IntNodeMap(_g);
     unlock();
   }
 
@@ -108,6 +122,8 @@ public:
   {
     lock();
     delete _pNodeBoolMap;
+    delete _pSubG;
+    delete _pComp;
     unlock();
   }
 

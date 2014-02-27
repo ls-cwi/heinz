@@ -100,6 +100,10 @@ protected:
   int _cutCount;
   int _nodeNumber;
   
+protected:
+  static const double _cutEpsilon = 0.00001 * _epsilon;
+  const lemon::Tolerance<double> _cutTol;
+  
 public:
   NodeCutUser(IloEnv env,
               IloBoolVarArray x,
@@ -125,6 +129,7 @@ public:
     , _marked(_h, false)
     , _cutCount(0)
     , _nodeNumber(0)
+    , _cutTol(_cutEpsilon)
   {
     lock();
     _pG2h1 = new NodeDiNodeMap(_g);
@@ -146,6 +151,7 @@ public:
     , _marked(_h, false)
     , _cutCount(0)
     , _nodeNumber(0)
+    , _cutTol(other._cutTol)
   {
     // TODO: to what values should I set cutCount and nodeNumber??
   }
@@ -175,7 +181,7 @@ protected:
       _cutCount = 0;
     }
     
-    if (_cutCount < _maxNumberOfCuts)
+    if (_nodeNumber == 0 || _cutCount < _maxNumberOfCuts)
     {
       separate();
       ++_cutCount;
@@ -207,7 +213,7 @@ protected:
       {
         DiNode w = _h.target(a);
         
-        if (!_marked[w] && _tol.nonZero(bk.resCap(a)))
+        if (!_marked[w] && _cutTol.nonZero(bk.resCap(a)))
         {
           queue.push(w);
           _marked[w] = true;
@@ -218,7 +224,7 @@ protected:
       {
         DiNode w = _h.source(a);
         
-        if (!_marked[w] && _tol.nonZero(bk.revResCap(a)))
+        if (!_marked[w] && _cutTol.nonZero(bk.revResCap(a)))
         {
           queue.push(w);
           _marked[w] = true;
@@ -253,7 +259,7 @@ protected:
       {
         DiNode u = _h.source(a);
         
-        if (!_marked[u] && _tol.nonZero(bk.resCap(a)))
+        if (!_marked[u] && _cutTol.nonZero(bk.resCap(a)))
         {
           queue.push(u);
           _marked[u] = true;
@@ -264,7 +270,7 @@ protected:
       {
         DiNode u = _h.target(a);
         
-        if (!_marked[u] && _tol.nonZero(bk.revResCap(a)))
+        if (!_marked[u] && _cutTol.nonZero(bk.revResCap(a)))
         {
           queue.push(u);
           _marked[u] = true;
