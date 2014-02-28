@@ -37,6 +37,15 @@ public:
   typedef EWGHT WeightEdgeMap;
   typedef NodeCut<GR, NWGHT, NLBL, EWGHT> Parent;
   
+  typedef enum
+  {
+    ConstantWaiting,
+    LinearWaiting,
+    QuadraticWaiting,
+    ExponentialWaiting,
+    InfiniteWaiting
+  } BackOffFunction;
+  
   using Parent::_x;
   using Parent::_y;
   using Parent::_g;
@@ -104,6 +113,12 @@ protected:
   static const double _cutEpsilon = 0.00001 * _epsilon;
   const lemon::Tolerance<double> _cutTol;
   
+private:
+  const BackOffFunction _backOffFunction;
+  int _attemptsSinceEvent;
+  int _attemptsUntilNextEvent;
+  int _waitingPeriod;
+  
 public:
   NodeCutUser(IloEnv env,
               IloBoolVarArray x,
@@ -115,7 +130,8 @@ public:
               int n,
               int m,
               int maxNumberOfCuts,
-              IloFastMutex* pMutex)
+              IloFastMutex* pMutex,
+              BackOffFunction backOffFunction)
     : IloCplex::UserCutCallbackI(env)
     , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
     , _h()
@@ -130,6 +146,10 @@ public:
     , _cutCount(0)
     , _nodeNumber(0)
     , _cutTol(_cutEpsilon)
+    , _backOffFunction(backOffFunction)
+    , _attemptsSinceEvent(0)
+    , _attemptsUntilNextEvent(0)
+    , _waitingPeriod(0)
   {
     lock();
     _pG2h1 = new NodeDiNodeMap(_g);
@@ -189,6 +209,13 @@ protected:
   }
   
   virtual void separate() = 0;
+  
+  bool makeAttempt()
+  {
+    if (++_attemptsSinceEvent >= _attemptsUntilNextEvent)
+    {
+    }
+  }
   
   void determineFwdCutSet(const Digraph& h,
                           const BkAlg& bk,
