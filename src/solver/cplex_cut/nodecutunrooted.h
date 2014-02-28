@@ -250,6 +250,7 @@ protected:
   using Parent::_cutCount;
   using Parent::_pSubG;
   using Parent::_pComp;
+  using Parent::_backOff;
 
   using Parent::lock;
   using Parent::unlock;
@@ -272,8 +273,9 @@ public:
                          int n,
                          int m,
                          int maxNumberOfCuts,
-                         IloFastMutex* pMutex)
-    : Parent(env, x, y, g, weight, lemon::INVALID, nodeMap, n, m, maxNumberOfCuts, pMutex)
+                         IloFastMutex* pMutex,
+                         BackOff backOff)
+    : Parent(env, x, y, g, weight, lemon::INVALID, nodeMap, n, m, maxNumberOfCuts, pMutex, backOff)
   {
     lock();
     _pG2hRootArc = new NodeDiArcMap(_g);
@@ -491,11 +493,11 @@ protected:
     int nNestedCuts = 0;
 
     int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (/*nComp == 1 || */getNnodes() == 0)
+    if ((nComp == 1 && _backOff.makeAttempt()) || getNnodes() == 0)
     {
       separateMinCut(x_values, nCuts, nBackCuts, nNestedCuts);
     }
-    else if (nComp > 1)
+    else if (nComp > 1 && _backOff.makeAttempt())
     {
       separateConnectedComponents(x_values, nComp, root, nCuts);
     }

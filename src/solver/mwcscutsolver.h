@@ -27,6 +27,7 @@
 #include "cplex_heuristic/heuristicunrooted.h"
 #include "cplex_cut/nodecutrooted.h"
 #include "cplex_cut/nodecutunrooted.h"
+#include "cplex_cut/backoff.h"
 #include "mwcscplexsolver.h"
 #include "mwcsanalyze.h"
 #include "parser/identityparser.h"
@@ -155,7 +156,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pLazyCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
                                                                               _n, _m, _maxNumberOfCuts, pMutex);
     pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                       _n, _m, _maxNumberOfCuts, pMutex);
+                                                                       _n, _m, _maxNumberOfCuts, pMutex, BackOff(BackOff::QuadraticWaiting));
     
     pHeuristic = new (_env) HeuristicRootedType(_env, _x,
                                                 g, weight, _root,
@@ -185,7 +186,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pLazyCut = new (_env) NodeCutUnrootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
                                                                                 _n, _m, _maxNumberOfCuts, pMutex);
     pUserCut = new (_env) NodeCutUnrootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                         _n, _m, _maxNumberOfCuts, pMutex);
+                                                                         _n, _m, _maxNumberOfCuts, pMutex, BackOff(BackOff::QuadraticWaiting));
 
     pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y,
                                                   g, weight,

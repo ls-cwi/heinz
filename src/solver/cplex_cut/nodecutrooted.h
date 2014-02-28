@@ -253,8 +253,9 @@ public:
                        int n,
                        int m,
                        int maxNumberOfCuts,
-                       IloFastMutex* pMutex)
-    : Parent(env, x, IloBoolVarArray(), g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
+                       IloFastMutex* pMutex,
+                       BackOff backOff)
+    : Parent(env, x, IloBoolVarArray(), g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex, backOff)
   {
     init();
     _pBK = new BkAlg(_h, _cap);

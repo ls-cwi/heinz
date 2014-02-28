@@ -18,6 +18,7 @@
 #include <queue>
 #include <list>
 #include "nodecut.h"
+#include "backoff.h"
 #include "bk_alg.h"
 
 namespace nina {
@@ -112,12 +113,7 @@ protected:
 protected:
   static const double _cutEpsilon = 0.00001 * _epsilon;
   const lemon::Tolerance<double> _cutTol;
-  
-private:
-  const BackOffFunction _backOffFunction;
-  int _attemptsSinceEvent;
-  int _attemptsUntilNextEvent;
-  int _waitingPeriod;
+  BackOff _backOff;
   
 public:
   NodeCutUser(IloEnv env,
@@ -131,7 +127,7 @@ public:
               int m,
               int maxNumberOfCuts,
               IloFastMutex* pMutex,
-              BackOffFunction backOffFunction)
+              BackOff backOff)
     : IloCplex::UserCutCallbackI(env)
     , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
     , _h()
@@ -146,10 +142,7 @@ public:
     , _cutCount(0)
     , _nodeNumber(0)
     , _cutTol(_cutEpsilon)
-    , _backOffFunction(backOffFunction)
-    , _attemptsSinceEvent(0)
-    , _attemptsUntilNextEvent(0)
-    , _waitingPeriod(0)
+    , _backOff(backOff)
   {
     lock();
     _pG2h1 = new NodeDiNodeMap(_g);
@@ -172,6 +165,7 @@ public:
     , _cutCount(0)
     , _nodeNumber(0)
     , _cutTol(other._cutTol)
+    , _backOff(other._backOff)
   {
     // TODO: to what values should I set cutCount and nodeNumber??
   }
@@ -209,13 +203,6 @@ protected:
   }
   
   virtual void separate() = 0;
-  
-  bool makeAttempt()
-  {
-    if (++_attemptsSinceEvent >= _attemptsUntilNextEvent)
-    {
-    }
-  }
   
   void determineFwdCutSet(const Digraph& h,
                           const BkAlg& bk,

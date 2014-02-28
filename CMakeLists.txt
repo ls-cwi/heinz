@@ -29,6 +29,7 @@ set( Heinz_Hdr
   src/solver/mwcssolver.h
   src/solver/mwcstreeheuristicsolver.h
   src/solver/mwcstreesolver.h
+  src/solver/cplex_cut/backoff.h
   src/solver/cplex_cut/nodecut.h
   src/solver/cplex_cut/nodecutuser.h
   src/solver/cplex_cut/nodecutlazy.h
