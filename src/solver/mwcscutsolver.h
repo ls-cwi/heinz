@@ -83,6 +83,7 @@ public:
 
 public:
   MwcsCutSolver(const MwcsGraphType& mwcsGraph,
+                const BackOff& backOff,
                 int maxNumberOfCuts = -1,
                 int timeLimit = -1,
                 int multiThreading = 1);
@@ -99,6 +100,7 @@ private:
   typedef typename NodeSet::const_iterator NodeSetIt;
   typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
 
+  const BackOff& _backOff;
   int _maxNumberOfCuts;
   int _timeLimit;
   int _multiThreading;
@@ -108,10 +110,12 @@ private:
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::MwcsCutSolver(const MwcsGraphType& mwcsGraph,
+                                                            const BackOff& backOff,
                                                             int maxNumberOfCuts,
                                                             int timeLimit,
                                                             int multiThreading)
   : Parent(mwcsGraph)
+  , _backOff(backOff)
   , _maxNumberOfCuts(maxNumberOfCuts)
   , _timeLimit(timeLimit)
   , _multiThreading(multiThreading)
@@ -156,7 +160,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pLazyCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
                                                                               _n, _m, _maxNumberOfCuts, pMutex);
     pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                       _n, _m, _maxNumberOfCuts, pMutex, BackOff(BackOff::QuadraticWaiting));
+                                                                       _n, _m, _maxNumberOfCuts, pMutex, _backOff);
     
     pHeuristic = new (_env) HeuristicRootedType(_env, _x,
                                                 g, weight, _root,
@@ -186,7 +190,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pLazyCut = new (_env) NodeCutUnrootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
                                                                                 _n, _m, _maxNumberOfCuts, pMutex);
     pUserCut = new (_env) NodeCutUnrootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                         _n, _m, _maxNumberOfCuts, pMutex, BackOff(BackOff::QuadraticWaiting));
+                                                                         _n, _m, _maxNumberOfCuts, pMutex, _backOff);
 
     pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y,
                                                   g, weight,

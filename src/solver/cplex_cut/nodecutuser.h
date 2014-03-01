@@ -114,6 +114,7 @@ protected:
   static const double _cutEpsilon = 0.00001 * _epsilon;
   const lemon::Tolerance<double> _cutTol;
   BackOff _backOff;
+  bool _makeAttempt;
   
 public:
   NodeCutUser(IloEnv env,
@@ -143,6 +144,7 @@ public:
     , _nodeNumber(0)
     , _cutTol(_cutEpsilon)
     , _backOff(backOff)
+    , _makeAttempt(true)
   {
     lock();
     _pG2h1 = new NodeDiNodeMap(_g);
@@ -166,6 +168,7 @@ public:
     , _nodeNumber(0)
     , _cutTol(other._cutTol)
     , _backOff(other._backOff)
+    , _makeAttempt(other._makeAttempt)
   {
     // TODO: to what values should I set cutCount and nodeNumber??
   }
@@ -193,9 +196,10 @@ protected:
     {
       _nodeNumber = getNnodes();
       _cutCount = 0;
+      _makeAttempt = _backOff.makeAttempt();
     }
     
-    if (_nodeNumber == 0 || _cutCount < _maxNumberOfCuts)
+    if (_makeAttempt && (_cutCount < _maxNumberOfCuts || _cutCount == -1 || _nodeNumber == 0))
     {
       separate();
       ++_cutCount;

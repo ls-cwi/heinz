@@ -36,8 +36,9 @@ public:
     : _function(function)
     , _period(0)
     , _attemptsSinceEvent(0)
-    , _attemptsUntilNextEvent(0)
+    , _attemptsUntilNextEvent(1)
   {
+    assert(function != ConstantWaiting);
     updateWaitingPeriod();
   }
   

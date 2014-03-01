@@ -42,8 +42,6 @@ public:
   typedef MwcsSolver<Graph, WeightNodeMap> MwcsSolverType;
   typedef typename MwcsGraphType::LabelNodeMap LabelNodeMap;
   typedef typename MwcsGraphType::WeightEdgeMap WeightEdgeMap;
-  
-  typedef BackOff::Function BackOffFunction;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -125,9 +123,9 @@ public:
     _maxNumberOfCuts = maxNumberOfCuts;
   }
   
-  void setBackOffFunction(BackOffFuction function)
+  void setBackOff(BackOff backOff)
   {
-    _backOffFunction = function;
+    _backOff = backOff;
   }
 
 protected:
@@ -140,6 +138,7 @@ protected:
   int _multiThreading;
   int _moduleSize;
   int _maxNumberOfCuts;
+  BackOff _backOff;
 
   typedef typename Graph::template NodeMap<Node> NodeMap;
 
@@ -175,6 +174,7 @@ protected:
     {
       case MwcsSolverCutNodeSeparatorBk:
         pResult = new MwcsCutSolverType(*pMwcsSubGraph,
+                                        _backOff,
                                         _maxNumberOfCuts,
                                         _timeLimit,
                                         _multiThreading);
@@ -281,6 +281,7 @@ inline MwcsEnumerate<GR, WGHT>::MwcsEnumerate(MwcsGraphType& mwcsGraph)
   , _timeLimit(-1)
   , _multiThreading(1)
   , _moduleSize(-1)
+  , _backOff(1)
 {
 }
 

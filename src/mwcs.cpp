@@ -26,6 +26,7 @@
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcstreeheuristicsolver.h"
+#include "solver/cplex_cut/backoff.h"
 #include "mwcsanalyze.h"
 #include "mwcsenumerate.h"
 #include "mwcsenumeratecomp.h"
@@ -56,6 +57,18 @@ typedef MwcsEnumerate<Graph> MwcsEnumerateType;
 typedef MwcsEnumerateComp<Graph> MwcsEnumerateCompType;
 typedef MwcsEnumerateRoot<Graph> MwcsEnumerateRootType;
 
+BackOff createBackOff(int function, int period)
+{
+  BackOff::Function f = static_cast<BackOff::Function>(function);
+  switch (f)
+  {
+    case nina::mwcs::BackOff::ConstantWaiting:
+      return BackOff(period);
+    default:
+      return BackOff(f);
+  }
+}
+
 int main(int argc, char** argv)
 {
   // parse command line arguments
@@ -66,7 +79,7 @@ int main(int argc, char** argv)
   int timeLimit = -1;
   bool preprocess = false;
   int multiThreading = 1;
-  int backOffFunction = 1;
+  int backOffFunction = 0;
   int backOffPeriod = 1;
   std::string root;
   std::string outputFile;
@@ -92,11 +105,11 @@ int main(int argc, char** argv)
     .refOption("n", "Node file", nodeFile, false)
     .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
     .refOption("b", "Back-off function:\n"
-                        "     1 - Constant waiting (default period: 1, override with '-period')\n"
-                        "     2 - Linear waiting\n"
-                        "     3 - Quadratic waiting\n"
-                        "     4 - Exponential waiting\n"
-                        "     5 - Infinite waiting", backOffFunction, false)
+                        "     0 - Constant waiting (default period: 1, override with '-period')\n"
+                        "     1 - Linear waiting\n"
+                        "     2 - Quadratic waiting\n"
+                        "     3 - Exponential waiting\n"
+                        "     4 - Infinite waiting", backOffFunction, false)
     .refOption("f", "Formulation of the problem:\n"
                         "     5 - Cut formulation (Node-separator, BK, default)\n"
                         "     6 - Tree DP\n"
@@ -245,6 +258,7 @@ int main(int argc, char** argv)
         mwcsEnumerate.setTimeLimit(timeLimit);
         mwcsEnumerate.setMultiThreading(multiThreading);
         mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
+        mwcsEnumerate.setBackOff(createBackOff(backOffFunction, backOffPeriod));
         mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), preprocess);
 
         const Graph& g = pMwcs->getOrgGraph();

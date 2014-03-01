@@ -520,11 +520,11 @@ protected:
     int nNestedCuts = 0;
 
     int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if ((nComp == 1 && _backOff.makeAttempt()) || getNnodes() == 0)
+    if (nComp == 1 || getNnodes() == 0)
     {
       separateMinCut(x_values, nCuts, nBackCuts, nNestedCuts);
     }
-    else if (nComp > 1 && _backOff.makeAttempt())
+    else if (nComp > 1)// && _backOff.makeAttempt())
     {
       separateConnectedComponents(x_values, nComp, root, nCuts);
     }
