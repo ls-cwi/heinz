@@ -58,6 +58,7 @@ protected:
   using Parent::addViolatedConstraint;
   using Parent::getEnv;
   using Parent::getValues;
+  using Parent::constructRHS;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -257,9 +258,11 @@ protected:
   using Parent::determineFwdCutSet;
   using Parent::determineBwdCutSet;
   using Parent::addViolatedConstraint;
+  using Parent::add;
   using Parent::getEnv;
   using Parent::getValues;
   using Parent::getNnodes;
+  using Parent::constructRHS;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -332,6 +335,8 @@ protected:
   void separateMinCut(const IloNumArray& x_values,
                       int& nCuts, int& nBackCuts, int& nNestedCuts)
   {
+    IloExpr rhs(getEnv());
+    
     _pBK->setSource(_diRoot);
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
@@ -383,6 +388,7 @@ protected:
           fwdDS != bwdDS || bwdS != fwdS;
           
           // add violated constraints for all nodes j in fwdS with x_j >= x_i
+          constructRHS(rhs, fwdDS, fwdS);
           for (NodeSetIt it2 = fwdS.begin(); it2 != fwdS.end(); ++it2)
           {
             const Node j = *it2;
@@ -391,7 +397,13 @@ protected:
             if (_tol.less(minCutValue, x_j_value))
             {
               _pNodeBoolMap->set(j, false);
-              addViolatedConstraint(*this, j, fwdDS, fwdS);
+              
+//              addViolatedConstraint(*this, j, fwdDS, fwdS);
+              
+              IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
+              add(constraint);
+              constraint.end();
+              
               ++nCuts;
               if (nestedCut) ++nNestedCuts;
             }
@@ -400,6 +412,7 @@ protected:
           if (backCuts)
           {
             // add violated constraints for all nodes j in bwdS with x_j >= x_i
+            constructRHS(rhs, bwdDS, bwdS);
             for (NodeSetIt it2 = bwdS.begin(); it2 != bwdS.end(); ++it2)
             {
               const Node j = *it2;
@@ -408,7 +421,13 @@ protected:
               if (_tol.less(minCutValue, x_j_value))
               {
                 _pNodeBoolMap->set(j, false);
-                addViolatedConstraint(*this, j, bwdDS, bwdS);
+                
+//                addViolatedConstraint(*this, j, bwdDS, bwdS);
+                
+                IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
+                add(constraint);
+                constraint.end();
+                
                 ++nCuts;
                 ++nBackCuts;
               }
@@ -429,6 +448,8 @@ protected:
         //        }
       }
     }
+    
+    rhs.end();
   }
   
   void separateConnectedComponents(const IloNumArray& x_values,
@@ -446,6 +467,7 @@ protected:
       compMatrix[compIdx].insert(i);
     }
     
+    IloExpr rhs(getEnv());
     for (int compIdx = 0; compIdx < nComp; compIdx++)
     {
       const NodeSet& S = compMatrix[compIdx];
@@ -469,13 +491,18 @@ protected:
         }
       }
       
+      constructRHS(rhs, dS, S);
       for (NodeSetIt it = S.begin(); it != S.end(); ++it)
       {
-        const Node i = *it;
-        addViolatedConstraint(*this, i, dS, S);
+        IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
+        add(constraint);
+        constraint.end();
+        
+//        addViolatedConstraint(*this, i, dS, S);
         ++nCuts;
       }
     }
+    rhs.end();
   }
 
   void separate()
@@ -505,11 +532,13 @@ protected:
     x_values.end();
     y_values.end();
     
-    std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
-              << ": generated " << nCuts
-              << " user cuts of which " << nBackCuts << " are back-cuts and "
-              << nNestedCuts << " are nested cuts" << std::endl;
-    
+    if (nCuts != 0 )
+    {
+      std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
+                << ": generated " << nCuts
+                << " user cuts of which " << nBackCuts << " are back-cuts and "
+                << nNestedCuts << " are nested cuts" << std::endl;
+    }
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }
   
@@ -638,8 +667,8 @@ protected:
   }
   
   Node computeCapacities(CapacityMap& capacity,
-                            IloNumArray x_values,
-                            IloNumArray y_values)
+                         IloNumArray x_values,
+                         IloNumArray y_values)
   {
     NodeSet Y;
     

@@ -66,6 +66,8 @@ int main(int argc, char** argv)
   int timeLimit = -1;
   bool preprocess = false;
   int multiThreading = 1;
+  int backOffFunction = 1;
+  int backOffPeriod = 1;
   std::string root;
   std::string outputFile;
   double lambda = 0;
@@ -88,6 +90,13 @@ int main(int argc, char** argv)
     .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
     .refOption("e", "Edge list file", edgeFile, false)
     .refOption("n", "Node file", nodeFile, false)
+    .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
+    .refOption("b", "Back-off function:\n"
+                        "     1 - Constant waiting (default period: 1, override with '-period')\n"
+                        "     2 - Linear waiting\n"
+                        "     3 - Quadratic waiting\n"
+                        "     4 - Exponential waiting\n"
+                        "     5 - Infinite waiting", backOffFunction, false)
     .refOption("f", "Formulation of the problem:\n"
                         "     5 - Cut formulation (Node-separator, BK, default)\n"
                         "     6 - Tree DP\n"

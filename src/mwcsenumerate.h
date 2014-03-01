@@ -14,6 +14,7 @@
 #include "mwcs.h"
 #include "mwcsgraph.h"
 #include "mwcspreprocessedgraph.h"
+#include "solver/cplex_cut/backoff.h"
 #include "solver/mwcssolver.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcssizecutsolver.h"
@@ -41,6 +42,8 @@ public:
   typedef MwcsSolver<Graph, WeightNodeMap> MwcsSolverType;
   typedef typename MwcsGraphType::LabelNodeMap LabelNodeMap;
   typedef typename MwcsGraphType::WeightEdgeMap WeightEdgeMap;
+  
+  typedef BackOff::Function BackOffFunction;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -120,6 +123,11 @@ public:
   void setMaxNumberOfCuts(int maxNumberOfCuts)
   {
     _maxNumberOfCuts = maxNumberOfCuts;
+  }
+  
+  void setBackOffFunction(BackOffFuction function)
+  {
+    _backOffFunction = function;
   }
 
 protected:

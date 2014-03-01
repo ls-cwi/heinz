@@ -280,6 +280,22 @@ protected:
     }
   }
 
+  void constructRHS(IloExpr& rhs,
+                    const NodeSet& dS,
+                    const NodeSet& S)
+  {
+    rhs.clear();
+    for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
+    {
+      rhs += _x[_nodeMap[*nodeIt]];
+    }
+    
+    for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); nodeIt++)
+    {
+      rhs += _y[_nodeMap[*nodeIt]];
+    }
+  }
+
   bool isValid(Node target,
                const NodeSet& dS,
                const NodeSet& S) const
