@@ -156,7 +156,7 @@ protected:
           assert(isValid(*it, dS));
           
           IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-          add(constraint);
+          add(constraint, IloCplex::UseCutPurge);
           constraint.end();
 
           ++nCuts;
@@ -443,7 +443,7 @@ protected:
       for (NodeSetIt it = S.begin(); it != S.end(); ++it)
       {
         IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-        add(constraint);
+        add(constraint, IloCplex::UseCutPurge);
         constraint.end();
         
         ++nCuts;

@@ -222,7 +222,7 @@ protected:
       }
       
       IloConstraint constraint = _x[_nodeMap[target]] <= expr;
-      cbk.add(constraint);
+      cbk.add(constraint, IloCplex::UseCutPurge);
       constraint.end();
       
       expr.end();
@@ -273,7 +273,7 @@ protected:
       //std::cout << std::endl;
       
       IloConstraint constraint = _x[_nodeMap[target]] <= expr;
-      cbk.add(constraint);
+      cbk.add(constraint, IloCplex::UseCutPurge);
       constraint.end();
       
       expr.end();

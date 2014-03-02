@@ -164,7 +164,7 @@ protected:
           assert(isValid(*it, dS, S));
           
           IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-          add(constraint);
+          add(constraint, IloCplex::UseCutPurge);
           constraint.end();
           
           ++nCuts;
@@ -395,7 +395,7 @@ protected:
             {
               _pNodeBoolMap->set(j, false);
               IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
-              add(constraint);
+              add(constraint, IloCplex::UseCutPurge);
               constraint.end();
               
               ++nCuts;
@@ -416,7 +416,7 @@ protected:
               {
                 _pNodeBoolMap->set(j, false);
                 IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
-                add(constraint);
+                add(constraint, IloCplex::UseCutPurge);
                 constraint.end();
                 
                 ++nCuts;
@@ -487,7 +487,7 @@ protected:
       {
         assert(isValid(*it, dS, S));
         IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-        add(constraint);
+        add(constraint, IloCplex::UseCutPurge);
         constraint.end();
 
         ++nCuts;

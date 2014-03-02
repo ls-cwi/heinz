@@ -139,18 +139,18 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
   IloCplex::HeuristicCallbackI* pHeuristic = NULL;
   if (_root != lemon::INVALID)
   {
-//    _cplex.setParam( IloCplex::HeurFreq      , -1 );
-//    _cplex.setParam( IloCplex::Cliques       , -1 );
-//    _cplex.setParam( IloCplex::Covers        , -1 );
-//    _cplex.setParam( IloCplex::FlowCovers    , -1 );
-//    _cplex.setParam( IloCplex::GUBCovers     , -1 );
-//    _cplex.setParam( IloCplex::FracCuts      , -1 );
-//    _cplex.setParam( IloCplex::MIRCuts       , -1 );
-//    _cplex.setParam( IloCplex::FlowPaths     , -1 );
-//    _cplex.setParam( IloCplex::ImplBd        , -1 );
-//    _cplex.setParam( IloCplex::DisjCuts      , -1 );
+    _cplex.setParam( IloCplex::HeurFreq      , -1 );
+    _cplex.setParam( IloCplex::Cliques       , -1 );
+    _cplex.setParam( IloCplex::Covers        , -1 );
+    _cplex.setParam( IloCplex::FlowCovers    , -1 );
+    _cplex.setParam( IloCplex::GUBCovers     , -1 );
+    _cplex.setParam( IloCplex::FracCuts      , -1 );
+    _cplex.setParam( IloCplex::MIRCuts       , -1 );
+    _cplex.setParam( IloCplex::FlowPaths     , -1 );
+    _cplex.setParam( IloCplex::ImplBd        , -1 );
+    _cplex.setParam( IloCplex::DisjCuts      , -1 );
 //    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
-//    _cplex.setParam( IloCplex::MCFCuts       , -1 );
+    _cplex.setParam( IloCplex::MCFCuts       , -1 );
 //    _cplex.setParam( IloCplex::AggFill       ,  0 );
 //    _cplex.setParam( IloCplex::PreInd        ,  0 );
 //    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
@@ -174,7 +174,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam( IloCplex::Covers        , -1 );
     _cplex.setParam( IloCplex::FlowCovers    , -1 );
     _cplex.setParam( IloCplex::GUBCovers     , -1 );
-//    _cplex.setParam( IloCplex::FracCuts      , -1 );
+    _cplex.setParam( IloCplex::FracCuts      , -1 );
     _cplex.setParam( IloCplex::MIRCuts       , -1 );
     _cplex.setParam( IloCplex::FlowPaths     , -1 );
     _cplex.setParam( IloCplex::ImplBd        , -1 );
