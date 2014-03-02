@@ -57,6 +57,9 @@ protected:
   using Parent::addViolatedConstraint;
   using Parent::getEnv;
   using Parent::getValues;
+  using Parent::constructRHS;
+  using Parent::isValid;
+  using Parent::add;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -112,6 +115,8 @@ protected:
     const int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
     if (nComp > 1)
     {
+      IloExpr rhs(getEnv());
+      
       NodeSetVector compMatrix(nComp, NodeSet());
       for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
       {
@@ -145,22 +150,23 @@ protected:
           }
         }
         
+        constructRHS(rhs, dS);
         for (NodeSetIt it = S.begin(); it != S.end(); ++it)
         {
-          const Node i = *it;
-          addViolatedConstraint(*this, i, dS);
+          assert(isValid(*it, dS));
+          
+          IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
+          add(constraint);
+          constraint.end();
+
           ++nCuts;
         }
       }
       
-//      std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
-//      std::cerr << "[";
-//      for (int idx = 0; idx < nComp; idx++)
-//      {
-//        std::cerr << " " << compMatrix[idx].size();
-//      }
-//      std::cerr << " ]" << std::endl;
+      rhs.end();
     }
+
+    //      std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
     
     x_values.end();
   }
@@ -231,6 +237,9 @@ protected:
   using Parent::_pBK;
   using Parent::_marked;
   using Parent::_cutCount;
+  using Parent::_nodeNumber;
+  using Parent::_pSubG;
+  using Parent::_pComp;
   
   using Parent::lock;
   using Parent::unlock;
@@ -240,6 +249,8 @@ protected:
   using Parent::getEnv;
   using Parent::getValues;
   using Parent::printNodeSet;
+  using Parent::constructRHS;
+  using Parent::add;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -302,18 +313,10 @@ protected:
   {
     return (new (getEnv()) NodeCutRootedUserCut(*this));
   }
-
-  void separate()
+  
+  void separateMinCut(const IloNumArray& x_values,
+                      int& nCuts, int& nBackCuts, int& nNestedCuts)
   {
-    IloNumArray x_values(getEnv(), _n);
-    getValues(x_values, _x);
-    
-    computeCapacities(_cap, x_values);
-    
-    int nCuts = 0;
-    int nBackCuts = 0;
-    int nNestedCuts = 0;
-
     _pBK->setSource(_diRoot);
     _pNodeBoolMap->set(_root, false);
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
@@ -325,7 +328,7 @@ protected:
       
       _pBK->setTarget((*_pG2h2)[i]);
       _pBK->setCap(_cap);
-
+      
       bool nestedCut = false;
       bool first = true;
       while (true)
@@ -348,19 +351,19 @@ protected:
           NodeSet fwdDS;
           determineFwdCutSet(_h, *_pBK, fwdDS);
           
-          double m = 0;
-          for (NodeSetIt it = fwdDS.begin(); it != fwdDS.end(); ++it)
-          {
-            m += _cap[DiOutArcIt(_h, (*_pG2h1)[*it])];
-          }
-          if (_tol.different(m, minCutValue))
-          {
-            printNodeSet(fwdDS, _x, x_values);
-            assert(false);
-          }
+//          double m = 0;
+//          for (NodeSetIt it = fwdDS.begin(); it != fwdDS.end(); ++it)
+//          {
+//            m += _cap[DiOutArcIt(_h, (*_pG2h1)[*it])];
+//          }
+//          if (_tol.different(m, minCutValue))
+//          {
+//            printNodeSet(fwdDS, _x, x_values);
+//            assert(false);
+//          }
           
           // numerical instability may cause minCutValue < x_i_value
-          // even though there is nothing to cut ( || fwdDS.find(i) != fwdDS.end())
+          // even though there is nothing to cut
           if (fwdDS.empty()) break;
           
           // determine N (forward)
@@ -395,11 +398,88 @@ protected:
           break;
         }
       }
-
-//      std::cerr <<  "#" << _cutCount << ": generated " << nCuts
-//                << " user cuts of which " << nBackCuts << " are back-cuts and "
-//                << nNestedCuts << " are nested cuts" << std::endl;
     }
+  }
+  
+  void separateConnectedComponents(const IloNumArray& x_values,
+                                   const int nComp,
+                                   int& nCuts)
+  {
+    typedef std::vector<NodeSet> NodeSetVector;
+    typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
+    
+    NodeSetVector compMatrix(nComp, NodeSet());
+    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
+    {
+      int compIdx = (*_pComp)[i];
+      compMatrix[compIdx].insert(i);
+    }
+    
+    IloExpr rhs(getEnv());
+    for (int compIdx = 0; compIdx < nComp; compIdx++)
+    {
+      const NodeSet& S = compMatrix[compIdx];
+      if (S.find(_root) != S.end())
+      {
+        continue;
+      }
+      
+      // determine dS
+      NodeSet dS;
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        const Node i = *it;
+        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        {
+          const Node j = _g.target(a);
+          if (S.find(j) == S.end())
+          {
+            dS.insert(j);
+          }
+        }
+      }
+      
+      constructRHS(rhs, dS);
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
+        add(constraint);
+        constraint.end();
+        
+        ++nCuts;
+      }
+    }
+    rhs.end();
+  }
+
+  void separate()
+  {
+    IloNumArray x_values(getEnv(), _n);
+    getValues(x_values, _x);
+    
+    computeCapacities(_cap, x_values);
+    
+    int nCuts = 0;
+    int nBackCuts = 0;
+    int nNestedCuts = 0;
+
+    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
+    if (nComp == 1 || _nodeNumber == 0)
+    {
+      separateMinCut(x_values, nCuts, nBackCuts, nNestedCuts);
+    }
+    else if (nComp > 1)
+    {
+      separateConnectedComponents(x_values, nComp, nCuts);
+    }
+    
+//    if (nCuts != 0 )
+//    {
+//      std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
+//      << ": generated " << nCuts
+//      << " user cuts of which " << nBackCuts << " are back-cuts and "
+//      << nNestedCuts << " are nested cuts" << std::endl;
+//    }
     
     x_values.end();
   }
@@ -414,7 +494,7 @@ protected:
       if (!_tol.nonZero(val))
       {
         _pNodeBoolMap->set(v, false);
-        val = 10* _cutEpsilon;
+        val = 10 * _cutEpsilon;
       }
       else
       {

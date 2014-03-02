@@ -55,10 +55,11 @@ protected:
   
   using Parent::lock;
   using Parent::unlock;
-  using Parent::addViolatedConstraint;
   using Parent::getEnv;
   using Parent::getValues;
   using Parent::constructRHS;
+  using Parent::add;
+  using Parent::isValid;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -106,17 +107,17 @@ protected:
     getValues(y_values, _y);
     
     // determine non-zero y-vars
-    NodeSet Y;
+    Node root = lemon::INVALID;
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
       int idx_i = _nodeMap[i];
       if (_tol.nonZero(y_values[idx_i]))
       {
-        Y.insert(i);
+        assert(root == lemon::INVALID);
+        root = i;
       }
       _pNodeBoolMap->set(i, _tol.nonZero(x_values[idx_i]));
     }
-    assert(Y.size() == 1);
 
     typedef std::vector<NodeSet> NodeSetVector;
     typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
@@ -125,6 +126,8 @@ protected:
     int nCuts = 0;
     if (nComp != 1)
     {
+      IloExpr rhs(getEnv());
+      
       NodeSetVector compMatrix(nComp, NodeSet());
       for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
       {
@@ -135,13 +138,7 @@ protected:
       for (int compIdx = 0; compIdx < nComp; compIdx++)
       {
         const NodeSet& S = compMatrix[compIdx];
-
-        NodeSet S_cap_Y;
-        std::set_intersection(S.begin(), S.end(),
-                              Y.begin(), Y.end(),
-                              std::inserter(S_cap_Y, S_cap_Y.begin()));
-
-        if (!S_cap_Y.empty())
+        if (S.find(root) != S.end())
         {
           continue;
         }
@@ -161,20 +158,20 @@ protected:
           }
         }
 
+        constructRHS(rhs, dS, S);
         for (NodeSetIt it = S.begin(); it != S.end(); ++it)
         {
-          const Node i = *it;
-          addViolatedConstraint(*this, i, dS, S);
+          assert(isValid(*it, dS, S));
+          
+          IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
+          add(constraint);
+          constraint.end();
+          
           ++nCuts;
         }
       }
-
-//      std::cerr << "[";
-//      for (int idx = 0; idx < nComp; idx++)
-//      {
-//        std::cerr << " " << compMatrix[idx].size();
-//      }
-//      std::cerr << " ]" << std::endl;
+      
+      rhs.end();
     }
     
     x_values.end();
@@ -249,20 +246,20 @@ protected:
   using Parent::_pBK;
   using Parent::_marked;
   using Parent::_cutCount;
+  using Parent::_nodeNumber;
   using Parent::_pSubG;
   using Parent::_pComp;
-  using Parent::_backOff;
 
   using Parent::lock;
   using Parent::unlock;
   using Parent::determineFwdCutSet;
   using Parent::determineBwdCutSet;
-  using Parent::addViolatedConstraint;
   using Parent::add;
   using Parent::getEnv;
   using Parent::getValues;
   using Parent::getNnodes;
   using Parent::constructRHS;
+  using Parent::isValid;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -397,9 +394,6 @@ protected:
             if (_tol.less(minCutValue, x_j_value))
             {
               _pNodeBoolMap->set(j, false);
-              
-//              addViolatedConstraint(*this, j, fwdDS, fwdS);
-              
               IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
               add(constraint);
               constraint.end();
@@ -421,9 +415,6 @@ protected:
               if (_tol.less(minCutValue, x_j_value))
               {
                 _pNodeBoolMap->set(j, false);
-                
-//                addViolatedConstraint(*this, j, bwdDS, bwdS);
-                
                 IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
                 add(constraint);
                 constraint.end();
@@ -494,11 +485,11 @@ protected:
       constructRHS(rhs, dS, S);
       for (NodeSetIt it = S.begin(); it != S.end(); ++it)
       {
+        assert(isValid(*it, dS, S));
         IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
         add(constraint);
         constraint.end();
-        
-//        addViolatedConstraint(*this, i, dS, S);
+
         ++nCuts;
       }
     }
@@ -520,11 +511,11 @@ protected:
     int nNestedCuts = 0;
 
     int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (nComp == 1 || getNnodes() == 0)
+    if (nComp == 1 || _nodeNumber == 0)
     {
       separateMinCut(x_values, nCuts, nBackCuts, nNestedCuts);
     }
-    else if (nComp > 1)// && _backOff.makeAttempt())
+    else if (nComp > 1)
     {
       separateConnectedComponents(x_values, nComp, root, nCuts);
     }
@@ -532,13 +523,13 @@ protected:
     x_values.end();
     y_values.end();
     
-    if (nCuts != 0 )
-    {
-      std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
-                << ": generated " << nCuts
-                << " user cuts of which " << nBackCuts << " are back-cuts and "
-                << nNestedCuts << " are nested cuts" << std::endl;
-    }
+//    if (nCuts != 0 )
+//    {
+//      std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
+//                << ": generated " << nCuts
+//                << " user cuts of which " << nBackCuts << " are back-cuts and "
+//                << nNestedCuts << " are nested cuts" << std::endl;
+//    }
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }
   
@@ -670,7 +661,7 @@ protected:
                          IloNumArray x_values,
                          IloNumArray y_values)
   {
-    NodeSet Y;
+    Node root = lemon::INVALID;
     
     for (NodeIt v(_g); v != lemon::INVALID; ++v)
     {
@@ -696,13 +687,13 @@ protected:
       }
       else
       {
-        Y.insert(v);
+        assert(root == lemon::INVALID);
+        root = v;
       }
       capacity[(*_pG2hRootArc)[v]] = val;
     }
     
-    assert(Y.size() == 1);
-    return *Y.begin();
+    return root;
   }
 };
 

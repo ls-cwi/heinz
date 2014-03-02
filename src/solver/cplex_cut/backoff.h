@@ -24,7 +24,7 @@ public:
   } Function;
   
   // constant waiting
-  BackOff(int period)
+  explicit BackOff(int period)
     : _function(ConstantWaiting)
     , _period(0)
     , _attemptsSinceEvent(0)

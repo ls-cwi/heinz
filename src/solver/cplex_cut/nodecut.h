@@ -281,6 +281,16 @@ protected:
   }
 
   void constructRHS(IloExpr& rhs,
+                    const NodeSet& dS)
+  {
+    rhs.clear();
+    for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
+    {
+      rhs += _x[_nodeMap[*nodeIt]];
+    }
+  }
+  
+  void constructRHS(IloExpr& rhs,
                     const NodeSet& dS,
                     const NodeSet& S)
   {

@@ -24,8 +24,6 @@ set( Heinz_Hdr
   src/mwcs.h
   src/mwcsanalyze.h
   src/mwcsenumerate.h
-  src/mwcsenumeratecomp.h
-  src/mwcsenumerateroot.h
   src/solver/mwcssolver.h
   src/solver/mwcstreeheuristicsolver.h
   src/solver/mwcstreesolver.h

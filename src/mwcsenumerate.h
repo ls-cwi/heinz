@@ -303,72 +303,63 @@ inline void MwcsEnumerate<GR, WGHT>::enumerate(MwcsSolverEnum solver, bool prepr
   DoubleNodeMap weightSubG(subG);
   LabelNodeMap labelSubG(subG);
   NodeMap mapToG(subG);
-
+  
   MwcsGraphType* pMwcsSubGraph = createMwcsGraph(preprocess);
-
+  
   // contains the set of picked nodes (not necessarily in the original graph)
   NodeSet pickedNodes;
-
-  int solveCount = -1;
-  while (solveCount != 0)
+  
+  // 1. construct the subgraph
+  Graph& g = _mwcsGraph.getGraph();
+  
+  // 1a. determine allowed nodes
+  BoolNodeMap allowedNodes(g, true);
+  for (NodeSetIt nodeIt = pickedNodes.begin(); nodeIt != pickedNodes.end(); nodeIt++)
   {
-    solveCount = 0;
-
-    // 1. construct the subgraph
-    Graph& g = _mwcsGraph.getGraph();
-
-    // 1a. determine allowed nodes
-    BoolNodeMap allowedNodes(g, true);
-    for (NodeSetIt nodeIt = pickedNodes.begin(); nodeIt != pickedNodes.end(); nodeIt++)
-    {
-      allowedNodes[*nodeIt] = false;
-    }
-
-    // 1b. construct subgraph
-    SubGraph subTmpG(g, allowedNodes);
-
-    // 1c. determine connected components in subG
-    IntNodeMap comp(g, -1);
-    int nComponents = lemon::connectedComponents(subTmpG, comp);
-
-    for (int compIdx = 0; compIdx < nComponents; compIdx++)
-    {
-      // 2a. determine nodes in same component
-      int nNodesComp = 0;
-      BoolNodeMap allowedNodesSameComp(g, false);
-      for (SubNodeIt node(subTmpG); node != lemon::INVALID; ++node)
-      {
-        if (comp[node] == compIdx)
-        {
-          allowedNodesSameComp[node] = true;
-          nNodesComp++;
-        }
-      }
-
-      // 2b. create and preprocess subgraph
-      SubGraph subTmpSameCompG(g, allowedNodesSameComp);
-      lemon::graphCopy(subTmpSameCompG, subG)
-          .nodeMap(_mwcsGraph.getScores(), weightSubG)
-          .nodeMap(_mwcsGraph.getLabels(), labelSubG)
-          .nodeCrossRef(mapToG)
-          .run();
-
-      if (g_verbosity >= VERBOSE_ESSENTIAL)
-      {
-        std::cout << std::endl;
-        std::cout << "// Considering component " << compIdx + 1 << "/" << nComponents
-                  << ": contains " << nNodesComp << " nodes" << std::endl;
-      }
-      pMwcsSubGraph->init(&subG, &labelSubG, &weightSubG, NULL);
-
-      // 3. solve
-      if (solveMWCS(pMwcsSubGraph, mapToG, solver, pickedNodes))
-      {
-        solveCount++;
-      }
-    }
+    allowedNodes[*nodeIt] = false;
   }
-
+  
+  // 1b. construct subgraph
+  SubGraph subTmpG(g, allowedNodes);
+  
+  // 1c. determine connected components in subG
+  IntNodeMap comp(g, -1);
+  int nComponents = lemon::connectedComponents(subTmpG, comp);
+  
+  for (int compIdx = 0; compIdx < nComponents; compIdx++)
+  {
+    // 2a. determine nodes in same component
+    int nNodesComp = 0;
+    BoolNodeMap allowedNodesSameComp(g, false);
+    for (SubNodeIt node(subTmpG); node != lemon::INVALID; ++node)
+    {
+      if (comp[node] == compIdx)
+      {
+        allowedNodesSameComp[node] = true;
+        nNodesComp++;
+      }
+    }
+    
+    // 2b. create and preprocess subgraph
+    SubGraph subTmpSameCompG(g, allowedNodesSameComp);
+    lemon::graphCopy(subTmpSameCompG, subG)
+    .nodeMap(_mwcsGraph.getScores(), weightSubG)
+    .nodeMap(_mwcsGraph.getLabels(), labelSubG)
+    .nodeCrossRef(mapToG)
+    .run();
+    
+    if (g_verbosity >= VERBOSE_ESSENTIAL)
+    {
+      std::cout << std::endl;
+      std::cout << "// Considering component " << compIdx + 1 << "/" << nComponents
+      << ": contains " << nNodesComp << " nodes" << std::endl;
+    }
+    pMwcsSubGraph->init(&subG, &labelSubG, &weightSubG, NULL);
+    
+    // 3. solve
+    solveMWCS(pMwcsSubGraph, mapToG, solver, pickedNodes);
+  }
+  
   delete pMwcsSubGraph;
 }
 
