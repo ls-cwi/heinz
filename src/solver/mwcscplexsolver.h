@@ -316,7 +316,7 @@ inline bool MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::solve()
     }
   }
 
-  lemon::Tolerance<double> tol(1e-6);
+  lemon::Tolerance<double> tol(1e-5);
 
   // solution
   _solutionSet.clear();
