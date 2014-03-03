@@ -70,11 +70,11 @@ int main(int argc, char** argv)
   // parse command line arguments
   int formulation = 5;
   int verbosityLevel = 2;
-  int maxNumberOfCuts = -1;
+  int maxNumberOfCuts = 3;
   int timeLimit = -1;
   bool preprocess = false;
   int multiThreading = 1;
-  int backOffFunction = 0;
+  int backOffFunction = 1;
   int backOffPeriod = 1;
   std::string root;
   std::string outputFile;
@@ -94,8 +94,8 @@ int main(int argc, char** argv)
     .refOption("n", "Node file", nodeFile, false)
     .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
     .refOption("b", "Back-off function:\n"
-                        "     0 - Constant waiting (default period: 1, override with '-period')\n"
-                        "     1 - Linear waiting\n"
+                        "     0 - Constant waiting (period: 1, override with '-period')\n"
+                        "     1 - Linear waiting (default)\n"
                         "     2 - Quadratic waiting\n"
                         "     3 - Exponential waiting\n"
                         "     4 - Infinite waiting", backOffFunction, false)
@@ -120,8 +120,8 @@ int main(int argc, char** argv)
     .refOption("lambda", "Specifies lambda", lambda, false)
     .refOption("a", "Specifies a", a, false)
     .refOption("FDR", "Specifies fdr", fdr, false)
-    .refOption("maxCuts", "Specifies the maximum number of cuts per step\n"
-                          "     (only in conjuction with -f 2, optional, default: -1)", maxNumberOfCuts, false);
+    .refOption("maxCuts", "Specifies the number of cut iterations per node in the B&B tree (default: 3)\n",
+               maxNumberOfCuts, false);
   ap.parse();
 
   if (ap.given("version"))
