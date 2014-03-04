@@ -38,15 +38,6 @@ public:
   typedef EWGHT WeightEdgeMap;
   typedef NodeCut<GR, NWGHT, NLBL, EWGHT> Parent;
   
-  typedef enum
-  {
-    ConstantWaiting,
-    LinearWaiting,
-    QuadraticWaiting,
-    ExponentialWaiting,
-    InfiniteWaiting
-  } BackOffFunction;
-  
   using Parent::_x;
   using Parent::_y;
   using Parent::_g;
