@@ -1,3 +1,4 @@
+* Only do min cut separation on nodes i that are not part of non-zero component containing the root
 * Encapsulate connected components separation in NodeCut class (argument x_values not needed)
 * Unit test: solution is an entire connected component in the input graph
 * isValid in NodeCutUnrooted
