@@ -119,7 +119,7 @@ public:
               int m,
               int maxNumberOfCuts,
               IloFastMutex* pMutex,
-              BackOff backOff)
+              const BackOff& backOff)
     : IloCplex::UserCutCallbackI(env)
     , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
     , _h()
