@@ -176,10 +176,10 @@ int main (int argc, char** argv)
     pMwcs->printModule(pTreeSolver->getSolutionModule(), std::cout);
   }
 
-  delete pTreeSolver;
   std::cerr << "Score: " << pTreeSolver->getSolutionWeight() << std::endl;
   std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 
+  delete pTreeSolver;
   delete pParser;
   delete pMwcs;
 

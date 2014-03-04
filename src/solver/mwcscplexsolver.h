@@ -5,8 +5,8 @@
  *     Authors: M. El-Kebir
  */
 
-#ifndef MWCSFLOWSOLVER_H
-#define MWCSFLOWSOLVER_H
+#ifndef MWCSCPLEXSOLVER_H
+#define MWCSCPLEXSOLVER_H
 
 #include "mwcssolver.h"
 
@@ -21,7 +21,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsFlowSolver : public MwcsSolver<GR, NWGHT, NLBL, EWGHT>
+class MwcsCplexSolver : public MwcsSolver<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -36,6 +36,8 @@ public:
 
   typedef std::vector<Node> InvNodeIntMap;
   typedef std::vector<Arc> InvArcIntMap;
+  typedef typename Parent::NodeVector NodeVector;
+  typedef typename Parent::NodeVectorIt NodeVectorIt;
 
   using Parent::_mwcsGraph;
   using Parent::_root;
@@ -50,8 +52,8 @@ public:
   using Parent::init;
 
 public:
-  MwcsFlowSolver(const MwcsGraphType& mwcsGraph);
-  virtual ~MwcsFlowSolver();
+  MwcsCplexSolver(const MwcsGraphType& mwcsGraph);
+  virtual ~MwcsCplexSolver();
 
   void exportModel(const std::string& filename)
   {
@@ -67,8 +69,6 @@ protected:
   int _m;
   IntNodeMap* _pNode;
   InvNodeIntMap _invNode;
-  IntArcMap* _pArc;
-  InvArcIntMap _invArc;
   IloEnv _env;
   IloModel _model;
   IloCplex _cplex;
@@ -89,17 +89,32 @@ protected:
     return _cplex.solve();
   }
 
+private:
+  struct NodesDegComp
+  {
+  private:
+    const IntNodeMap& _deg;
+
+  public:
+    NodesDegComp(const IntNodeMap& deg)
+      : _deg(deg)
+    {
+    }
+
+    bool operator ()(Node u, Node v)
+    {
+      return _deg[u] > _deg[v];
+    }
+  };
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::MwcsFlowSolver(const MwcsGraphType& mwcsGraph)
+inline MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::MwcsCplexSolver(const MwcsGraphType& mwcsGraph)
   : Parent(mwcsGraph)
   , _n(mwcsGraph.getNodeCount())
   , _m(mwcsGraph.getArcCount())
   , _pNode(NULL)
   , _invNode()
-  , _pArc(NULL)
-  , _invArc()
   , _env()
   , _model(_env)
   , _cplex(_model)
@@ -110,28 +125,26 @@ inline MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::MwcsFlowSolver(const MwcsGraphTyp
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::~MwcsFlowSolver()
+inline MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::~MwcsCplexSolver()
 {
   _env.end();
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::clean()
+void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::clean()
 {
   _cplex.end();
   _env.end();
   _env = IloEnv();
   _model = IloModel(_env);
   _cplex = IloCplex(_model);
-  delete _pArc;
   delete _pNode;
-  _pArc = NULL;
   _pNode = NULL;
 }
 
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::init(Node root)
+inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::init(Node root)
 {
   _root = root;
 
@@ -140,7 +153,7 @@ inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::init(Node root)
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::printVariables(std::ostream& out)
+inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::printVariables(std::ostream& out)
 {
   for (int id_v = 0; id_v < _n; id_v++)
   {
@@ -156,26 +169,42 @@ inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::printVariables(std::ostream&
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
+inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
 {
   const Graph& g = _mwcsGraph.getGraph();
   _n = _mwcsGraph.getNodeCount();
   _m = _mwcsGraph.getArcCount();
 
   delete _pNode;
-  delete _pArc;
   _pNode = new IntNodeMap(g);
-  _pArc = new IntArcMap(g);
 
   _x = IloBoolVarArray(_env, _n);
   if (_root == lemon::INVALID)
     _y = IloBoolVarArray(_env, _n);
 
+
+  // let's sort the nodes on degree
+  IntNodeMap deg(g);
+  _invNode.clear();
+  _invNode.reserve(_n);
+  for (NodeIt v(g); v != lemon::INVALID; ++v)
+  {
+    int d = 0;
+    for (IncEdgeIt e(g, v); e != lemon::INVALID; ++e) ++d;
+    deg[v] = d;
+    _invNode.push_back(v);
+  }
+
+  NodesDegComp comp(deg);
+  std::sort(_invNode.begin(), _invNode.end(), comp);
+
   char buf[1024];
 
   int i = 0;
-  for (NodeIt v(g); v != lemon::INVALID; ++v, i++)
+  for (NodeVectorIt it = _invNode.begin(); it != _invNode.end(); ++it, ++i)
   {
+    Node v = *it;
+
     // x_i = 0 if node i is not in the subgraph
     // x_i = 1 if node i is the subgraph
     snprintf(buf, 1024, "x_%s", _mwcsGraph.getLabel(v).c_str());
@@ -188,25 +217,13 @@ inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
       snprintf(buf, 1024, "y_%s", _mwcsGraph.getLabel(v).c_str());
       _y[i].setName(buf);
     }
-  }
 
-  _invNode.clear();
-  for (NodeIt n(g); n != lemon::INVALID; ++n)
-  {
-    (*_pNode)[n] = _invNode.size();
-    _invNode.push_back(n);
-  }
-
-  _invArc.clear();
-  for (ArcIt a(g); a != lemon::INVALID; ++a)
-  {
-    (*_pArc)[a] = _invArc.size();
-    _invArc.push_back(a);
+    (*_pNode)[v] = i;
   }
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
+inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 {
   if (_root == lemon::INVALID)
   {
@@ -254,7 +271,7 @@ inline void MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline bool MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::solve()
+inline bool MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::solve()
 {
   // shut up cplex
   if (g_verbosity < VERBOSE_NON_ESSENTIAL)
@@ -299,7 +316,7 @@ inline bool MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::solve()
     }
   }
 
-  lemon::Tolerance<double> tol(1e-6);
+  lemon::Tolerance<double> tol(1e-5);
 
   // solution
   _solutionSet.clear();
@@ -324,4 +341,4 @@ inline bool MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>::solve()
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSFLOWSOLVER_H
+#endif // MWCSCPLEXSOLVER_H

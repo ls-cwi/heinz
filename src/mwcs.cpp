@@ -23,15 +23,12 @@
 #include "preprocessing/mwcspreprocessrulenegedge.h"
 #include "preprocessing/mwcspreprocessruleposdeg01.h"
 #include "preprocessing/mwcspreprocessruleneghub.h"
-#include "solver/mwcsscfsolver.h"
-#include "solver/mwcsmcfsolver.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcstreeheuristicsolver.h"
+#include "solver/cplex_cut/backoff.h"
 #include "mwcsanalyze.h"
 #include "mwcsenumerate.h"
-#include "mwcsenumeratecomp.h"
-#include "mwcsenumerateroot.h"
 #include "mwcs.h"
 #include "utils.h"
 #include "config.h"
@@ -50,26 +47,35 @@ typedef MwcsPreprocessRuleNegEdge<Graph> MwcsPreprocessRuleNegEdgeType;
 typedef MwcsPreprocessRulePosDeg01<Graph> MwcsPreprocessRulePosDeg01Type;
 typedef MwcsPreprocessRuleNegHub<Graph> MwcsPreprocessRuleNegHubType;
 typedef MwcsSolver<Graph> MwcsSolverType;
-typedef MwcsSCFSolver<Graph> MwcsSCFSolverType;
-typedef MwcsMCFSolver<Graph> MwcsMCFSolverType;
 typedef MwcsCutSolver<Graph> MwcsCutSolverType;
 typedef MwcsTreeSolver<Graph> MwcsTreeSolverType;
 typedef MwcsTreeHeuristicSolver<Graph> MwcsTreeHeuristicSolverType;
 typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
 typedef MwcsEnumerate<Graph> MwcsEnumerateType;
-typedef MwcsEnumerateComp<Graph> MwcsEnumerateCompType;
-typedef MwcsEnumerateRoot<Graph> MwcsEnumerateRootType;
+
+BackOff createBackOff(int function, int period)
+{
+  BackOff::Function f = static_cast<BackOff::Function>(function);
+  switch (f)
+  {
+    case nina::mwcs::BackOff::ConstantWaiting:
+      return BackOff(period);
+    default:
+      return BackOff(f);
+  }
+}
 
 int main(int argc, char** argv)
 {
   // parse command line arguments
   int formulation = 5;
   int verbosityLevel = 2;
-  int maxNumberOfCuts = -1;
-  int enumerationMode = 3;
+  int maxNumberOfCuts = 3;
   int timeLimit = -1;
   bool preprocess = false;
   int multiThreading = 1;
+  int backOffFunction = 1;
+  int backOffPeriod = 1;
   std::string root;
   std::string outputFile;
   double lambda = 0;
@@ -83,21 +89,17 @@ int main(int argc, char** argv)
 
   ap
     .boolOption("version", "Show version number")
-    .refOption("enum", "Enumeration mode:\n"
-                        "     0 - No enumeration\n"
-                        "     1 - No root\n"
-                        "     2 - Fix root\n"
-                        "     3 - No root per component (default)",
-               enumerationMode, false)
     .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
     .refOption("e", "Edge list file", edgeFile, false)
     .refOption("n", "Node file", nodeFile, false)
+    .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
+    .refOption("b", "Back-off function:\n"
+                        "     0 - Constant waiting (period: 1, override with '-period')\n"
+                        "     1 - Linear waiting (default)\n"
+                        "     2 - Quadratic waiting\n"
+                        "     3 - Exponential waiting\n"
+                        "     4 - Infinite waiting", backOffFunction, false)
     .refOption("f", "Formulation of the problem:\n"
-                        "     0 - Single Commodity Flow\n"
-                        "     1 - Multi Commodity Flow\n"
-                        "     2 - Cut formulation (Flow) \n"
-                        "     3 - Cut formulation (Flow-min)\n"
-                        "     4 - Cut formulation (Node-separator)\n"
                         "     5 - Cut formulation (Node-separator, BK, default)\n"
                         "     6 - Tree DP\n"
                         "     7 - Tree DP heuristic (fixed_edge)\n"
@@ -118,8 +120,8 @@ int main(int argc, char** argv)
     .refOption("lambda", "Specifies lambda", lambda, false)
     .refOption("a", "Specifies a", a, false)
     .refOption("FDR", "Specifies fdr", fdr, false)
-    .refOption("maxCuts", "Specifies the maximum number of cuts per step\n"
-                          "     (only in conjuction with -f 2, optional, default: -1)", maxNumberOfCuts, false);
+    .refOption("maxCuts", "Specifies the number of cut iterations per node in the B&B tree (default: 3)\n",
+               maxNumberOfCuts, false);
   ap.parse();
 
   if (ap.given("version"))
@@ -194,171 +196,115 @@ int main(int argc, char** argv)
       pMwcs->computeScores(fdr);
   }
 
-  if (pMwcs->getComponentCount() == 1 && enumerationMode == 1)
-    enumerationMode = 0;
-  if (!root.empty())
-    enumerationMode = 0;
-
   // Solve
   lemon::Timer t;
-  switch (enumerationMode)
+  const Node rootNode = pMwcs->getNodeByLabel(root);
+  if (rootNode == lemon::INVALID && !root.empty())
   {
-    case 1:
-      {
-        MwcsEnumerateType mwcsEnumerate(*pMwcs);
-        mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), preprocess);
-        const MwcsEnumerateType::ModuleVector& modules = mwcsEnumerate.getModules();
-        pMwcs->printModules(modules, std::cout, true);
-
-        if (!outputFile.empty())
-        {
-          std::ofstream outFile(outputFile.c_str());
-          if (outFile)
-          {
-            mwcsEnumerate.printOutput(outFile);
-          }
-          outFile.close();
-        }
-      }
-      break;
-    case 2:
-      {
-        MwcsEnumerateRootType mwcsEnumerate(*pMwcs);
-        mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), preprocess);
-        const MwcsEnumerateType::ModuleVector& modules = mwcsEnumerate.getModules();
-        pMwcs->printModules(modules, std::cout, true);
-
-        if (!outputFile.empty())
-        {
-          std::ofstream outFile(outputFile.c_str());
-          if (outFile)
-          {
-            mwcsEnumerate.printOutput(outFile);
-          }
-          outFile.close();
-        }
-      }
-      break;
-    case 3:
-      {
-        MwcsEnumerateCompType mwcsEnumerate(*pMwcs);
-        mwcsEnumerate.setTimeLimit(timeLimit);
-        mwcsEnumerate.setMultiThreading(multiThreading);
-        mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), preprocess);
-
-        const Graph& g = pMwcs->getOrgGraph();
-        double maxScore = 0;
-        int maxIdx = -1;
-        for (NodeIt v(g); v != lemon::INVALID; ++v)
-        {
-          double score = mwcsEnumerate.getModuleWeight(v);
-          if (score >= maxScore)
-          {
-            maxScore = score;
-            maxIdx = mwcsEnumerate.getModuleIndex(v);
-          }
-        }
-
-        if (maxIdx != -1)
-        {
-          if (outputFile != "-" && !outputFile.empty())
-          {
-            std::ofstream outFile(outputFile.c_str());
-            pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), outFile);
-            pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
-          }
-          else if (outputFile == "-")
-          {
-            pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), std::cout);
-          }
-          else
-          {
-            pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
-          }
-        }
-      }
-      break;
-    case 0:
-      {
-        // Initialize solver
-        const Node rootNode = pMwcs->getNodeByLabel(root);
-        if (rootNode == lemon::INVALID && !root.empty())
-        {
-          std::cerr << "No node with label '" << root
-                    << "' present. Defaulting to unrooted formulation." << std::endl;
-        }
-
-        MwcsSolverType* pSolver = NULL;
-        switch (formulation)
-        {
-          case 0:
-            pSolver = new MwcsSCFSolverType(*pMwcs);
-            break;
-          case 1:
-            pSolver = new MwcsMCFSolverType(*pMwcs);
-            break;
-          case 2:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_FLOW, maxNumberOfCuts, timeLimit, multiThreading);
-            break;
-          case 3:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_FLOW_MIN, maxNumberOfCuts, timeLimit, multiThreading);
-            break;
-          case 4:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR, maxNumberOfCuts, timeLimit, multiThreading);
-            break;
-          case 5:
-            pSolver = new MwcsCutSolverType(*pMwcs, MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR_BK, maxNumberOfCuts, timeLimit, multiThreading);
-            break;
-          case 6:
-            if (rootNode == lemon::INVALID && !enumerationMode)
-            {
-              std::cerr << "Tree DP can only be used with a specified root node" << std::endl;
-              return 1;
-            }
-            pSolver = new MwcsTreeSolverType(*pMwcs);
-            break;
-          case 7:
-          case 8:
-          case 9:
-            {
-              MwcsTreeHeuristicSolverType* pTreeSolver = new MwcsTreeHeuristicSolverType(*pMwcs);
-              if (formulation == 7)
-                pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_FIXED);
-              else if (formulation == 8)
-                pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_RANDOM);
-              else if (formulation == 9)
-                pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_UNIFORM_RANDOM);
-              pSolver = pTreeSolver;
-            }
-            break;
-          default:
-          {
-            std::cerr << "Wrong formulation specified" << std::endl;
-            return 1;
-          }
-        }
-
-        pSolver->init(rootNode);
-        pSolver->solve();
-        if (outputFile != "-" && !outputFile.empty())
-        {
-          std::ofstream outFile(outputFile.c_str());
-          pMwcs->printHeinz(pSolver->getSolutionModule(), outFile);
-          pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
-        }
-        else if (outputFile == "-")
-        {
-          pMwcs->printHeinz(pSolver->getSolutionModule(), std::cout);
-        }
-        else
-        {
-          pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
-        }
-
-        delete pSolver;
-      }
-      break;
+    std::cerr << "No node with label '" << root
+    << "' present. Defaulting to unrooted formulation." << std::endl;
   }
+  
+  if (rootNode == lemon::INVALID)
+  {
+    MwcsEnumerateType mwcsEnumerate(*pMwcs);
+    mwcsEnumerate.setTimeLimit(timeLimit);
+    mwcsEnumerate.setMultiThreading(multiThreading);
+    mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
+    mwcsEnumerate.setBackOff(createBackOff(backOffFunction, backOffPeriod));
+    mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), preprocess);
+    
+    const Graph& g = pMwcs->getOrgGraph();
+    double maxScore = 0;
+    int maxIdx = -1;
+    for (NodeIt v(g); v != lemon::INVALID; ++v)
+    {
+      double score = mwcsEnumerate.getModuleWeight(v);
+      if (score >= maxScore)
+      {
+        maxScore = score;
+        maxIdx = mwcsEnumerate.getModuleIndex(v);
+      }
+    }
+    
+    if (maxIdx != -1)
+    {
+      if (outputFile != "-" && !outputFile.empty())
+      {
+        std::ofstream outFile(outputFile.c_str());
+        pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), outFile);
+        pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
+      }
+      else if (outputFile == "-")
+      {
+        pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), std::cout);
+      }
+      else
+      {
+        pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
+      }
+    }
+  }
+  else
+  {
+    // Initialize solver
+    const Node rootNode = pMwcs->getNodeByLabel(root);
+    if (rootNode == lemon::INVALID && !root.empty())
+    {
+      std::cerr << "No node with label '" << root
+                << "' present. Defaulting to unrooted formulation." << std::endl;
+    }
+
+    MwcsSolverType* pSolver = NULL;
+    switch (formulation)
+    {
+      case 5:
+        pSolver = new MwcsCutSolverType(*pMwcs, createBackOff(backOffFunction, backOffPeriod), maxNumberOfCuts, timeLimit, multiThreading);
+        break;
+      case 6:
+        pSolver = new MwcsTreeSolverType(*pMwcs);
+        break;
+      case 7:
+      case 8:
+      case 9:
+        {
+          MwcsTreeHeuristicSolverType* pTreeSolver = new MwcsTreeHeuristicSolverType(*pMwcs);
+          if (formulation == 7)
+            pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_FIXED);
+          else if (formulation == 8)
+            pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_RANDOM);
+          else if (formulation == 9)
+            pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_UNIFORM_RANDOM);
+          pSolver = pTreeSolver;
+        }
+        break;
+      default:
+      {
+        std::cerr << "Wrong formulation specified" << std::endl;
+        return 1;
+      }
+    }
+
+    pSolver->init(rootNode);
+    pSolver->solve();
+    if (outputFile != "-" && !outputFile.empty())
+    {
+      std::ofstream outFile(outputFile.c_str());
+      pMwcs->printHeinz(pSolver->getSolutionModule(), outFile);
+      pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
+    }
+    else if (outputFile == "-")
+    {
+      pMwcs->printHeinz(pSolver->getSolutionModule(), std::cout);
+    }
+    else
+    {
+      pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
+    }
+
+    delete pSolver;
+  }
+
   std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 
   delete pParser;

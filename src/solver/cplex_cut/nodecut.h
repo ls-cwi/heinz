@@ -1,7 +1,7 @@
 /*
  * nodecut.h
  *
- *  Created on: 19-apr-2013
+ *  Created on: 17-feb-2014
  *      Author: M. El-Kebir
  */
 
@@ -10,16 +10,10 @@
 
 #include <ilcplex/ilocplex.h>
 #include <ilcplex/ilocplexi.h>
-#include <lemon/bfs.h>
+#include <ilconcert/ilothread.h>
 #include <lemon/adaptors.h>
-#include <lemon/preflow.h>
 #include <lemon/tolerance.h>
-#include <lemon/time_measure.h>
-#include <lemon/smart_graph.h>
-#include <vector>
 #include <set>
-#include <queue>
-#include <stack>
 
 namespace nina {
 namespace mwcs {
@@ -28,7 +22,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class NodeCutCallback : public IloCplex::LazyConstraintCallbackI
+class NodeCut
 {
 public:
   typedef GR Graph;
@@ -36,301 +30,325 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
+protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  typedef lemon::SmartDigraph Digraph;
-  typedef typename Digraph::Arc DiArc;
-  typedef typename Digraph::Node DiNode;
-  typedef typename Digraph::NodeIt DiNodeIt;
-  typedef typename Digraph::ArcIt DiArcIt;
-  typedef typename Digraph::InArcIt DiInArcIt;
-  typedef typename Digraph::OutArcIt DiOutArcIt;
-
-  typedef typename Graph::template NodeMap<DiNode> NodeNodeMap;
-  typedef typename Digraph::ArcMap<double> CapacityMap;
-
-  NodeCutCallback(IloEnv env,
-                  IloBoolVarArray x,
-                  const Graph& g,
-                  const WeightNodeMap& weight,
-                  Node root,
-                  const IntNodeMap& nodeMap,
-                  const IntArcMap& arcMap,
-                  int n,
-                  int m,
-                  int maxNumberOfCuts,
-                  const IntNodeMap& comp)
-    : IloCplex::LazyConstraintCallbackI(env)
-    , _x(x)
-    , _g(g)
-    , _weight(weight)
-    , _root(root)
-    , _nodeMap(nodeMap)
-    , _arcMap(arcMap)
-    , _n(n)
-    , _m(m)
-    , _maxNumberOfCuts(maxNumberOfCuts)
-    , _comp(comp)
-    , _tol()
-    , _h()
-    , _cap(_h)
-    , _tmpCap(_h)
-    , _g2h1(_g)
-    , _g2h2(_g)
-  {
-    init();
-  }
-
-  NodeCutCallback(const NodeCutCallback& other)
-    : IloCplex::LazyConstraintCallbackI(other)
-    , _x(other._x)
-    , _g(other._g)
-    , _weight(other._weight)
-    , _root(other._root)
-    , _nodeMap(other._nodeMap)
-    , _arcMap(other._arcMap)
-    , _n(other._n)
-    , _m(other._m)
-    , _maxNumberOfCuts(other._maxNumberOfCuts)
-    , _comp(other._comp)
-    , _tol(other._tol)
-    , _h()
-    , _cap(_h)
-    , _tmpCap(_h)
-    , _g2h1(_g)
-    , _g2h2(_g)
-  {
-    typename Digraph::template NodeMap<DiNode> nodeMap(other._h);
-    lemon::digraphCopy(other._h, _h)
-        .nodeRef(nodeMap)
-        .arcMap(other._cap, _cap)
-        .arcMap(other._tmpCap, _tmpCap)
-        .run();
-
-    for (NodeIt v(_g); v != lemon::INVALID; ++v)
-    {
-      DiNode v1 = other._g2h1[v];
-      DiNode v2 = other._g2h2[v];
-
-      _g2h1[v] = nodeMap[v1];
-      _g2h2[v] = nodeMap[v2];
-    }
-  }
-
-  virtual ~NodeCutCallback()
-  {
-  }
+  typedef std::vector<Node> NodeVector;
+  typedef typename NodeVector::const_iterator NodeVectorIt;
+  typedef std::vector<NodeVector> NodeMatrix;
+  typedef std::set<Node> NodeSet;
+  typedef typename NodeSet::const_iterator NodeSetIt;
+  typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
+  typedef typename SubGraph::NodeIt SubNodeIt;
 
 protected:
-  virtual void main();
-  virtual IloCplex::CallbackI* duplicateCallback() const
-  {
-    return (new (getEnv()) NodeCutCallback(*this));
-  }
-
-private:
   IloBoolVarArray _x;
+  IloBoolVarArray _y;
   const Graph& _g;
   const WeightNodeMap& _weight;
   const Node _root;
   const IntNodeMap& _nodeMap;
-  const IntArcMap& _arcMap;
   const int _n;
   const int _m;
   const int _maxNumberOfCuts;
-  const IntNodeMap& _comp;
   const lemon::Tolerance<double> _tol;
-  Digraph _h;
-  CapacityMap _cap;
-  CapacityMap _tmpCap;
-  NodeNodeMap _g2h1;
-  NodeNodeMap _g2h2;
+  BoolNodeMap* _pNodeBoolMap;
+  const SubGraph* _pSubG;
+  IntNodeMap* _pComp;
+  IloFastMutex* _pMutex;
 
-  typedef lemon::ReverseDigraph<const Digraph> ReverseDigraph;
-  typedef lemon::Preflow<ReverseDigraph, CapacityMap> RevPreFlowAlg;
-  typedef lemon::Preflow<Digraph, CapacityMap> PreFlowAlg;
-  typedef std::set<Node> NodeSet;
-  typedef typename NodeSet::const_iterator NodeSetIt;
-  typedef std::set<DiArc> DiArcSet;
-  typedef typename DiArcSet::const_iterator DiArcSetIt;
-  //typedef typename lemon::ResidualDigraph<const Graph, const DoubleArcMap, const DoubleArcMap, typename PreFlowAlg::Tolerance> ResidualGraphType;
-  //typedef typename lemon::ReverseDigraph<ResidualGraphType> ReverseResidualGraphType;
+  // 1e-5 is the epsilon that CPLEX uses (for deciding integrality),
+  // i.e. if |x| < 1e-5 it's considered to be 0 by CPLEX.
+  // if 1 - |x| < 1e-5 it's considered to be 1 by CPLEX.
+  // we use the same epsilon to separate violated cuts.
+  static const double _epsilon = 1e-5;
 
-  void init()
+public:
+  NodeCut(IloBoolVarArray x,
+          IloBoolVarArray y,
+          const Graph& g,
+          const WeightNodeMap& weight,
+          Node root,
+          const IntNodeMap& nodeMap,
+          int n,
+          int m,
+          int maxNumberOfCuts,
+          IloFastMutex* pMutex)
+    : _x(x)
+    , _y(y)
+    , _g(g)
+    , _weight(weight)
+    , _root(root)
+    , _nodeMap(nodeMap)
+    , _n(n)
+    , _m(m)
+    , _maxNumberOfCuts(maxNumberOfCuts)
+    , _tol(_epsilon)
+    , _pNodeBoolMap(NULL)
+    , _pSubG(NULL)
+    , _pComp(NULL)
+    , _pMutex(pMutex)
   {
-    // we initialize _h:
-    // - for every non-root node i, there will be two nodes i1 and i2
-    //   connected by an arc from i1 to i2
-    // - the root r only has one counterpart in h, i.e. r'
-    // - for every edge (i,j) where i != r and j != r there are two arcs
-    //   in h: (i2,j1) and (j2,i1) with capacties 1
-    // - for every edge (r, i) there is an arc (r,i1) in h with capacity 1
-    _h.clear();
+    lock();
+    _pNodeBoolMap = new BoolNodeMap(_g);
+    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
+    _pComp = new IntNodeMap(_g);
+    unlock();
+  }
+
+  NodeCut(const NodeCut& other)
+    : _x(other._x)
+    , _y(other._y)
+    , _g(other._g)
+    , _weight(other._weight)
+    , _root(other._root)
+    , _nodeMap(other._nodeMap)
+    , _n(other._n)
+    , _m(other._m)
+    , _maxNumberOfCuts(other._maxNumberOfCuts)
+    , _tol(other._tol)
+    , _pNodeBoolMap(NULL)
+    , _pSubG(NULL)
+    , _pComp(NULL)
+    , _pMutex(other._pMutex)
+  {
+    lock();
+    _pNodeBoolMap = new BoolNodeMap(_g);
+    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
+    _pComp = new IntNodeMap(_g);
+    unlock();
+  }
+
+  virtual ~NodeCut()
+  {
+    lock();
+    delete _pNodeBoolMap;
+    delete _pSubG;
+    delete _pComp;
+    unlock();
+  }
+
+protected:
+  void lock()
+  {
+    if (_pMutex)
+      _pMutex->lock();
+  }
+
+  void unlock()
+  {
+    if (_pMutex)
+      _pMutex->unlock();
+  }
+
+  void printNonZeroVars(IloCplex::ControlCallbackI& cbk,
+                        IloBoolVarArray variables,
+                        IloNumArray values) const
+  {
+    std::cerr << cbk.getNnodes() << ":";
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
-      if (i == _root)
-      {
-        DiNode cpy_i = _h.addNode();
-        _g2h1[i] = _g2h2[i] = cpy_i;
-      }
+      double i_value = values[_nodeMap[i]];
+      if (!_tol.nonZero(i_value)) continue;
+      std::cerr << " " << variables[_nodeMap[i]].getName()
+                << " (" << _g.id(i) << ", " << _weight[i] << ", " << i_value << ") " ;
+
+      if (cbk.getDirection(variables[_nodeMap[i]]) == CPX_BRANCH_UP)
+        std::cerr << "*";
+    }
+    std::cerr << std::endl;
+  }
+
+  void printNodeSet(const NodeSet& nodes,
+                    IloBoolVarArray variables,
+                    IloNumArray values) const
+  {
+    std::cout.precision(std::numeric_limits<double>::digits10);
+    bool first = true;
+    for (NodeSetIt it = nodes.begin(); it != nodes.end(); it++)
+    {
+      if (!first)
+        std::cout << " ";
       else
-      {
-        DiNode i1 = _h.addNode();
-        DiNode i2 = _h.addNode();
-        _g2h1[i] = i1;
-        _g2h2[i] = i2;
+        first = false;
 
-        DiArc a = _h.addArc(i1, i2);
-        _cap[a] = 0;
-      }
+      std::cout << _g.id(*it) << "(" << variables[_nodeMap[*it]].getName()
+                << " = " << std::fixed << values[_nodeMap[*it]]
+                << (_tol.nonZero(values[_nodeMap[*it]]) ? "*" : "") << ")";
     }
-
-    for (EdgeIt e(_g); e != lemon::INVALID; ++e)
+    std::cout << std::endl;
+  }
+  
+  void printNodeSet(const NodeSet& nodes,
+                    IloBoolVarArray variables) const
+  {
+    bool first = true;
+    for (NodeSetIt it = nodes.begin(); it != nodes.end(); it++)
     {
-      Node i = _g.u(e);
-      Node j = _g.v(e);
-      if (i == _root)
-      {
-        DiArc a = _h.addArc(_g2h2[i], _g2h1[j]);
-        _cap[a] = 1;
-      }
-      else if (j == _root)
-      {
-        DiArc a = _h.addArc(_g2h2[j], _g2h1[i]);
-        _cap[a] = 1;
-      }
+      if (!first)
+        std::cout << " ";
       else
+        first = false;
+      
+      std::cout << _g.id(*it) << "(" << variables[_nodeMap[*it]].getName() << ")";
+    }
+    std::cout << std::endl;
+  }
+  
+  template<typename CBK>
+  void addViolatedConstraint(CBK& cbk,
+                             Node target,
+                             const NodeSet& dS)
+  {
+    assert(isValid(target, dS));
+    if (dS.empty())
+    {
+      //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <= 0" << std::endl;
+      cbk.add(_x[_nodeMap[target]] <= 0);
+      // there should only be one component!
+      assert(false);
+    }
+    else
+    {
+      IloExpr expr(cbk.getEnv());
+      
+      //bool first = true;
+      //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <=";
+      for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
       {
-        DiNode i1 = _g2h1[i];
-        DiNode i2 = _g2h2[i];
-        DiNode j1 = _g2h1[j];
-        DiNode j2 = _g2h2[j];
-
-        DiArc i2j1 = _h.addArc(i2, j1);
-        DiArc j2i1 = _h.addArc(j2, i1);
-        _cap[i2j1] = _cap[j2i1] = 1;
+        expr += _x[_nodeMap[*nodeIt]];
+        
+        //std::cout << (first ? " " : " + ") << _x[_nodeMap[*nodeIt]].getName();
+        //first = false;
       }
+      
+      IloConstraint constraint = _x[_nodeMap[target]] <= expr;
+      cbk.add(constraint, IloCplex::UseCutPurge);
+      constraint.end();
+      
+      expr.end();
     }
   }
-
-  void computeCapacities(CapacityMap& capacity) const
+  
+  bool isValid(Node target, const NodeSet& dS) const
   {
-    // cap((i,j)) = x_i
-    for (NodeIt v(_g); v != lemon::INVALID; ++v)
+    return dS.find(target) == dS.end();
+  }
+  
+  template<typename CBK>
+  void addViolatedConstraint(CBK& cbk,
+                             Node target,
+                             const NodeSet& dS,
+                             const NodeSet& S)
+  {
+    assert(isValid(target, dS, S));
+    if (dS.empty() && S.empty())
     {
-      if (v != _root)
+      //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <= 0" << std::endl;
+      cbk.add(_x[_nodeMap[target]] <= 0);
+      // target should be in S!
+      assert(false);
+    }
+    else
+    {
+      IloExpr expr(cbk.getEnv());
+      
+      //bool first = true;
+      //std::cout << cbk.getNnodes() << ": " << _x[_nodeMap[target]].getName() << " <=";
+      for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
       {
-        DiNode v1 = _g2h1[v];
-        double val = getValue(_x[_nodeMap[v]]);
-        capacity[DiOutArcIt(_h, v1)] = 1e-9 + val;
+        expr += _x[_nodeMap[*nodeIt]];
+        
+        //std::cout << (first ? " " : " + ") << _x[_nodeMap[*nodeIt]].getName();
+        //first = false;
       }
-    }
-  }
-
-  void addViolatedConstraint(Node target, const NodeSet& N)
-  {
-    IloExpr expr(getEnv());
-
-    for (NodeSetIt nodeIt = N.begin(); nodeIt != N.end(); nodeIt++)
-    {
-      expr += _x[_nodeMap[*nodeIt]];
-    }
-
-    add(_x[_nodeMap[target]] <= expr);
-  }
-
-  template<class T>
-  NodeSet determineCutSet(const T& pf)
-  {
-    NodeSet result;
-    for (NodeIt v(_g); v != lemon::INVALID; ++v)
-    {
-      if (v != _root)
+      
+      for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); nodeIt++)
       {
-        DiNode v1 = _g2h1[v];
-        DiNode v2 = _g2h2[v];
-        if (pf.minCut(v1) != pf.minCut(v2))
+        expr += _y[_nodeMap[*nodeIt]];
+        
+        //std::cout << (first ? " " : " + ") << _y[_nodeMap[*nodeIt]].getName();
+        //first = false;
+      }
+      
+      //std::cout << std::endl;
+      
+      IloConstraint constraint = _x[_nodeMap[target]] <= expr;
+      cbk.add(constraint, IloCplex::UseCutPurge);
+      constraint.end();
+      
+      expr.end();
+    }
+  }
+
+  void constructRHS(IloExpr& rhs,
+                    const NodeSet& dS)
+  {
+    rhs.clear();
+    for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
+    {
+      rhs += _x[_nodeMap[*nodeIt]];
+    }
+  }
+  
+  void constructRHS(IloExpr& rhs,
+                    const NodeSet& dS,
+                    const NodeSet& S)
+  {
+    rhs.clear();
+    for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
+    {
+      rhs += _x[_nodeMap[*nodeIt]];
+    }
+    
+    for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); nodeIt++)
+    {
+      rhs += _y[_nodeMap[*nodeIt]];
+    }
+  }
+
+  bool isValid(Node target,
+               const NodeSet& dS,
+               const NodeSet& S) const
+  {
+    NodeSet ddS;
+    for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); ++nodeIt)
+    {
+      Node u = *nodeIt;
+      for (OutArcIt a(_g, u); a != lemon::INVALID; ++a)
+      {
+        Node v = _g.target(a);
+        if (S.find(v) == S.end())
         {
-          result.insert(v);
+          ddS.insert(v);
         }
       }
     }
-    return result;
+    
+    if (dS != ddS)
+    {
+      return false;
+    }
+    else
+    {
+      // target must be in S
+      if (S.find(target) == S.end())
+      {
+        return false;
+      }
+      
+      // but must not be in dS
+      if (dS.find(target) != dS.end())
+      {
+        return false;
+      }
+      
+      return true;
+    }
   }
 };
 
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void NodeCutCallback<GR, NWGHT, NLBL, EWGHT>::main()
-{
-  lemon::Timer t;
-
-  computeCapacities(_cap);
-  lemon::mapCopy(_h, _cap, _tmpCap);
-
-  ReverseDigraph revH = lemon::reverseDigraph(_h);
-  PreFlowAlg pf(_h, _tmpCap, _g2h1[_root], _g2h1[_root]);
-  RevPreFlowAlg revPf(revH, _tmpCap, _g2h1[_root], _g2h1[_root]);
-
-  const int rootComp = _comp[_root];
-  int nCuts = 0;
-  for (NodeIt i(_g); i != lemon::INVALID && (nCuts <= _maxNumberOfCuts || _maxNumberOfCuts == -1); ++i)
-  {
-    double x_i_value = getValue(_x[_nodeMap[i]]);
-    if (i == _root || !_tol.nonZero(x_i_value) || _comp[i] != rootComp)
-      continue;
-
-    pf.target(_g2h2[i]);
-
-    bool done = false;
-    bool update = false;
-    while (!done)
-    {
-      pf.runMinCut();
-
-      // let's see if there's a violated constraint
-      // idea: we could use addLocal here...
-      double minCutValue = pf.flowValue();
-      if (_tol.less(minCutValue, x_i_value))
-      {
-        // determine N (forward)
-        NodeSet fwdN = determineCutSet(pf);
-
-        revPf.target(_g2h1[_root]);
-        revPf.source(_g2h2[i]);
-        revPf.runMinCut();
-        NodeSet bwdN = determineCutSet(revPf);
-
-        // add violated constraints
-        addViolatedConstraint(i, fwdN);
-        if (bwdN.size() != fwdN.size() || bwdN != fwdN)
-        {
-          addViolatedConstraint(i, bwdN);
-          nCuts++;
-        }
-
-        // generate nested-cuts
-        for (NodeSetIt nodeIt = fwdN.begin(); nodeIt != fwdN.end(); nodeIt++)
-        {
-          // update the capactity to generate nested-cuts
-          _tmpCap[DiOutArcIt(_h, _g2h1[*nodeIt])] = 1;
-        }
-
-        nCuts++;
-        update = true;
-      }
-      else
-      {
-        if (update)
-          lemon::mapCopy(_h, _cap, _tmpCap);
-        done = true;
-      }
-    }
-  }
-
-  std::cerr << "Generated cuts: " << nCuts << std::endl;
-  std::cerr << "Time: " << t.realTime() << "s" << std::endl;
-}
-
 } // namespace mwcs
 } // namespace nina
+
 
 #endif // NODECUT_H

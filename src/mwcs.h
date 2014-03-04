@@ -9,12 +9,7 @@
 #define MWCS_H
 
 typedef enum {
-  MwcsSolverSCF = 0,
-  MwcsSolverMCF,
-  MwcsSolverCutFlow,
-  MwcsSolverCutFlowMin,
-  MwcsSolverCutNodeSeparator,
-  MwcsSolverCutNodeSeparatorBk,
+  MwcsSolverCutNodeSeparatorBk = 5,
   MwcsSolverTreeDP,
   MwcsSizeSolverTreeDP,
   MwcsSizeSolverCutNodeSeparatorBk } MwcsSolverEnum;

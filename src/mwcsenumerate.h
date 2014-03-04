@@ -14,9 +14,8 @@
 #include "mwcs.h"
 #include "mwcsgraph.h"
 #include "mwcspreprocessedgraph.h"
+#include "solver/cplex_cut/backoff.h"
 #include "solver/mwcssolver.h"
-#include "solver/mwcsscfsolver.h"
-#include "solver/mwcsmcfsolver.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcssizecutsolver.h"
 #include "solver/mwcstreesolver.h"
@@ -59,8 +58,6 @@ public:
   typedef lemon::FilterNodes<Graph, BoolNodeMap> SubGraph;
   typedef typename SubGraph::NodeIt SubNodeIt;
 
-  typedef MwcsSCFSolver<Graph, WeightNodeMap> MwcsScfSolverType;
-  typedef MwcsMCFSolver<Graph, WeightNodeMap> MwcsMcfSolverType;
   typedef MwcsCutSolver<Graph, WeightNodeMap> MwcsCutSolverType;
   typedef MwcsTreeSolver<Graph, WeightNodeMap> MwcsTreeSolverType;
   typedef MwcsSizeCutSolver<Graph, WeightNodeMap> MwcsSizeCutSolverType;
@@ -120,6 +117,16 @@ public:
                      _moduleWeight,
                      -std::numeric_limits<double>::max());
   }
+  
+  void setMaxNumberOfCuts(int maxNumberOfCuts)
+  {
+    _maxNumberOfCuts = maxNumberOfCuts;
+  }
+  
+  void setBackOff(BackOff backOff)
+  {
+    _backOff = backOff;
+  }
 
 protected:
   MwcsGraphType& _mwcsGraph;
@@ -130,6 +137,8 @@ protected:
   int _timeLimit;
   int _multiThreading;
   int _moduleSize;
+  int _maxNumberOfCuts;
+  BackOff _backOff;
 
   typedef typename Graph::template NodeMap<Node> NodeMap;
 
@@ -163,37 +172,10 @@ protected:
 
     switch (solver)
     {
-      case MwcsSolverSCF:
-        pResult = new MwcsScfSolverType(*pMwcsSubGraph);
-        break;
-      case MwcsSolverMCF:
-        pResult = new MwcsMcfSolverType(*pMwcsSubGraph);
-        break;
-      case MwcsSolverCutFlow:
-        pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_FLOW,
-                                        -1,
-                                        _timeLimit,
-                                        _multiThreading);
-        break;
-      case MwcsSolverCutFlowMin:
-        pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_FLOW_MIN,
-                                        -1,
-                                        _timeLimit,
-                                        _multiThreading);
-        break;
-      case MwcsSolverCutNodeSeparator:
-        pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR,
-                                        -1,
-                                        _timeLimit,
-                                        _multiThreading);
-        break;
       case MwcsSolverCutNodeSeparatorBk:
         pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        MwcsCutSolverType::MWCS_CUT_NODE_SEPARATOR_BK,
-                                        -1,
+                                        _backOff,
+                                        _maxNumberOfCuts,
                                         _timeLimit,
                                         _multiThreading);
         break;
@@ -206,8 +188,7 @@ protected:
       case MwcsSizeSolverCutNodeSeparatorBk:
         pResult = new MwcsSizeCutSolverType(*pMwcsSubGraph,
                                             _moduleSize,
-                                            MwcsSizeCutSolverType::MWCS_CUT_NODE_SEPARATOR_BK,
-                                            -1,
+                                            _maxNumberOfCuts,
                                             _timeLimit,
                                             _multiThreading);
         break;
@@ -300,6 +281,7 @@ inline MwcsEnumerate<GR, WGHT>::MwcsEnumerate(MwcsGraphType& mwcsGraph)
   , _timeLimit(-1)
   , _multiThreading(1)
   , _moduleSize(-1)
+  , _backOff(1)
 {
 }
 
@@ -321,72 +303,63 @@ inline void MwcsEnumerate<GR, WGHT>::enumerate(MwcsSolverEnum solver, bool prepr
   DoubleNodeMap weightSubG(subG);
   LabelNodeMap labelSubG(subG);
   NodeMap mapToG(subG);
-
+  
   MwcsGraphType* pMwcsSubGraph = createMwcsGraph(preprocess);
-
+  
   // contains the set of picked nodes (not necessarily in the original graph)
   NodeSet pickedNodes;
-
-  int solveCount = -1;
-  while (solveCount != 0)
+  
+  // 1. construct the subgraph
+  Graph& g = _mwcsGraph.getGraph();
+  
+  // 1a. determine allowed nodes
+  BoolNodeMap allowedNodes(g, true);
+  for (NodeSetIt nodeIt = pickedNodes.begin(); nodeIt != pickedNodes.end(); nodeIt++)
   {
-    solveCount = 0;
-
-    // 1. construct the subgraph
-    Graph& g = _mwcsGraph.getGraph();
-
-    // 1a. determine allowed nodes
-    BoolNodeMap allowedNodes(g, true);
-    for (NodeSetIt nodeIt = pickedNodes.begin(); nodeIt != pickedNodes.end(); nodeIt++)
-    {
-      allowedNodes[*nodeIt] = false;
-    }
-
-    // 1b. construct subgraph
-    SubGraph subTmpG(g, allowedNodes);
-
-    // 1c. determine connected components in subG
-    IntNodeMap comp(g, -1);
-    int nComponents = lemon::connectedComponents(subTmpG, comp);
-
-    for (int compIdx = 0; compIdx < nComponents; compIdx++)
-    {
-      // 2a. determine nodes in same component
-      int nNodesComp = 0;
-      BoolNodeMap allowedNodesSameComp(g, false);
-      for (SubNodeIt node(subTmpG); node != lemon::INVALID; ++node)
-      {
-        if (comp[node] == compIdx)
-        {
-          allowedNodesSameComp[node] = true;
-          nNodesComp++;
-        }
-      }
-
-      // 2b. create and preprocess subgraph
-      SubGraph subTmpSameCompG(g, allowedNodesSameComp);
-      lemon::graphCopy(subTmpSameCompG, subG)
-          .nodeMap(_mwcsGraph.getScores(), weightSubG)
-          .nodeMap(_mwcsGraph.getLabels(), labelSubG)
-          .nodeCrossRef(mapToG)
-          .run();
-
-      if (g_verbosity >= VERBOSE_ESSENTIAL)
-      {
-        std::cout << std::endl;
-        std::cout << "// Considering component " << compIdx + 1 << "/" << nComponents
-                  << ": contains " << nNodesComp << " nodes" << std::endl;
-      }
-      pMwcsSubGraph->init(&subG, &labelSubG, &weightSubG, NULL);
-
-      // 3. solve
-      if (solveMWCS(pMwcsSubGraph, mapToG, solver, pickedNodes))
-      {
-        solveCount++;
-      }
-    }
+    allowedNodes[*nodeIt] = false;
   }
-
+  
+  // 1b. construct subgraph
+  SubGraph subTmpG(g, allowedNodes);
+  
+  // 1c. determine connected components in subG
+  IntNodeMap comp(g, -1);
+  int nComponents = lemon::connectedComponents(subTmpG, comp);
+  
+  for (int compIdx = 0; compIdx < nComponents; compIdx++)
+  {
+    // 2a. determine nodes in same component
+    int nNodesComp = 0;
+    BoolNodeMap allowedNodesSameComp(g, false);
+    for (SubNodeIt node(subTmpG); node != lemon::INVALID; ++node)
+    {
+      if (comp[node] == compIdx)
+      {
+        allowedNodesSameComp[node] = true;
+        nNodesComp++;
+      }
+    }
+    
+    // 2b. create and preprocess subgraph
+    SubGraph subTmpSameCompG(g, allowedNodesSameComp);
+    lemon::graphCopy(subTmpSameCompG, subG)
+    .nodeMap(_mwcsGraph.getScores(), weightSubG)
+    .nodeMap(_mwcsGraph.getLabels(), labelSubG)
+    .nodeCrossRef(mapToG)
+    .run();
+    
+    if (g_verbosity >= VERBOSE_ESSENTIAL)
+    {
+      std::cout << std::endl;
+      std::cout << "// Considering component " << compIdx + 1 << "/" << nComponents
+      << ": contains " << nNodesComp << " nodes" << std::endl;
+    }
+    pMwcsSubGraph->init(&subG, &labelSubG, &weightSubG, NULL);
+    
+    // 3. solve
+    solveMWCS(pMwcsSubGraph, mapToG, solver, pickedNodes);
+  }
+  
   delete pMwcsSubGraph;
 }
 

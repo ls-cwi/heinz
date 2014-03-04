@@ -23,15 +23,12 @@
 #include <lemon/adaptors.h>
 #include <lemon/preflow.h>
 
-#include "cplex_heuristic/mwcscutsolverheuristic.h"
-#include "cplex_cut/flowcut.h"
-#include "cplex_cut/flowmincut.h"
-#include "cplex_cut/nodecut.h"
-#include "cplex_cut/nodecutbk.h"
-#include "cplex_cut/flowcutunrooted.h"
+#include "cplex_heuristic/heuristicrooted.h"
+#include "cplex_heuristic/heuristicunrooted.h"
+#include "cplex_cut/nodecutrooted.h"
 #include "cplex_cut/nodecutunrooted.h"
-#include "cplex_cut/nodecutunrootedbk.h"
-#include "mwcsflowsolver.h"
+#include "cplex_cut/backoff.h"
+#include "mwcscplexsolver.h"
 #include "mwcsanalyze.h"
 #include "parser/identityparser.h"
 
@@ -42,7 +39,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsCutSolver : public MwcsFlowSolver<GR, NWGHT, NLBL, EWGHT>
+class MwcsCutSolver : public MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -50,15 +47,11 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef MwcsFlowSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef MwcsCplexSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
-  typedef MwcsCutSolverHeuristic<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsCutSolverHeuristicType;
+  typedef HeuristicRooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicRootedType;
+  typedef HeuristicUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicUnrootedType;
 
-  typedef enum {
-    MWCS_CUT_FLOW,
-    MWCS_CUT_FLOW_MIN,
-    MWCS_CUT_NODE_SEPARATOR,
-    MWCS_CUT_NODE_SEPARATOR_BK } CutType;
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   using Parent::_mwcsGraph;
@@ -70,8 +63,6 @@ public:
   using Parent::_m;
   using Parent::_pNode;
   using Parent::_invNode;
-  using Parent::_pArc;
-  using Parent::_invArc;
   using Parent::_env;
   using Parent::_model;
   using Parent::_cplex;
@@ -92,7 +83,7 @@ public:
 
 public:
   MwcsCutSolver(const MwcsGraphType& mwcsGraph,
-                CutType cutType = MWCS_CUT_NODE_SEPARATOR,
+                const BackOff& backOff,
                 int maxNumberOfCuts = -1,
                 int timeLimit = -1,
                 int multiThreading = 1);
@@ -109,7 +100,7 @@ private:
   typedef typename NodeSet::const_iterator NodeSetIt;
   typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
 
-  CutType _cutType;
+  const BackOff& _backOff;
   int _maxNumberOfCuts;
   int _timeLimit;
   int _multiThreading;
@@ -119,12 +110,12 @@ private:
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::MwcsCutSolver(const MwcsGraphType& mwcsGraph,
-                                                            CutType cutType,
+                                                            const BackOff& backOff,
                                                             int maxNumberOfCuts,
                                                             int timeLimit,
                                                             int multiThreading)
   : Parent(mwcsGraph)
-  , _cutType(cutType)
+  , _backOff(backOff)
   , _maxNumberOfCuts(maxNumberOfCuts)
   , _timeLimit(timeLimit)
   , _multiThreading(multiThreading)
@@ -143,82 +134,72 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pMutex = new IloFastMutex();
   }
 
-  IloCplex::LazyConstraintCallbackI* pCut = NULL;
+  IloCplex::LazyConstraintCallbackI* pLazyCut = NULL;
+  IloCplex::UserCutCallbackI* pUserCut = NULL;
+  IloCplex::HeuristicCallbackI* pHeuristic = NULL;
   if (_root != lemon::INVALID)
   {
-    //_cplex.setParam(IloCplex::Cliques, -1);
-    //_cplex.setParam(IloCplex::Covers, -1);
-    //_cplex.setParam(IloCplex::FlowCovers, -1);
-    //_cplex.setParam(IloCplex::GUBCovers, -1);
-    //_cplex.setParam(IloCplex::FracCuts, -1);
-    //_cplex.setParam(IloCplex::MIRCuts, -1);
-    //_cplex.setParam(IloCplex::FlowPaths, -1);
-    //_cplex.setParam(IloCplex::ImplBd, -1);
-    //_cplex.setParam(IloCplex::DisjCuts, -1);
-    //_cplex.setParam(IloCplex::ZeroHalfCuts, -1);
-    //_cplex.setParam(IloCplex::MCFCuts, -1);
+    _cplex.setParam( IloCplex::HeurFreq      , -1 );
+    _cplex.setParam( IloCplex::Cliques       , -1 );
+    _cplex.setParam( IloCplex::Covers        , -1 );
+    _cplex.setParam( IloCplex::FlowCovers    , -1 );
+    _cplex.setParam( IloCplex::GUBCovers     , -1 );
+    _cplex.setParam( IloCplex::FracCuts      , -1 );
+    _cplex.setParam( IloCplex::MIRCuts       , -1 );
+    _cplex.setParam( IloCplex::FlowPaths     , -1 );
+    _cplex.setParam( IloCplex::ImplBd        , -1 );
+    _cplex.setParam( IloCplex::DisjCuts      , -1 );
+//    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
+    _cplex.setParam( IloCplex::MCFCuts       , -1 );
+//    _cplex.setParam( IloCplex::AggFill       ,  0 );
+//    _cplex.setParam( IloCplex::PreInd        ,  0 );
+//    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
+//    _cplex.setParam( IloCplex::PreslvNd      , -1 );
+//    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-
-    switch (_cutType)
-    {
-      case MWCS_CUT_FLOW_MIN:
-        pCut = new (_env) FlowCutMinCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                     *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_FLOW:
-        pCut = new (_env) FlowCutCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                  *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR:
-        pCut = new (_env) NodeCutCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                  *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR_BK:
-        pCut = new (_env) NodeCutBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                    *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                    pMutex);
-        break;
-    }
+    pLazyCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                              _n, _m, _maxNumberOfCuts, pMutex);
+    pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
+                                                                       _n, _m, _maxNumberOfCuts, pMutex, _backOff);
+    
+    pHeuristic = new (_env) HeuristicRootedType(_env, _x,
+                                                g, weight, _root,
+                                                *_pNode,
+                                                _n, _m, pMutex);
   }
   else
   {
-    //_cplex.setParam(IloCplex::Cliques, -1);
-    //_cplex.setParam(IloCplex::Covers, -1);
-    //_cplex.setParam(IloCplex::FlowCovers, -1);
-    //_cplex.setParam(IloCplex::GUBCovers, -1);
-    //_cplex.setParam(IloCplex::FracCuts, -1);
-    //_cplex.setParam(IloCplex::MIRCuts, -1);
-    //_cplex.setParam(IloCplex::FlowPaths, -1);
-    //_cplex.setParam(IloCplex::ImplBd, -1);
-    //_cplex.setParam(IloCplex::DisjCuts, -1);
-    //_cplex.setParam(IloCplex::ZeroHalfCuts, -1);
-    //_cplex.setParam(IloCplex::MCFCuts, -1);
-//
-    //_cplex.setParam(IloCplex::AggFill, 0);
-    //_cplex.setParam(IloCplex::PreInd, 0);
-    //_cplex.setParam(IloCplex::RelaxPreInd, 0);
-    //_cplex.setParam(IloCplex::PreslvNd, -1);
-    //_cplex.setParam(IloCplex::RepeatPresolve, 0);
+    _cplex.setParam( IloCplex::HeurFreq      , -1 );
+    _cplex.setParam( IloCplex::Cliques       , -1 );
+    _cplex.setParam( IloCplex::Covers        , -1 );
+    _cplex.setParam( IloCplex::FlowCovers    , -1 );
+    _cplex.setParam( IloCplex::GUBCovers     , -1 );
+    _cplex.setParam( IloCplex::FracCuts      , -1 );
+    _cplex.setParam( IloCplex::MIRCuts       , -1 );
+    _cplex.setParam( IloCplex::FlowPaths     , -1 );
+    _cplex.setParam( IloCplex::ImplBd        , -1 );
+    _cplex.setParam( IloCplex::DisjCuts      , -1 );
+//    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
+    _cplex.setParam( IloCplex::MCFCuts       , -1 );
+//    _cplex.setParam( IloCplex::AggFill       ,  0 );
+//    _cplex.setParam( IloCplex::PreInd        ,  0 );
+//    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
+//    _cplex.setParam( IloCplex::PreslvNd      , -1 );
+//    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
-    switch (_cutType)
-    {
-      case MWCS_CUT_FLOW:
-      case MWCS_CUT_FLOW_MIN:
-        pCut = new (_env) FlowCutUnrootedCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                          *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR:
-        pCut = new (_env) NodeCutUnrootedCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                          *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap());
-        break;
-      case MWCS_CUT_NODE_SEPARATOR_BK:
-        pCut = new (_env) NodeCutUnrootedBkCallback<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                            *_pArc, _n, _m, _maxNumberOfCuts, _mwcsGraph.getComponentMap(),
-                                                                            pMutex);
-        break;
-    }
+    pLazyCut = new (_env) NodeCutUnrootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                                _n, _m, _maxNumberOfCuts, pMutex);
+    pUserCut = new (_env) NodeCutUnrootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
+                                                                         _n, _m, _maxNumberOfCuts, pMutex, _backOff);
+
+    pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y,
+                                                  g, weight,
+                                                  *_pNode,
+                                                  _n, _m, pMutex);
   }
 
+  _cplex.setParam(IloCplex::MIPInterval, 1);
+  
   if (_timeLimit > 0)
   {
     _cplex.setParam(IloCplex::TiLim, _timeLimit);
@@ -230,24 +211,46 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam(IloCplex::Threads, _multiThreading);
   }
 
-  IloCplex::Callback cb(pCut);
+  IloCplex::Callback cb(pLazyCut);
   _cplex.use(cb);
 
-  IloCplex::Callback cb2(new (_env) MwcsCutSolverHeuristicType(_env, _x, _y,
-                                                               g, weight, _root,
-                                                               *_pNode, *_pArc,
-                                                               _n, _m, pMutex));
+  IloCplex::Callback cb2(pHeuristic);
   _cplex.use(cb2);
+
+  IloCplex::Callback cb3(pUserCut);
+  _cplex.use(cb3);
 
   //exportModel("/tmp/model.lp");
   bool res = _cplex.solve();
   cb.end();
   cb2.end();
+  cb3.end();
+
+  _cplex.setParam(IloCplex::MIPInterval, 2);
+  _cplex.setParam(IloCplex::MIPDisplay, 5);
 
   if (res)
   {
     std::cerr << "[" << _cplex.getObjValue() << ", "
               << _cplex.getBestObjValue() << "]" << std::endl;
+    // print overview
+    std::cerr << "# Cover cuts: " << _cplex.getNcuts(IloCplex::CutCover) << std::endl;
+    std::cerr << "# GUB cover cuts: " << _cplex.getNcuts(IloCplex::CutGubCover) << std::endl;
+    std::cerr << "# Flow cover cuts: " << _cplex.getNcuts(IloCplex::CutFlowCover) << std::endl;
+    std::cerr << "# Clique cuts: " << _cplex.getNcuts(IloCplex::CutClique) << std::endl;
+    std::cerr << "# Fractional cuts: " << _cplex.getNcuts(IloCplex::CutFrac) << std::endl;
+    std::cerr << "# MCF cuts: " << _cplex.getNcuts(IloCplex::CutMCF) << std::endl;
+    std::cerr << "# MIR cuts: " << _cplex.getNcuts(IloCplex::CutMir) << std::endl;
+    std::cerr << "# Flow path cuts: " << _cplex.getNcuts(IloCplex::CutFlowPath) << std::endl;
+    std::cerr << "# Implied bound cuts: " << _cplex.getNcuts(IloCplex::CutImplBd) << std::endl;
+    std::cerr << "# Zero-half cuts: " << _cplex.getNcuts(IloCplex::CutZeroHalf) << std::endl;
+    std::cerr << "# Local cover cuts: " << _cplex.getNcuts(IloCplex::CutLocalCover) << std::endl;
+    std::cerr << "# Tighten cuts: " << _cplex.getNcuts(IloCplex::CutTighten) << std::endl;
+    std::cerr << "# Obj disj cuts: " << _cplex.getNcuts(IloCplex::CutObjDisj) << std::endl;
+    std::cerr << "# Lift-and-project cuts: " << _cplex.getNcuts(IloCplex::CutLiftProj) << std::endl;
+    std::cerr << "# User cuts: " << _cplex.getNcuts(IloCplex::CutUser) << std::endl;
+    std::cerr << "# Table cuts: " << _cplex.getNcuts(IloCplex::CutTable) << std::endl;
+    std::cerr << "# Soln pool cuts: " << _cplex.getNcuts(IloCplex::CutSolnPool) << std::endl;
   }
   else
   {
@@ -319,10 +322,13 @@ inline void MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
       else
       {
         // symmetry breaking
-        for (NodeIt j(g); j != i; ++j)
+        int id_i = (*_pNode)[i];
+
+        for (int id_j = 0; id_j < id_i; ++id_j)
         {
-          if (j == i || _mwcsGraph.getScore(j) < 0) continue;
-          _model.add(_y[(*_pNode)[i]] <= 1 - _x[(*_pNode)[j]]);
+          Node j = _invNode[id_j];
+          if (_mwcsGraph.getScore(j) < 0) continue;
+          _model.add(_y[id_i] <= 1 - _x[id_j]);
         }
       }
     }
