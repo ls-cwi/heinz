@@ -114,8 +114,10 @@ protected:
       {
         assert(root == lemon::INVALID);
         root = i;
+#ifndef DEBUG
+        break;
+#endif
       }
-      _pNodeBoolMap->set(i, _tol.nonZero(x_values[idx_i]));
     }
     
     // determine connected components
@@ -323,11 +325,6 @@ protected:
           // determine N (forward)
           NodeSet fwdS, fwdDS;
           determineFwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, fwdDS, fwdS);
-          
-          //          std::cout << x_i_value << "\t"
-          //                    << minCutValue << "\t"
-          //                    << fwdS.size() << "\t"
-          //                    << fwdDS.size() << std::endl;
           
           // numerical instability may cause minCutValue < x_i_value
           // even though there is nothing to cut

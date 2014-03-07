@@ -190,6 +190,44 @@ protected:
       rhs.end();
     }
   }
+  
+  template<typename CBK>
+  void separateRootedConnectedComponent(const NodeSet& S,
+                                        const Node root,
+                                        const IloNumArray& x_values,
+                                        CBK& cbk,
+                                        int& nCuts)
+  {
+    if (S.find(root) == S.end())
+    {
+      IloExpr rhs(cbk.getEnv());
+      
+      // determine dS
+      NodeSet dS;
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        const Node i = *it;
+        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        {
+          const Node j = _g.target(a);
+          if (S.find(j) == S.end())
+          {
+            dS.insert(j);
+          }
+        }
+      }
+      
+      constructRHS(rhs, dS);
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        assert(isValid(*it, dS, S));
+        cbk.add(_x[_nodeMap[*it]] <= rhs, IloCplex::UseCutPurge).end();
+        ++nCuts;
+      }
+      
+      rhs.end();
+    }
+  }
 
   void printNonZeroVars(IloCplex::ControlCallbackI& cbk,
                         IloBoolVarArray variables,

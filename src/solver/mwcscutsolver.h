@@ -157,6 +157,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 //    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
 //    _cplex.setParam( IloCplex::PreslvNd      , -1 );
 //    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
+    _cplex.setParam( IloCplex::MIPEmphasis, IloCplex::MIPEmphasisBestBound );
 
     pLazyCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
                                                                               _n, _maxNumberOfCuts, pMutex);
@@ -198,6 +199,8 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
                                                   g, weight,
                                                   *_pNode,
                                                   _n, _m, pMutex);
+    
+    _model.add(_x[(*_pNode)[_mwcsGraph.getNodeByLabel("C00025")]] == 0);
   }
 
   _cplex.setParam(IloCplex::MIPInterval, 1);

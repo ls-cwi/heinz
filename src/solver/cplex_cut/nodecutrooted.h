@@ -58,6 +58,8 @@ protected:
   using Parent::constructRHS;
   using Parent::isValid;
   using Parent::add;
+  using Parent::determineConnectedComponents;
+  using Parent::separateRootedConnectedComponent;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -105,73 +107,18 @@ protected:
     IloNumArray x_values(getEnv(), _n);
     getValues(x_values, _x);
     
-    typedef std::vector<NodeSet> NodeSetVector;
-    typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
+    // determine connected components
+    NodeSetVector nonZeroComponents = determineConnectedComponents(x_values);
     
-    for (NodeIt i(_g); i != lemon::INVALID; ++i)
+    int nCuts = 0;
+    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
     {
-      int idx_i = _nodeMap[i];
-      _pNodeBoolMap->set(i, _tol.nonZero(x_values[idx_i]));
+      separateRootedConnectedComponent(*it, _root, x_values, *this, nCuts);
     }
-    
-    const int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (nComp > 1)
-    {
-      IloExpr rhs(getEnv());
-      
-      NodeSetVector compMatrix(nComp, NodeSet());
-      for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
-      {
-        int compIdx = (*_pComp)[i];
-        compMatrix[compIdx].insert(i);
-      }
-      
-      int nCuts = 0;
-      for (int compIdx = 0; compIdx < nComp; compIdx++)
-      {
-        const NodeSet& S = compMatrix[compIdx];
-        
-        if (S.find(_root) != S.end())
-        {
-          // nothing to separate as root is in S
-          continue;
-        }
-        
-        // determine dS
-        NodeSet dS;
-        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-        {
-          const Node i = *it;
-          for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
-          {
-            const Node j = _g.target(a);
-            if (S.find(j) == S.end())
-            {
-              dS.insert(j);
-            }
-          }
-        }
-        
-        constructRHS(rhs, dS);
-        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-        {
-          assert(isValid(*it, dS));
-          
-          IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-          add(constraint, IloCplex::UseCutPurge);
-          constraint.end();
-
-          ++nCuts;
-        }
-      }
-      
-      rhs.end();
-    }
-
-    //      std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
     
     x_values.end();
-  }
+    
+    std::cerr << "#comps: " << nonZeroComponents.size() << ", generated " << nCuts << " lazy cuts" << std::endl;  }
 };
 
 template<typename GR,
@@ -250,6 +197,8 @@ protected:
   using Parent::printNodeSet;
   using Parent::constructRHS;
   using Parent::add;
+  using Parent::determineConnectedComponents;
+  using Parent::separateRootedConnectedComponent;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -317,13 +266,17 @@ protected:
     return (new (getEnv()) NodeCutRootedUserCut(*this));
   }
   
-  void separateMinCut(const IloNumArray& x_values,
+  void separateMinCut(const NodeSet& nonZeroComponent,
+                      const IloNumArray& x_values,
                       int& nCuts, int& nBackCuts, int& nNestedCuts)
   {
+    IloExpr rhs(getEnv());
+    
     _pBK->setSource(_diRoot);
     _pNodeBoolMap->set(_root, false);
-    for (NodeIt i(_g); i != lemon::INVALID; ++i)
+    for (NodeSetIt it = nonZeroComponent.begin(); it != nonZeroComponent.end(); ++it)
     {
+      Node i = *it;
       // skip if node was already considered or its x-value is 0
       if (!(*_pNodeBoolMap)[i]) continue;
       
@@ -334,7 +287,7 @@ protected:
       
       bool nestedCut = false;
       bool first = true;
-      while (true)
+//      while (true)
       {
         if (first)
         {
@@ -354,22 +307,11 @@ protected:
           NodeSet fwdDS;
           determineFwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, fwdDS);
           
-//          double m = 0;
-//          for (NodeSetIt it = fwdDS.begin(); it != fwdDS.end(); ++it)
-//          {
-//            m += _cap[DiOutArcIt(_h, (*_pG2h1)[*it])];
-//          }
-//          if (_tol.different(m, minCutValue))
-//          {
-//            printNodeSet(fwdDS, _x, x_values);
-//            assert(false);
-//          }
-          
           // numerical instability may cause minCutValue < x_i_value
           // even though there is nothing to cut
           if (fwdDS.empty()) break;
           
-          // determine N (forward)
+          // determine N (backward)
           NodeSet bwdDS;
           determineBwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, bwdDS);
           
@@ -388,20 +330,22 @@ protected:
             ++nBackCuts;
           }
           
-          // generate nested-cuts
-          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
-          {
-            nestedCut = true;
-            // update the capactity to generate nested-cuts
-            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
-          }
+//          // generate nested-cuts
+//          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); nodeIt++)
+//          {
+//            nestedCut = true;
+//            // update the capactity to generate nested-cuts
+//            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+//          }
         }
-        else
-        {
-          break;
-        }
+//        else
+//        {
+//          break;
+//        }
       }
     }
+    
+    rhs.end();
   }
   
   void separateConnectedComponents(const IloNumArray& x_values,
@@ -460,29 +404,40 @@ protected:
     IloNumArray x_values(getEnv(), _n);
     getValues(x_values, _x);
     
+    // determine connected components
     computeCapacities(_cap, x_values);
+    NodeSetVector nonZeroComponents = determineConnectedComponents(x_values);
     
     int nCuts = 0;
     int nBackCuts = 0;
     int nNestedCuts = 0;
-
-    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (nComp == 1 || _nodeNumber == 0)
+    
+    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
     {
-      separateMinCut(x_values, nCuts, nBackCuts, nNestedCuts);
-    }
-    else if (nComp > 1)
-    {
-      separateConnectedComponents(x_values, nComp, nCuts);
+      const NodeSet& nonZeroComponent = *it;
+      if (_nodeNumber == 0 || nonZeroComponent.find(_root) != nonZeroComponent.end())
+      {
+        // todo give separateMinCut nonZeroComponent
+        separateMinCut(nonZeroComponent, x_values, nCuts, nBackCuts, nNestedCuts);
+      }
+      else
+      {
+        separateRootedConnectedComponent(nonZeroComponent, _root, x_values, *this, nCuts);
+      }
     }
     
-//    if (nCuts != 0 )
-//    {
-//      std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
-//      << ": generated " << nCuts
-//      << " user cuts of which " << nBackCuts << " are back-cuts and "
-//      << nNestedCuts << " are nested cuts" << std::endl;
-//    }
+    std::cerr << "[";
+    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
+    {
+      std::cerr << " " << it->size();
+      if (it->find(_root) != it->end()) std::cerr << "*";
+    }
+    std::cerr << " ]" << std::endl;
+    
+    std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
+              << ": generated " << nCuts
+              << " user cuts of which " << nBackCuts << " are back-cuts and "
+              << nNestedCuts << " are nested cuts" << std::endl;
     
     x_values.end();
   }
