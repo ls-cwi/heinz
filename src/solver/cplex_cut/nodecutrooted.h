@@ -29,18 +29,17 @@ public:
 
 protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  typedef typename Parent::NodeVector NodeVector;
-  typedef typename Parent::NodeVectorIt NodeVectorIt;
-  typedef typename Parent::NodeMatrix NodeMatrix;
+
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::NodeSetVector NodeSetVector;
+  typedef typename Parent::NodeSetVectorIt NodeSetVectorIt;
   typedef typename Parent::SubGraph SubGraph;
   typedef typename Parent::SubNodeIt SubNodeIt;
   
   using Parent::_x;
   using Parent::_g;
   using Parent::_weight;
-  using Parent::_root;
   using Parent::_nodeMap;
   using Parent::_n;
   using Parent::_m;
@@ -74,18 +73,23 @@ public:
                               int m,
                               int maxNumberOfCuts,
                               IloFastMutex* pMutex)
-    : Parent(env, x, IloBoolVarArray(), g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    , _root(root)
   {
   }
 
   NodeCutRootedLazyConstraint(const NodeCutRootedLazyConstraint& other)
     : Parent(other)
+    , _root(other._root)
   {
   }
 
   virtual ~NodeCutRootedLazyConstraint()
   {
   }
+  
+protected:
+  Node _root;
 
 protected:
   virtual void main()
@@ -198,18 +202,17 @@ protected:
   typedef typename Parent::NodeDiNodeMap NodeDiNodeMap;
   typedef typename Parent::NodeDiArcMap NodeDiArcMap;
   typedef typename Parent::CapacityMap CapacityMap;
-  typedef typename Parent::NodeVector NodeVector;
-  typedef typename Parent::NodeVectorIt NodeVectorIt;
-  typedef typename Parent::NodeMatrix NodeMatrix;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::NodeSetVector NodeSetVector;
+  typedef typename Parent::NodeSetVectorIt NodeSetVectorIt;
+  typedef typename Parent::SubGraph SubGraph;
+  typedef typename Parent::SubNodeIt SubNodeIt;
   typedef typename Parent::NodeQueue NodeQueue;
   typedef typename Parent::DiNodeQueue DiNodeQueue;
   typedef typename Parent::DiNodeSet DiNodeSet;
   typedef typename Parent::DiNodeList DiNodeList;
   typedef typename Parent::DiNodeListIt DiNodeListIt;
-  typedef typename Parent::SubGraph SubGraph;
-  typedef typename Parent::SubNodeIt SubNodeIt;
   typedef typename Parent::BkAlg BkAlg;
   typedef typename Parent::DiBoolNodeMap DiBoolNodeMap;
   
@@ -217,7 +220,6 @@ protected:
   using Parent::_y;
   using Parent::_g;
   using Parent::_weight;
-  using Parent::_root;
   using Parent::_nodeMap;
   using Parent::_n;
   using Parent::_m;
@@ -266,7 +268,8 @@ public:
                        int maxNumberOfCuts,
                        IloFastMutex* pMutex,
                        BackOff backOff)
-    : Parent(env, x, IloBoolVarArray(), g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex, backOff)
+    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex, backOff)
+    , _root(root)
   {
     init();
     _pBK = new BkAlg(_h, _cap);
@@ -274,6 +277,7 @@ public:
 
   NodeCutRootedUserCut(const NodeCutRootedUserCut& other)
     : Parent(other)
+    , _root(other._root)
   {
     typename Digraph::template NodeMap<DiNode> nodeMap(other._h);
     typename Digraph::template ArcMap<DiArc> arcMap(other._h);
@@ -307,6 +311,9 @@ public:
   virtual ~NodeCutRootedUserCut()
   {
   }
+
+protected:
+  Node _root;
 
 protected:
   virtual IloCplex::CallbackI* duplicateCallback() const
@@ -349,7 +356,7 @@ protected:
         {
           // determine N (forward)
           NodeSet fwdDS;
-          determineFwdCutSet(_h, *_pBK, fwdDS);
+          determineFwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, fwdDS);
           
 //          double m = 0;
 //          for (NodeSetIt it = fwdDS.begin(); it != fwdDS.end(); ++it)
@@ -368,7 +375,7 @@ protected:
           
           // determine N (forward)
           NodeSet bwdDS;
-          determineBwdCutSet(_h, *_pBK, bwdDS);
+          determineBwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, bwdDS);
           
           bool backCuts = fwdDS.size() != bwdDS.size() || fwdDS != bwdDS;
           
@@ -517,27 +524,30 @@ protected:
   
   void determineBwdCutSet(const Digraph& h,
                           const BkAlg& bk,
+                          const DiNode diRoot,
+                          const DiNodeNodeMap& h2g,
+                          DiBoolNodeMap& marked,
                           NodeSet& dS)
   {
     DiNode target = bk.getTarget();
     DiNodeList diS;
-    determineBwdCutSet(h, bk, target, diS);
+    determineBwdCutSet(h, bk, diRoot, target, marked, diS);
     
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
     {
       DiNode v = *nodeIt;
-      assert(_marked[v]);
+      assert(marked[v]);
       if (v == target) continue;
       
       for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
       {
         DiNode u = h.source(a);
-        if (!_marked[u])
+        if (!marked[u])
         {
           //std::cout << _h.id(u) << " -> "
           //          << _h.id(v) << " "
           //          << bk.flow(a) << "/" << bk.cap(a) << std::endl;
-          dS.insert(_h2g[v]);
+          dS.insert(h2g[v]);
         }
       }
     }
@@ -545,27 +555,30 @@ protected:
   
   void determineFwdCutSet(const Digraph& h,
                           const BkAlg& bk,
+                          const DiNode diRoot,
+                          const DiNodeNodeMap& h2g,
+                          DiBoolNodeMap& marked,
                           NodeSet& dS)
   {
     DiNode target = bk.getTarget();
     DiNodeList diS;
-    determineFwdCutSet(h, bk, diS);
+    determineFwdCutSet(h, bk, diRoot, marked, diS);
     
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
     {
       DiNode v = *nodeIt;
-      assert(_marked[v]);
+      assert(marked[v]);
       
       for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
       {
         DiNode w = h.target(a);
-        if (!_marked[w] && w != target)
+        if (!marked[w] && w != target)
         {
-          assert(v != _diRoot);
+          assert(v != diRoot);
           //std::cout << _h.id(v) << " -> "
           //          << _h.id(w) << " "
           //          << bk.flow(a) << "/" << bk.cap(a) << " : " << bk.resCap(a) << std::endl;
-          dS.insert(_h2g[w]);
+          dS.insert(h2g[w]);
         }
       }
     }

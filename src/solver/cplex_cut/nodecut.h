@@ -32,13 +32,13 @@ public:
 
 protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  typedef std::vector<Node> NodeVector;
-  typedef typename NodeVector::const_iterator NodeVectorIt;
-  typedef std::vector<NodeVector> NodeMatrix;
   typedef std::set<Node> NodeSet;
   typedef typename NodeSet::const_iterator NodeSetIt;
+  typedef std::vector<NodeSet> NodeSetVector;
+  typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
   typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
   typedef typename SubGraph::NodeIt SubNodeIt;
+  typedef typename SubGraph::EdgeIt SubEdgeIt;
 
 protected:
   IloBoolVarArray _x;
@@ -67,7 +67,6 @@ public:
           IloBoolVarArray y,
           const Graph& g,
           const WeightNodeMap& weight,
-          Node root,
           const IntNodeMap& nodeMap,
           int n,
           int m,
@@ -77,7 +76,6 @@ public:
     , _y(y)
     , _g(g)
     , _weight(weight)
-    , _root(root)
     , _nodeMap(nodeMap)
     , _n(n)
     , _m(m)
@@ -100,7 +98,6 @@ public:
     , _y(other._y)
     , _g(other._g)
     , _weight(other._weight)
-    , _root(other._root)
     , _nodeMap(other._nodeMap)
     , _n(other._n)
     , _m(other._m)
@@ -138,6 +135,65 @@ protected:
   {
     if (_pMutex)
       _pMutex->unlock();
+  }
+  
+  NodeSetVector determineConnectedComponents(const IloNumArray& x_values)
+  {
+    // update _pSubG
+    for (NodeIt v(_g); v != lemon::INVALID; ++v)
+    {
+      double val = x_values[_nodeMap[v]];
+      _pNodeBoolMap->set(v, _tol.nonZero(val));
+    }
+    
+    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
+    
+    NodeSetVector nonZeroComponents(nComp, NodeSet());
+    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
+    {
+      int compIdx = (*_pComp)[i];
+      nonZeroComponents[compIdx].insert(i);
+    }
+    
+    return nonZeroComponents;
+  }
+  
+  template<typename CBK>
+  void separateConnectedComponent(const NodeSet& S,
+                                  const Node root,
+                                  const IloNumArray& x_values,
+                                  CBK& cbk,
+                                  int& nCuts)
+  {
+    if (S.find(root) == S.end())
+    {
+      IloExpr rhs(cbk.getEnv());
+      
+      // determine dS
+      NodeSet dS;
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        const Node i = *it;
+        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        {
+          const Node j = _g.target(a);
+          if (S.find(j) == S.end())
+          {
+            dS.insert(j);
+          }
+        }
+      }
+      
+      constructRHS(rhs, dS, S);
+      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      {
+        assert(isValid(*it, dS, S));
+        cbk.add(_x[_nodeMap[*it]] <= rhs, IloCplex::UseCutPurge).end();
+        ++nCuts;
+      }
+
+      rhs.end();
+    }
   }
 
   void printNonZeroVars(IloCplex::ControlCallbackI& cbk,
@@ -326,6 +382,8 @@ protected:
     
     if (dS != ddS)
     {
+      std::cerr << std::endl << "ddS" << std::endl;
+      printNodeSet(ddS, _x);
       return false;
     }
     else

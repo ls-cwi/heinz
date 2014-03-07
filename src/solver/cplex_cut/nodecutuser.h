@@ -70,11 +70,13 @@ protected:
   typedef typename Graph::template NodeMap<DiArc> NodeDiArcMap;
   typedef typename Digraph::ArcMap<double> CapacityMap;
   
-  typedef typename Parent::NodeVector NodeVector;
-  typedef typename Parent::NodeVectorIt NodeVectorIt;
-  typedef typename Parent::NodeMatrix NodeMatrix;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::NodeSetVector NodeSetVector;
+  typedef typename Parent::NodeSetVectorIt NodeSetVectorIt;
+  typedef typename Parent::SubGraph SubGraph;
+  typedef typename Parent::SubNodeIt SubNodeIt;
+  typedef typename Parent::SubEdgeIt SubEdgeIt;
   
   typedef std::queue<Node> NodeQueue;
   typedef std::queue<DiNode> DiNodeQueue;
@@ -82,8 +84,6 @@ protected:
   typedef std::list<DiNode> DiNodeList;
   typedef DiNodeList::const_iterator DiNodeListIt;
   
-  typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
-  typedef typename SubGraph::NodeIt SubNodeIt;
   typedef nina::BkFlowAlg<Digraph> BkAlg;
   typedef typename Digraph::NodeMap<bool> DiBoolNodeMap;
   
@@ -113,7 +113,6 @@ public:
               IloBoolVarArray y,
               const Graph& g,
               const WeightNodeMap& weight,
-              Node root,
               const IntNodeMap& nodeMap,
               int n,
               int m,
@@ -121,7 +120,7 @@ public:
               IloFastMutex* pMutex,
               const BackOff& backOff)
     : IloCplex::UserCutCallbackI(env)
-    , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    , Parent(x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex)
     , _h()
     , _cap(_h)
     , _pG2h1(NULL)
@@ -178,10 +177,10 @@ public:
 protected:
   virtual void main()
   {
-    if (!isAfterCutLoop())
-    {
-      return;
-    }
+//    if (!isAfterCutLoop())
+//    {
+//      return;
+//    }
     
     if (_nodeNumber != getNnodes())
     {
@@ -190,7 +189,7 @@ protected:
       _makeAttempt = _backOff.makeAttempt();
     }
     
-    if (_makeAttempt && (_cutCount < _maxNumberOfCuts || _cutCount == -1 || _nodeNumber == 0))
+    if (_makeAttempt && (_cutCount < _maxNumberOfCuts || _cutCount == -1 || (_nodeNumber == 0 && _cutCount < 150)))
     {
       separate();
       ++_cutCount;
@@ -201,16 +200,18 @@ protected:
   
   void determineFwdCutSet(const Digraph& h,
                           const BkAlg& bk,
+                          const DiNode diRoot,
+                          DiBoolNodeMap& marked,
                           DiNodeList& diS)
   {
     // we do a DFS on the *residual network* starting from _diRoot
     // and only following arcs that have nonzero residual capacity
     
-    lemon::mapFill(_h, _marked, false);
+    lemon::mapFill(h, marked, false);
     
     DiNodeQueue queue;
-    queue.push(_diRoot);
-    _marked[_diRoot] = true;
+    queue.push(diRoot);
+    marked[diRoot] = true;
     
     while (!queue.empty())
     {
@@ -220,23 +221,23 @@ protected:
       
       for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
       {
-        DiNode w = _h.target(a);
+        DiNode w = h.target(a);
         
-        if (!_marked[w] && _cutTol.nonZero(bk.resCap(a)))
+        if (!marked[w] && _cutTol.nonZero(bk.resCap(a)))
         {
           queue.push(w);
-          _marked[w] = true;
+          marked[w] = true;
         }
       }
       
       for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
       {
-        DiNode w = _h.source(a);
+        DiNode w = h.source(a);
         
-        if (!_marked[w] && _cutTol.nonZero(bk.revResCap(a)))
+        if (!marked[w] && _cutTol.nonZero(bk.revResCap(a)))
         {
           queue.push(w);
-          _marked[w] = true;
+          marked[w] = true;
         }
       }
     }
@@ -246,17 +247,19 @@ protected:
   
   void determineBwdCutSet(const Digraph& h,
                           const BkAlg& bk,
+                          const DiNode diRoot,
                           const DiNode target,
+                          DiBoolNodeMap& marked,
                           DiNodeList& diS)
   {
     // we do a DFS on the reversed *residual network* starting from target
     // and only following arcs that have nonzero residual capacity
     
-    lemon::mapFill(_h, _marked, false);
+    lemon::mapFill(h, marked, false);
     
     DiNodeQueue queue;
     queue.push(target);
-    _marked[target] = true;
+    marked[target] = true;
     
     while (!queue.empty())
     {
@@ -266,28 +269,28 @@ protected:
       
       for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
       {
-        DiNode u = _h.source(a);
+        DiNode u = h.source(a);
         
-        if (!_marked[u] && _cutTol.nonZero(bk.resCap(a)))
+        if (!marked[u] && _cutTol.nonZero(bk.resCap(a)))
         {
           queue.push(u);
-          _marked[u] = true;
+          marked[u] = true;
         }
       }
       
       for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
       {
-        DiNode u = _h.target(a);
+        DiNode u = h.target(a);
         
-        if (!_marked[u] && _cutTol.nonZero(bk.revResCap(a)))
+        if (!marked[u] && _cutTol.nonZero(bk.revResCap(a)))
         {
           queue.push(u);
-          _marked[u] = true;
+          marked[u] = true;
         }
       }
     }
     
-    assert(_marked[_diRoot] != _marked[target]);
+    assert(marked[diRoot] != marked[target]);
   }
 };
   

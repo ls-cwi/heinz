@@ -29,11 +29,11 @@ public:
 
 protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  typedef typename Parent::NodeVector NodeVector;
-  typedef typename Parent::NodeVectorIt NodeVectorIt;
-  typedef typename Parent::NodeMatrix NodeMatrix;
+  
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::NodeSetVector NodeSetVector;
+  typedef typename Parent::NodeSetVectorIt NodeSetVectorIt;
   typedef typename Parent::SubGraph SubGraph;
   typedef typename Parent::SubNodeIt SubNodeIt;
 
@@ -60,6 +60,8 @@ protected:
   using Parent::constructRHS;
   using Parent::add;
   using Parent::isValid;
+  using Parent::determineConnectedComponents;
+  using Parent::separateConnectedComponent;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -74,7 +76,7 @@ public:
                                 int m,
                                 int maxNumberOfCuts,
                                 IloFastMutex* pMutex)
-    : Parent(env, x, y, g, weight, lemon::INVALID, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    : Parent(env, x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex)
   {
   }
 
@@ -118,66 +120,20 @@ protected:
       }
       _pNodeBoolMap->set(i, _tol.nonZero(x_values[idx_i]));
     }
-
-    typedef std::vector<NodeSet> NodeSetVector;
-    typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
     
-    const int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
+    // determine connected components
+    NodeSetVector nonZeroComponents = determineConnectedComponents(x_values);
+
     int nCuts = 0;
-    if (nComp != 1)
+    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
     {
-      IloExpr rhs(getEnv());
-      
-      NodeSetVector compMatrix(nComp, NodeSet());
-      for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
-      {
-        int compIdx = (*_pComp)[i];
-        compMatrix[compIdx].insert(i);
-      }
-
-      for (int compIdx = 0; compIdx < nComp; compIdx++)
-      {
-        const NodeSet& S = compMatrix[compIdx];
-        if (S.find(root) != S.end())
-        {
-          continue;
-        }
-
-        // determine dS
-        NodeSet dS;
-        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-        {
-          const Node i = *it;
-          for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
-          {
-            const Node j = _g.target(a);
-            if (S.find(j) == S.end())
-            {
-              dS.insert(j);
-            }
-          }
-        }
-
-        constructRHS(rhs, dS, S);
-        for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-        {
-          assert(isValid(*it, dS, S));
-          
-          IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-          add(constraint, IloCplex::UseCutPurge);
-          constraint.end();
-          
-          ++nCuts;
-        }
-      }
-      
-      rhs.end();
+      separateConnectedComponent(*it, root, x_values, *this, nCuts);
     }
     
     x_values.end();
     y_values.end();
     
-//    std::cerr << "Generated " << nCuts << " lazy cuts" << std::endl;
+    std::cerr << "#comps: " << nonZeroComponents.size() << ", generated " << nCuts << " lazy cuts" << std::endl;
   }
 };
 
@@ -207,18 +163,18 @@ protected:
   typedef typename Parent::NodeDiNodeMap NodeDiNodeMap;
   typedef typename Parent::NodeDiArcMap NodeDiArcMap;
   typedef typename Parent::CapacityMap CapacityMap;
-  typedef typename Parent::NodeVector NodeVector;
-  typedef typename Parent::NodeVectorIt NodeVectorIt;
-  typedef typename Parent::NodeMatrix NodeMatrix;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::NodeSetVector NodeSetVector;
+  typedef typename Parent::NodeSetVectorIt NodeSetVectorIt;
+  typedef typename Parent::SubGraph SubGraph;
+  typedef typename Parent::SubNodeIt SubNodeIt;
+  typedef typename Parent::SubEdgeIt SubEdgeIt;
   typedef typename Parent::NodeQueue NodeQueue;
   typedef typename Parent::DiNodeQueue DiNodeQueue;
   typedef typename Parent::DiNodeSet DiNodeSet;
   typedef typename Parent::DiNodeList DiNodeList;
   typedef typename Parent::DiNodeListIt DiNodeListIt;
-  typedef typename Parent::SubGraph SubGraph;
-  typedef typename Parent::SubNodeIt SubNodeIt;
   typedef typename Parent::BkAlg BkAlg;
   typedef typename Parent::DiBoolNodeMap DiBoolNodeMap;
 
@@ -260,6 +216,8 @@ protected:
   using Parent::getNnodes;
   using Parent::constructRHS;
   using Parent::isValid;
+  using Parent::determineConnectedComponents;
+  using Parent::separateConnectedComponent;
   
   friend class NodeCut<GR, NWGHT, NLBL, EWGHT>;
 
@@ -275,7 +233,7 @@ public:
                          int maxNumberOfCuts,
                          IloFastMutex* pMutex,
                          BackOff backOff)
-    : Parent(env, x, y, g, weight, lemon::INVALID, nodeMap, n, m, maxNumberOfCuts, pMutex, backOff)
+    : Parent(env, x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex, backOff)
   {
     lock();
     _pG2hRootArc = new NodeDiArcMap(_g);
@@ -329,14 +287,19 @@ protected:
     return (new (getEnv()) NodeCutUnrootedUserCut(*this));
   }
   
-  void separateMinCut(const IloNumArray& x_values,
+  void separateMinCut(const NodeSet& nonZeroComponent,
+                      const Node root,
+                      const IloNumArray& x_values,
+                      const IloNumArray& y_values,
                       int& nCuts, int& nBackCuts, int& nNestedCuts)
   {
     IloExpr rhs(getEnv());
-    
+
     _pBK->setSource(_diRoot);
-    for (NodeIt i(_g); i != lemon::INVALID; ++i)
+    _pNodeBoolMap->set(root, false);
+    for (NodeSetIt it = nonZeroComponent.begin(); it != nonZeroComponent.end(); ++it)
     {
+      Node i = *it;
       // skip if node was already considered or its x-value is 0
       if (!(*_pNodeBoolMap)[i]) continue;
       
@@ -347,7 +310,7 @@ protected:
       
       bool nestedCut = false;
       bool first = true;
-      //      while (true)
+//      while (true)
       {
         if (first)
         {
@@ -365,7 +328,7 @@ protected:
         {
           // determine N (forward)
           NodeSet fwdS, fwdDS;
-          determineFwdCutSet(_h, *_pBK, fwdDS, fwdS);
+          determineFwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, fwdDS, fwdS);
           
           //          std::cout << x_i_value << "\t"
           //                    << minCutValue << "\t"
@@ -378,7 +341,7 @@ protected:
           
           // determine N (backward)
           NodeSet bwdS, bwdDS;
-          determineBwdCutSet(_h, *_pBK, bwdDS, bwdS);
+          determineBwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, bwdDS, bwdS);
           
           bool backCuts = fwdDS.size() != bwdDS.size() ||
           fwdS.size() != bwdS.size() ||
@@ -393,10 +356,20 @@ protected:
             
             if (_tol.less(minCutValue, x_j_value))
             {
+              //              std::cerr << std::endl << "nonZeroComp" << std::endl;
+              //              this->printNodeSet(nonZeroComponent, _y, y_values);
+              //
+              //              std::cerr << std::endl << "S" << std::endl;
+              //              this->printNodeSet(fwdS, _y, y_values);
+              //
+              //              std::cerr << std::endl << "dS" << std::endl;
+              //              this->printNodeSet(fwdDS, _x, x_values);
+              
+              assert(isValid(j, fwdDS, fwdS));
+              //              std::cerr << x_j_value - minCutValue << std::endl;
+              
               _pNodeBoolMap->set(j, false);
-              IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
-              add(constraint, IloCplex::UseCutPurge);
-              constraint.end();
+              add(_x[_nodeMap[j]] <= rhs, IloCplex::UseCutPurge).end();
               
               ++nCuts;
               if (nestedCut) ++nNestedCuts;
@@ -414,10 +387,10 @@ protected:
               
               if (_tol.less(minCutValue, x_j_value))
               {
+                assert(isValid(j, bwdDS, bwdS));
+                
                 _pNodeBoolMap->set(j, false);
-                IloConstraint constraint = _x[_nodeMap[j]] <= rhs;
-                add(constraint, IloCplex::UseCutPurge);
-                constraint.end();
+                add(_x[_nodeMap[j]] <= rhs, IloCplex::UseCutPurge).end();
                 
                 ++nCuts;
                 ++nBackCuts;
@@ -426,76 +399,162 @@ protected:
           }
           
           // generate nested-cuts
-          //          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); ++nodeIt)
-          //          {
-          //            nestedCut = true;
-          //            // update the capactity to generate nested-cuts
-          //            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
-          //          }
+//          for (NodeSetIt nodeIt = fwdS.begin(); nodeIt != fwdS.end(); ++nodeIt)
+//          {
+//            nestedCut = true;
+//            // update the capactity to generate nested-cuts
+////            _pBK->incCap(DiOutArcIt(_h, (*_pG2h1)[*nodeIt]), 1);
+//            _pBK->incCap((*_pG2hRootArc)[*nodeIt], 1);
+//          }
         }
-        //        else
-        //        {
-        //          break;
-        //        }
+//        else
+//        {
+//          break;
+//        }
       }
     }
     
     rhs.end();
   }
   
-  void separateConnectedComponents(const IloNumArray& x_values,
-                                   const int nComp,
-                                   const Node root,
-                                   int& nCuts)
+  void separateMinCutLocal(const NodeSet& nonZeroComponent,
+                           const Node root,
+                           const IloNumArray& x_values,
+                           const IloNumArray& y_values,
+                           int& nCuts, int& nBackCuts, int& nNestedCuts)
   {
-    typedef std::vector<NodeSet> NodeSetVector;
-    typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
-    
-    NodeSetVector compMatrix(nComp, NodeSet());
-    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
-    {
-      int compIdx = (*_pComp)[i];
-      compMatrix[compIdx].insert(i);
-    }
-    
     IloExpr rhs(getEnv());
-    for (int compIdx = 0; compIdx < nComp; compIdx++)
+    
+    Digraph h;
+    DiNodeNodeMap h2g(h);
+    DiNode diRoot;
+    CapacityMap cap(h);
+    
+    init(nonZeroComponent, root, x_values, y_values, h, h2g, diRoot, cap);
+    
+    BkAlg bk(h, cap);
+
+    bk.setSource(diRoot);
+    _pNodeBoolMap->set(root, false);
+    for (NodeSetIt it = nonZeroComponent.begin(); it != nonZeroComponent.end(); ++it)
     {
-      const NodeSet& S = compMatrix[compIdx];
-      if (S.find(root) != S.end())
-      {
-        continue;
-      }
+      Node i = *it;
+      // skip if node was already considered or its x-value is 0
+      if (!(*_pNodeBoolMap)[i]) continue;
       
-      // determine dS
-      NodeSet dS;
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      const double x_i_value = x_values[_nodeMap[i]];
+
+      bk.setTarget((*_pG2h2)[i]);
+      bk.setCap(cap);
+
+      bool nestedCut = false;
+      bool first = true;
+      while (true)
       {
-        const Node i = *it;
-        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        if (first)
         {
-          const Node j = _g.target(a);
-          if (S.find(j) == S.end())
+          bk.run();
+          first = false;
+        }
+        else
+        {
+          bk.run(false);
+        }
+        
+        // let's see if there's a violated constraint
+        double minCutValue = bk.maxFlow();
+        if (_tol.less(minCutValue, x_i_value))
+        {
+          // determine N (forward)
+          NodeSet fwdS, fwdDS;
+          determineFwdCutSet(h, bk, diRoot, h2g, _marked, fwdDS, fwdS);
+          
+          //          std::cout << x_i_value << "\t"
+          //                    << minCutValue << "\t"
+          //                    << fwdS.size() << "\t"
+          //                    << fwdDS.size() << std::endl;
+          
+          // numerical instability may cause minCutValue < x_i_value
+          // even though there is nothing to cut
+          if (fwdS.empty() && fwdDS.empty()) break;
+          
+          // determine N (backward)
+          NodeSet bwdS, bwdDS;
+          determineBwdCutSet(h, bk, diRoot, h2g, _marked, bwdDS, bwdS);
+          
+          bool backCuts = fwdDS.size() != bwdDS.size() ||
+          fwdS.size() != bwdS.size() ||
+          fwdDS != bwdDS || bwdS != fwdS;
+          
+          // add violated constraints for all nodes j in fwdS with x_j >= x_i
+          constructRHS(rhs, fwdDS, fwdS);
+          for (NodeSetIt it2 = fwdS.begin(); it2 != fwdS.end(); ++it2)
           {
-            dS.insert(j);
+            const Node j = *it2;
+            const double x_j_value = x_values[_nodeMap[j]];
+            
+            if (_tol.less(minCutValue, x_j_value))
+            {
+//              std::cerr << std::endl << "nonZeroComp" << std::endl;
+//              this->printNodeSet(nonZeroComponent, _y, y_values);
+//
+//              std::cerr << std::endl << "S" << std::endl;
+//              this->printNodeSet(fwdS, _y, y_values);
+//              
+//              std::cerr << std::endl << "dS" << std::endl;
+//              this->printNodeSet(fwdDS, _x, x_values);
+              
+              assert(isValid(j, fwdDS, fwdS));
+//              std::cerr << x_j_value - minCutValue << std::endl;
+              
+              _pNodeBoolMap->set(j, false);
+              add(_x[_nodeMap[j]] <= rhs, IloCplex::UseCutPurge).end();
+              
+              ++nCuts;
+              if (nestedCut) ++nNestedCuts;
+            }
+          }
+          
+          if (backCuts)
+          {
+            // add violated constraints for all nodes j in bwdS with x_j >= x_i
+            constructRHS(rhs, bwdDS, bwdS);
+            for (NodeSetIt it2 = bwdS.begin(); it2 != bwdS.end(); ++it2)
+            {
+              const Node j = *it2;
+              const double x_j_value = x_values[_nodeMap[j]];
+              
+              if (_tol.less(minCutValue, x_j_value))
+              {
+                assert(isValid(j, bwdDS, bwdS));
+                
+                _pNodeBoolMap->set(j, false);
+                add(_x[_nodeMap[j]] <= rhs, IloCplex::UseCutPurge).end();
+                
+                ++nCuts;
+                ++nBackCuts;
+              }
+            }
+          }
+          
+          // generate nested-cuts
+          for (NodeSetIt nodeIt = fwdDS.begin(); nodeIt != fwdDS.end(); ++nodeIt)
+          {
+            nestedCut = true;
+            // update the capactity to generate nested-cuts
+            bk.incCap(DiOutArcIt(h, (*_pG2h1)[*nodeIt]), 1);
           }
         }
-      }
-      
-      constructRHS(rhs, dS, S);
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-      {
-        assert(isValid(*it, dS, S));
-        IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-        add(constraint, IloCplex::UseCutPurge);
-        constraint.end();
-
-        ++nCuts;
+        else
+        {
+          break;
+        }
       }
     }
+    
     rhs.end();
   }
-
+  
   void separate()
   {
     IloNumArray x_values(getEnv(), _n);
@@ -504,31 +563,44 @@ protected:
     IloNumArray y_values(getEnv(), _n);
     getValues(y_values, _y);
     
+    // determine connected components
     Node root = computeCapacities(_cap, x_values, y_values);
+    NodeSetVector nonZeroComponents = determineConnectedComponents(x_values);
     
     int nCuts = 0;
     int nBackCuts = 0;
     int nNestedCuts = 0;
 
-    int nComp = lemon::connectedComponents(*_pSubG, *_pComp);
-    if (nComp == 1 || _nodeNumber == 0)
+    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
     {
-      separateMinCut(x_values, nCuts, nBackCuts, nNestedCuts);
-    }
-    else if (nComp > 1)
-    {
-      separateConnectedComponents(x_values, nComp, root, nCuts);
+      const NodeSet& nonZeroComponent = *it;
+      if (_nodeNumber == 0 || nonZeroComponent.find(root) != nonZeroComponent.end())
+      {
+        separateMinCut(nonZeroComponent, root, x_values, y_values, nCuts, nBackCuts, nNestedCuts);
+      }
+      else
+      {
+        separateConnectedComponent(nonZeroComponent, root, x_values, *this, nCuts);
+      }
     }
     
     x_values.end();
     y_values.end();
     
+    std::cerr << "[";
+    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
+    {
+      std::cerr << " " << it->size();
+      if (it->find(root) != it->end()) std::cerr << "*";
+    }
+    std::cerr << " ]" << std::endl;
+    
 //    if (nCuts != 0 )
 //    {
-//      std::cerr <<  "#" << _cutCount << ", #comp = " << nComp
-//                << ": generated " << nCuts
-//                << " user cuts of which " << nBackCuts << " are back-cuts and "
-//                << nNestedCuts << " are nested cuts" << std::endl;
+      std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
+                << ": generated " << nCuts
+                << " user cuts of which " << nBackCuts << " are back-cuts and "
+                << nNestedCuts << " are nested cuts" << std::endl;
 //    }
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }
@@ -536,36 +608,39 @@ protected:
   
   void determineBwdCutSet(const Digraph& h,
                           const BkAlg& bk,
+                          const DiNode diRoot,
+                          const DiNodeNodeMap& h2g,
+                          DiBoolNodeMap& marked,
                           NodeSet& dS,
                           NodeSet& S)
   {
     DiNode target = bk.getTarget();
     DiNodeList diS;
-    determineBwdCutSet(h, bk, target, diS);
+    determineBwdCutSet(h, bk, diRoot, target, marked, diS);
     
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
     {
       DiNode v = *nodeIt;
-      assert(_marked[v]);
+      assert(marked[v]);
       if (v == target) continue;
       
       for (DiInArcIt a(h, v); a != lemon::INVALID; ++a)
       {
         DiNode u = h.source(a);
-        if (u == _diRoot)
+        if (u == diRoot)
         {
-          assert(!_marked[u]);
+          assert(!marked[u]);
           //std::cout << _h.id(u) << " -> "
           //          << _h.id(v) << " "
           //          << bk.flow(a) << "/" << bk.cap(a) << std::endl;
-          S.insert(_h2g[v]);
+          S.insert(h2g[v]);
         }
-        else if (!_marked[u])
+        else if (!marked[u])
         {
           //std::cout << _h.id(u) << " -> "
           //          << _h.id(v) << " "
           //          << bk.flow(a) << "/" << bk.cap(a) << std::endl;
-          dS.insert(_h2g[v]);
+          dS.insert(h2g[v]);
         }
       }
     }
@@ -573,29 +648,32 @@ protected:
   
   void determineFwdCutSet(const Digraph& h,
                           const BkAlg& bk,
+                          const DiNode diRoot,
+                          const DiNodeNodeMap& h2g,
+                          DiBoolNodeMap& marked,
                           NodeSet& dS,
                           NodeSet& S)
   {
     DiNode target = bk.getTarget();
     DiNodeList diS;
-    determineFwdCutSet(h, bk, diS);
+    determineFwdCutSet(h, bk, diRoot, marked, diS);
     
     for (DiNodeListIt nodeIt = diS.begin(); nodeIt != diS.end(); nodeIt++)
     {
       DiNode v = *nodeIt;
-      assert(_marked[v]);
+      assert(marked[v]);
       
-      if (v == _diRoot)
+      if (v == diRoot)
       {
         for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
         {
           DiNode w = h.target(a);
-          if (!_marked[w])
+          if (!marked[w])
           {
             //std::cout << _h.id(v) << " -> "
             //          << _h.id(w) << " "
             //          << bk.flow(a) << "/" << bk.cap(a) << std::endl;
-            S.insert(_h2g[w]);
+            S.insert(h2g[w]);
           }
         }
       }
@@ -604,12 +682,12 @@ protected:
         for (DiOutArcIt a(h, v); a != lemon::INVALID; ++a)
         {
           DiNode w = h.target(a);
-          if (!_marked[w] && w != target)
+          if (!marked[w] && w != target)
           {
             //std::cout << _h.id(v) << " -> "
             //          << _h.id(w) << " "
             //          << bk.flow(a) << "/" << bk.cap(a) << std::endl;
-            dS.insert(_h2g[w]);
+            dS.insert(h2g[w]);
           }
         }
       }
@@ -654,6 +732,93 @@ protected:
       DiArc i2j1 = _h.addArc(i2, j1);
       DiArc j2i1 = _h.addArc(j2, i1);
       _cap[i2j1] = _cap[j2i1] = 1;
+    }
+  }
+  
+  void init(const NodeSet& nonZeroComponent,
+            const Node root,
+            const IloNumArray& x_values,
+            const IloNumArray& y_values,
+            Digraph& h,
+            DiNodeNodeMap& h2g,
+            DiNode& diRoot,
+            CapacityMap& cap)
+  {
+    NodeSet shell;
+    
+    lemon::mapFill(_g, *_pG2h1, lemon::INVALID);
+    lemon::mapFill(_g, *_pG2h2, lemon::INVALID);
+    
+    h.clear();
+    diRoot = h.addNode();
+    for (NodeSetIt it = nonZeroComponent.begin(); it != nonZeroComponent.end(); ++it)
+    {
+      const Node i = *it;
+      
+      double x_i_value = x_values[_nodeMap[i]];
+      double y_i_value = y_values[_nodeMap[i]];
+      
+      DiNode i1 = h.addNode();
+      DiNode i2 = h.addNode();
+      _pG2h1->set(i, i1);
+      _pG2h2->set(i, i2);
+      h2g[i1] = i;
+      h2g[i2] = i;
+      
+      DiArc i1i2 = h.addArc(i1, i2);
+      cap[i1i2] = _tol.nonZero(x_i_value) ? x_i_value : 10 * _cutEpsilon;
+      
+      DiArc ri1 = h.addArc(diRoot, i1);
+      cap[ri1] = _tol.nonZero(y_i_value) ? y_i_value : 10 * _cutEpsilon;
+      
+      for (IncEdgeIt e(_g, i); e != lemon::INVALID; ++e)
+      {
+        Node j = _g.oppositeNode(i, e);
+        if ((*_pG2h1)[j] == lemon::INVALID && nonZeroComponent.find(j) == nonZeroComponent.end())
+        {
+          shell.insert(j);
+          
+          double x_j_value = x_values[_nodeMap[j]];
+          double y_j_value = y_values[_nodeMap[j]];
+          
+          assert(!_tol.nonZero(x_j_value));
+          
+          DiNode j1 = h.addNode();
+          DiNode j2 = h.addNode();
+          _pG2h1->set(j, j1);
+          _pG2h2->set(j, j2);
+          h2g[j1] = j;
+          h2g[j2] = j;
+          
+          DiArc j1j2 = h.addArc(j1, j2);
+          cap[j1j2] = _tol.nonZero(x_j_value) ? x_j_value : 10 * _cutEpsilon;
+          
+          DiArc rj1 = h.addArc(diRoot, j1);
+          // shell things may never end up in S unless they have a nonzero y
+          cap[rj1] = _tol.nonZero(y_j_value) ? y_j_value : 1;
+        }
+      }
+    }
+    
+    for (EdgeIt e(_g); e != lemon::INVALID; ++e)
+    {
+      Node i = _g.u(e);
+      Node j = _g.v(e);
+      
+      DiNode i1 = (*_pG2h1)[i];
+      DiNode i2 = (*_pG2h2)[i];
+      DiNode j1 = (*_pG2h1)[j];
+      DiNode j2 = (*_pG2h2)[j];
+      
+      if (i1 != lemon::INVALID && j1 != lemon::INVALID)
+      {
+        assert(i2 != lemon::INVALID);
+        assert(j2 != lemon::INVALID);
+        
+        DiArc i2j1 = h.addArc(i2, j1);
+        DiArc j2i1 = h.addArc(j2, i1);
+        cap[i2j1] = cap[j2i1] = 1;
+      }
     }
   }
   

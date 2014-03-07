@@ -54,6 +54,8 @@ public:
   
   using Parent::lock;
   using Parent::unlock;
+  using Parent::determineConnectedComponents;
+  using Parent::separateConnectedComponent;
   
 protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
@@ -64,14 +66,13 @@ public:
               IloBoolVarArray y,
               const Graph& g,
               const WeightNodeMap& weight,
-              Node root,
               const IntNodeMap& nodeMap,
               int n,
               int m,
               int maxNumberOfCuts,
               IloFastMutex* pMutex)
     : IloCplex::LazyConstraintCallbackI(env)
-    , Parent(x, y, g, weight, root, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    , Parent(x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex)
   {
   }
   
@@ -84,14 +85,6 @@ public:
   virtual ~NodeCutLazy()
   {
   }
-  
-protected:
-  virtual void main()
-  {
-    separate();
-  }
-  
-  virtual void separate() = 0;
 };
 
 } // namespace mwcs
