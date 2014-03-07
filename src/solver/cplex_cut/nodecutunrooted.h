@@ -41,10 +41,8 @@ protected:
   using Parent::_y;
   using Parent::_g;
   using Parent::_weight;
-  using Parent::_root;
   using Parent::_nodeMap;
   using Parent::_n;
-  using Parent::_m;
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
@@ -73,10 +71,9 @@ public:
                                 const WeightNodeMap& weight,
                                 const IntNodeMap& nodeMap,
                                 int n,
-                                int m,
                                 int maxNumberOfCuts,
                                 IloFastMutex* pMutex)
-    : Parent(env, x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    : Parent(env, x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
   {
   }
 
@@ -182,10 +179,8 @@ protected:
   using Parent::_y;
   using Parent::_g;
   using Parent::_weight;
-  using Parent::_root;
   using Parent::_nodeMap;
   using Parent::_n;
-  using Parent::_m;
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
@@ -229,11 +224,10 @@ public:
                          const WeightNodeMap& weight,
                          const IntNodeMap& nodeMap,
                          int n,
-                         int m,
                          int maxNumberOfCuts,
                          IloFastMutex* pMutex,
                          BackOff backOff)
-    : Parent(env, x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex, backOff)
+    : Parent(env, x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex, backOff)
   {
     lock();
     _pG2hRootArc = new NodeDiArcMap(_g);

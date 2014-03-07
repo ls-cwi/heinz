@@ -45,10 +45,8 @@ protected:
   IloBoolVarArray _y;
   const Graph& _g;
   const WeightNodeMap& _weight;
-  const Node _root;
   const IntNodeMap& _nodeMap;
   const int _n;
-  const int _m;
   const int _maxNumberOfCuts;
   const lemon::Tolerance<double> _tol;
   BoolNodeMap* _pNodeBoolMap;
@@ -69,7 +67,6 @@ public:
           const WeightNodeMap& weight,
           const IntNodeMap& nodeMap,
           int n,
-          int m,
           int maxNumberOfCuts,
           IloFastMutex* pMutex)
     : _x(x)
@@ -78,7 +75,6 @@ public:
     , _weight(weight)
     , _nodeMap(nodeMap)
     , _n(n)
-    , _m(m)
     , _maxNumberOfCuts(maxNumberOfCuts)
     , _tol(_epsilon)
     , _pNodeBoolMap(NULL)
@@ -100,7 +96,6 @@ public:
     , _weight(other._weight)
     , _nodeMap(other._nodeMap)
     , _n(other._n)
-    , _m(other._m)
     , _maxNumberOfCuts(other._maxNumberOfCuts)
     , _tol(other._tol)
     , _pNodeBoolMap(NULL)

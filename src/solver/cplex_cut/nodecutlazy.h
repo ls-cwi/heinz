@@ -40,10 +40,8 @@ public:
   using Parent::_y;
   using Parent::_g;
   using Parent::_weight;
-  using Parent::_root;
   using Parent::_nodeMap;
   using Parent::_n;
-  using Parent::_m;
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
@@ -68,11 +66,10 @@ public:
               const WeightNodeMap& weight,
               const IntNodeMap& nodeMap,
               int n,
-              int m,
               int maxNumberOfCuts,
               IloFastMutex* pMutex)
     : IloCplex::LazyConstraintCallbackI(env)
-    , Parent(x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    , Parent(x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
   {
   }
   

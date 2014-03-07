@@ -42,10 +42,8 @@ public:
   using Parent::_y;
   using Parent::_g;
   using Parent::_weight;
-  using Parent::_root;
   using Parent::_nodeMap;
   using Parent::_n;
-  using Parent::_m;
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
@@ -115,12 +113,11 @@ public:
               const WeightNodeMap& weight,
               const IntNodeMap& nodeMap,
               int n,
-              int m,
               int maxNumberOfCuts,
               IloFastMutex* pMutex,
               const BackOff& backOff)
     : IloCplex::UserCutCallbackI(env)
-    , Parent(x, y, g, weight, nodeMap, n, m, maxNumberOfCuts, pMutex)
+    , Parent(x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
     , _h()
     , _cap(_h)
     , _pG2h1(NULL)
@@ -189,7 +186,7 @@ protected:
       _makeAttempt = _backOff.makeAttempt();
     }
     
-    if (_makeAttempt && (_cutCount < _maxNumberOfCuts || _cutCount == -1 || (_nodeNumber == 0 && _cutCount < 150)))
+    if (_makeAttempt && (_cutCount < _maxNumberOfCuts || _cutCount == -1 || (_nodeNumber == 0 && _cutCount < 250)))
     {
       separate();
       ++_cutCount;

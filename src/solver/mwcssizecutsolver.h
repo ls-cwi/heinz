@@ -146,7 +146,7 @@ inline bool MwcsSizeCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     //_cplex.setParam(IloCplex::MCFCuts, -1);
 
     pCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                          _n, _m, _maxNumberOfCuts, pMutex);
+                                                                          _n, _maxNumberOfCuts, pMutex);
   }
   else
   {
@@ -169,7 +169,7 @@ inline bool MwcsSizeCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     //_cplex.setParam(IloCplex::RepeatPresolve, 0);
 
     pCut = new (_env) NodeCutUnrootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                            _n, _m, _maxNumberOfCuts, pMutex);
+                                                                            _n, _maxNumberOfCuts, pMutex);
   }
 
   IloCplex::Callback cb(pCut);

@@ -28,6 +28,7 @@
 #include "cplex_cut/nodecutrooted.h"
 #include "cplex_cut/nodecutunrooted.h"
 #include "cplex_cut/backoff.h"
+#include "cplex_branch/branch.h"
 #include "mwcscplexsolver.h"
 #include "mwcsanalyze.h"
 #include "parser/identityparser.h"
@@ -158,9 +159,9 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 //    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
     pLazyCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                              _n, _m, _maxNumberOfCuts, pMutex);
+                                                                              _n, _maxNumberOfCuts, pMutex);
     pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                       _n, _m, _maxNumberOfCuts, pMutex, _backOff);
+                                                                       _n, _maxNumberOfCuts, pMutex, _backOff);
     
     pHeuristic = new (_env) HeuristicRootedType(_env, _x,
                                                 g, weight, _root,
@@ -181,6 +182,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     _cplex.setParam( IloCplex::DisjCuts      , -1 );
 //    _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
     _cplex.setParam( IloCplex::MCFCuts       , -1 );
+    _cplex.setParam( IloCplex::MIPEmphasis, IloCplex::MIPEmphasisBestBound );
 //    _cplex.setParam( IloCplex::AggFill       ,  0 );
 //    _cplex.setParam( IloCplex::PreInd        ,  0 );
 //    _cplex.setParam( IloCplex::RelaxPreInd   ,  0 );
@@ -188,9 +190,9 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 //    _cplex.setParam( IloCplex::RepeatPresolve,  0 );
 
     pLazyCut = new (_env) NodeCutUnrootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                                _n, _m, _maxNumberOfCuts, pMutex);
+                                                                                _n, _maxNumberOfCuts, pMutex);
     pUserCut = new (_env) NodeCutUnrootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
-                                                                         _n, _m, _maxNumberOfCuts, pMutex, _backOff);
+                                                                         _n, _maxNumberOfCuts, pMutex, _backOff);
 
     pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y,
                                                   g, weight,
@@ -219,12 +221,30 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 
   IloCplex::Callback cb3(pUserCut);
   _cplex.use(cb3);
-
+  
+  // determine degrees
+  IntNodeMap deg(g, 0);
+  IntNodeMap posDeg(g, 0);
+  for (NodeIt i(g); i != lemon::INVALID; ++i)
+  {
+    for (IncEdgeIt e(g, i); e != lemon::INVALID; ++e)
+    {
+      Node j = g.oppositeNode(i, e);
+      ++deg[i];
+      if (weight[j] >= 0) ++posDeg[i];
+    }
+  }
+  
+  IloCplex::BranchCallbackI* pBranch = new Branch<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, *_pNode, _n, deg, posDeg);
+  IloCplex::Callback cb4(pBranch);
+//  _cplex.use(cb4);
+  
   //exportModel("/tmp/model.lp");
   bool res = _cplex.solve();
   cb.end();
   cb2.end();
   cb3.end();
+  cb4.end();
 
   _cplex.setParam(IloCplex::MIPInterval, 2);
   _cplex.setParam(IloCplex::MIPDisplay, 5);
