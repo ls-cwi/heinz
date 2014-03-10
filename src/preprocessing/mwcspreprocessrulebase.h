@@ -220,7 +220,6 @@ MwcsPreprocessRuleBase<GR, WGHT>::merge(Graph& g,
   if (LB < score[maxNode])
   {
     LB = score[maxNode];
-    std::cerr << "LB: " << LB << std::endl;
   }
 
   return maxNode;

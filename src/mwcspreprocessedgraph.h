@@ -394,7 +394,6 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
 
   // determine max score
   double LB = std::max((*_pGraph->_pScore)[lemon::mapMax(*_pGraph->_pG, *_pGraph->_pScore)], 0.);
-  std::cerr << "LB: " << LB << std::endl;
   
   // now let's preprocess the graph
   int uberTotRemovedNodes;
