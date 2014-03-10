@@ -27,6 +27,7 @@
 #include "preprocessing/negdiamond.h"
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
+#include "preprocessing/posdiamond.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcstreeheuristicsolver.h"
@@ -54,6 +55,7 @@ typedef NegCircuit<Graph> NegCircuitType;
 typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
+typedef PosDiamond<Graph> PosDiamondType;
 typedef MwcsSolver<Graph> MwcsSolverType;
 typedef MwcsCutSolver<Graph> MwcsCutSolverType;
 typedef MwcsTreeSolver<Graph> MwcsTreeSolverType;
@@ -183,6 +185,7 @@ int main(int argc, char** argv)
     pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRuleNegEdgeType());
     pPreprocessedMwcs->addPreprocessRule(new NegCircuitType());
     pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(new PosDiamondType());
     pPreprocessedMwcs->addPreprocessRule(new NegMirroredHubsType());
     if (root.empty())
     {

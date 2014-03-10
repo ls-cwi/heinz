@@ -19,6 +19,7 @@
 #include "preprocessing/negdiamond.h"
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
+#include "preprocessing/posdiamond.h"
 #include "utils.h"
 
 using namespace nina;
@@ -36,6 +37,7 @@ typedef NegCircuit<Graph> NegCircuitType;
 typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
+typedef PosDiamond<Graph> PosDiamondType;
 
 int main (int argc, char** argv)
 {
@@ -100,6 +102,7 @@ int main (int argc, char** argv)
     pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
     pPreprocessedMwcs->addPreprocessRule(new NegMirroredHubsType());
     pPreprocessedMwcs->addPreprocessRule(new PosDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(new PosDiamondType());
   }
   else
   {

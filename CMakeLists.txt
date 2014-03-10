@@ -24,6 +24,7 @@ set( Heinz_Hdr
   src/preprocessing/negdiamond.h
   src/preprocessing/negmirroredhubs.h
   src/preprocessing/posdeg01.h
+  src/preprocessing/posdiamond.h
   src/verbose.h
   src/mwcs.h
   src/mwcsanalyze.h
