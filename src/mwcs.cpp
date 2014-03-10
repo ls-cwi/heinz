@@ -23,6 +23,10 @@
 #include "preprocessing/mwcspreprocessrulenegedge.h"
 #include "preprocessing/mwcspreprocessruleposdeg01.h"
 #include "preprocessing/mwcspreprocessruleneghub.h"
+#include "preprocessing/negcircuit.h"
+#include "preprocessing/negdiamond.h"
+#include "preprocessing/negmirroredhubs.h"
+#include "preprocessing/posdeg01.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcstreeheuristicsolver.h"
@@ -46,6 +50,10 @@ typedef MwcsPreprocessRulePosEdge<Graph> MwcsPreprocessRulePosEdgeType;
 typedef MwcsPreprocessRuleNegEdge<Graph> MwcsPreprocessRuleNegEdgeType;
 typedef MwcsPreprocessRulePosDeg01<Graph> MwcsPreprocessRulePosDeg01Type;
 typedef MwcsPreprocessRuleNegHub<Graph> MwcsPreprocessRuleNegHubType;
+typedef NegCircuit<Graph> NegCircuitType;
+typedef NegDiamond<Graph> NegDiamondType;
+typedef NegMirroredHubs<Graph> NegMirroredHubsType;
+typedef PosDeg01<Graph> PosDeg01Type;
 typedef MwcsSolver<Graph> MwcsSolverType;
 typedef MwcsCutSolver<Graph> MwcsCutSolverType;
 typedef MwcsTreeSolver<Graph> MwcsTreeSolverType;
@@ -173,8 +181,17 @@ int main(int argc, char** argv)
     pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRuleNegDeg01Type());
     pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRulePosEdgeType());
     pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRuleNegEdgeType());
-    //pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRuleNegHubType());
-    pPreprocessedMwcs->addPreprocessRootRule(new MwcsPreprocessRulePosDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(new NegCircuitType());
+    pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(new NegMirroredHubsType());
+    if (root.empty())
+    {
+      pPreprocessedMwcs->addPreprocessRule(new PosDeg01Type());
+    }
+    else
+    {
+      pPreprocessedMwcs->addPreprocessRootRule(new MwcsPreprocessRulePosDeg01Type());
+    }
   }
   else
   {

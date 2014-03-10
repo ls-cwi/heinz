@@ -57,7 +57,8 @@ protected:
              DegreeNodeMap& degree,
              DegreeNodeSetVector& degreeVector,
              Node node1,
-             Node node2);
+             Node node2,
+             double& LB);
 
 public:
   MwcsPreprocessRuleBase() {}
@@ -120,7 +121,8 @@ MwcsPreprocessRuleBase<GR, WGHT>::merge(Graph& g,
                                         DegreeNodeMap& degree,
                                         DegreeNodeSetVector& degreeVector,
                                         Node node1,
-                                        Node node2)
+                                        Node node2,
+                                        double& LB)
 {
   // TODO: prevent multiple edges from occurring
   if (node1 == node2)
@@ -213,6 +215,13 @@ MwcsPreprocessRuleBase<GR, WGHT>::merge(Graph& g,
   nNodes--;
   nEdges--;
   nArcs -= 2;
+  
+  // update LB if necessary
+  if (LB < score[maxNode])
+  {
+    LB = score[maxNode];
+    std::cerr << "LB: " << LB << std::endl;
+  }
 
   return maxNode;
 }

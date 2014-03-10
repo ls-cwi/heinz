@@ -14,6 +14,7 @@
 #include "preprocessing/mwcspreprocessruleneghub.h"
 #include <set>
 #include <vector>
+#include <algorithm>
 #include <lemon/core.h>
 
 namespace nina {
@@ -391,6 +392,10 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
 
   constructDegreeMap(degree, degreeVector);
 
+  // determine max score
+  double LB = std::max((*_pGraph->_pScore)[lemon::mapMax(*_pGraph->_pG, *_pGraph->_pScore)], 0.);
+  std::cerr << "LB: " << LB << std::endl;
+  
   // now let's preprocess the graph
   int uberTotRemovedNodes;
   do
@@ -405,7 +410,7 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
         int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(), *_pGraph->_pLabel,
                                             *_pGraph->_pScore, (*_pMapToPre),
                                             *_pGraph->_pPreOrigNodes, _pGraph->_nNodes, _pGraph->_nArcs,
-                                            _pGraph->_nEdges, degree, degreeVector);
+                                            _pGraph->_nEdges, degree, degreeVector, LB);
         totRemovedNodes += removedNodes;
 
         if (g_verbosity >= VERBOSE_DEBUG && removedNodes > 0)
@@ -497,7 +502,7 @@ MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(Node root)
       int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(),
                                           *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
                                           *_pGraph->_pPreOrigNodes, _pGraph->_nNodes, _pGraph->_nArcs,
-                                          _pGraph->_nEdges, degree, degreeVector);
+                                          _pGraph->_nEdges, degree, degreeVector, (*_pGraph->_pScore)[root]);
       totRemovedNodes += removedNodes;
 
       if (g_verbosity >= VERBOSE_ESSENTIAL && removedNodes > 0)

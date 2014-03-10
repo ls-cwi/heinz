@@ -20,6 +20,10 @@ set( Heinz_Hdr
   src/preprocessing/mwcspreprocessruleneghub.h
   src/preprocessing/mwcspreprocessruleposdeg01.h
   src/preprocessing/mwcspreprocessruleposedge.h
+  src/preprocessing/negcircuit.h
+  src/preprocessing/negdiamond.h
+  src/preprocessing/negmirroredhubs.h
+  src/preprocessing/posdeg01.h
   src/verbose.h
   src/mwcs.h
   src/mwcsanalyze.h

@@ -51,7 +51,8 @@ public:
                     int& nArcs,
                     int& nEdges,
                     DegreeNodeMap& degree,
-                    DegreeNodeSetVector& degreeVector);
+                    DegreeNodeSetVector& degreeVector,
+                    double& LB);
 
   virtual std::string name() const { return "NegEdge"; }
 };
@@ -73,7 +74,8 @@ inline int MwcsPreprocessRuleNegEdge<GR, WGHT>::apply(Graph& g,
                                                       int& nArcs,
                                                       int& nEdges,
                                                       DegreeNodeMap& degree,
-                                                      DegreeNodeSetVector& degreeVector)
+                                                      DegreeNodeSetVector& degreeVector,
+                                                      double& LB)
 {
   int res = 0;
 
@@ -88,7 +90,7 @@ inline int MwcsPreprocessRuleNegEdge<GR, WGHT>::apply(Graph& g,
       merge(g, arcLookUp, label, score,
             mapToPre, preOrigNodes,
             nNodes, nArcs, nEdges,
-            degree, degreeVector, u, v);
+            degree, degreeVector, u, v, LB);
     }
   }
 

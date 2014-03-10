@@ -136,10 +136,11 @@ inline int MwcsPreprocessRulePosDeg01<GR, WGHT>::apply(Graph& g,
     {
       Edge e = IncEdgeIt(g, *nodeIt);
 
+      double tmp = 0;
       merge(g, arcLookUp, label,
             score, mapToPre, preOrigNodes,
             nNodes, nArcs, nEdges,
-            degree, degreeVector, g.u(e), g.v(e));
+            degree, degreeVector, g.u(e), g.v(e), tmp);
 
       return res + 1;
     }

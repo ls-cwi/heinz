@@ -49,7 +49,8 @@ public:
                     int& nArcs,
                     int& nEdges,
                     DegreeNodeMap& degree,
-                    DegreeNodeSetVector& degreeVector) = 0;
+                    DegreeNodeSetVector& degreeVector,
+                    double& LB) = 0;
   virtual std::string name() const = 0;
 };
 
