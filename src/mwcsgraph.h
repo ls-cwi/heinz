@@ -47,7 +47,8 @@ public:
   typedef typename NodeSet::const_iterator NodeSetIt;
   typedef typename std::vector<NodeSet> NodeSetVector;
   typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
-
+  typedef lemon::DynArcLookUp<Graph> ArcLookUpType;
+  
 public:
   MwcsGraph();
   virtual ~MwcsGraph()
@@ -72,8 +73,7 @@ public:
   virtual bool deinit() { return false; }
   void resetCounts();
 
-protected:
-  typedef lemon::DynArcLookUp<Graph> ArcLookUpType;
+
 
 private:
   Graph* _pG;
@@ -92,10 +92,6 @@ protected:
   bool _parserInit;
 
 protected:
-  const ArcLookUpType& getOrgArcLookUp() const { return *_pArcLookUp; }
-
-  virtual const ArcLookUpType& getArcLookUp() const { return *_pArcLookUp; }
-
   virtual void initParserMembers(Graph*& pG,
                                  LabelNodeMap*& pLabel,
                                  WeightNodeMap*& pScore,
@@ -104,6 +100,10 @@ protected:
   }
 
 public:
+  const ArcLookUpType& getOrgArcLookUp() const { return *_pArcLookUp; }
+  
+  virtual const ArcLookUpType& getArcLookUp() const { return *_pArcLookUp; }
+
   virtual const Graph& getGraph() const
   {
     return getOrgGraph();

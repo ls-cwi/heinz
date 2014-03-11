@@ -39,6 +39,54 @@ typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
 
+void pairs(const MwcsGraphType& mwcsGraph)
+{
+  const Graph& g = mwcsGraph.getGraph();
+  const MwcsGraphType::ArcLookUpType& arcLookUp = mwcsGraph.getArcLookUp();
+  BoolNodeMap present(g, true);
+  IntNodeMap comp(g, -1);
+  lemon::FilterNodes<const Graph> subG(g, present);
+  
+  for (NodeIt v(g); v != lemon::INVALID; ++v)
+  {
+    present[v] = false;
+    for (NodeIt w = v; w != lemon::INVALID; ++w)
+    {
+      if (w == v) continue;
+      if (arcLookUp(w, v) != lemon::INVALID) continue;
+      
+      present[w] = false;
+      
+      // determine connected components...
+      int nComp = lemon::connectedComponents(subG, comp);
+      if (nComp > 1)
+      {
+        // determine smallest component size
+        std::vector<int> compSizes(nComp, 0);
+        for (NodeIt u(g); u != lemon::INVALID; ++u)
+        {
+          if (present[u]) ++compSizes[comp[u]];
+        }
+        
+        int maxComp = 0;
+        for (size_t i = 0; i < compSizes.size(); ++i)
+        {
+          if (maxComp < compSizes[i]) maxComp = compSizes[i];
+        }
+        
+        if (mwcsGraph.getNodeCount() - 2 - maxComp > 1)
+        {
+          std::cerr << mwcsGraph.getNodeCount() - 2 - maxComp << "\t" << mwcsGraph.getLabel(v) << " -- " << mwcsGraph.getLabel(w) << std::endl;
+        }
+      }
+      
+      present[w] = true;
+      
+    }
+    present[v] = true;
+  }
+}
+
 int main (int argc, char** argv)
 {
   // parse command line arguments
@@ -121,6 +169,17 @@ int main (int argc, char** argv)
   }
 
   // Now let's print the graph
+  //pairs(*pMwcs);
+  BoolNodeMap cut(pMwcs->getGraph());
+  std::cerr << "#articulation nodes: " << lemon::biNodeConnectedCutNodes(pMwcs->getGraph(), cut) << std::endl;
+  for (NodeIt v(pMwcs->getGraph()); v != lemon::INVALID; ++v)
+  {
+    if (cut[v])
+    {
+      std::cerr << pMwcs->getLabel(v) << std::endl;
+    }
+  }
+//  std::cerr << "Bi-edge connected components: " << lemon::biEdgeConnected(pMwcs->getGraph()) << std::endl;
   pMwcs->print(std::cout);
 
   delete pMwcs;
