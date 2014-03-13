@@ -1,30 +1,30 @@
 /*
- * mwcspreprocessrulenegedge.h
+ * posedge.h
  *
  *  Created on: 14-jan-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef MWCSPREPROCESSRULENEGEDGE_H
-#define MWCSPREPROCESSRULENEGEDGE_H
+#ifndef POSEDGE_H
+#define POSEDGE_H
 
 #include <lemon/core.h>
 #include <string>
 #include <vector>
 #include <set>
-#include "mwcspreprocessrule.h"
+#include "unrootedrule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class MwcsPreprocessRuleNegEdge : public MwcsPreprocessRule<GR, WGHT>
+class PosEdge : public UnrootedRule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef MwcsPreprocessRule<GR, WGHT> Parent;
+  typedef UnrootedRule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -39,14 +39,15 @@ public:
   using Parent::remove;
   using Parent::merge;
 
-  MwcsPreprocessRuleNegEdge();
-  virtual ~MwcsPreprocessRuleNegEdge() {}
+  PosEdge();
+  virtual ~PosEdge() {}
   virtual int apply(Graph& g,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     NodeMap& mapToPre,
                     NodeSetMap& preOrigNodes,
+                    NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
@@ -54,50 +55,48 @@ public:
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
 
-  virtual std::string name() const { return "NegEdge"; }
+  virtual std::string name() const { return "PosEdge"; }
 };
 
 template<typename GR, typename WGHT>
-inline MwcsPreprocessRuleNegEdge<GR, WGHT>::MwcsPreprocessRuleNegEdge()
+inline PosEdge<GR, WGHT>::PosEdge()
   : Parent()
 {
 }
 
 template<typename GR, typename WGHT>
-inline int MwcsPreprocessRuleNegEdge<GR, WGHT>::apply(Graph& g,
-                                                      const ArcLookUpType& arcLookUp,
-                                                      LabelNodeMap& label,
-                                                      WeightNodeMap& score,
-                                                      NodeMap& mapToPre,
-                                                      NodeSetMap& preOrigNodes,
-                                                      int& nNodes,
-                                                      int& nArcs,
-                                                      int& nEdges,
-                                                      DegreeNodeMap& degree,
-                                                      DegreeNodeSetVector& degreeVector,
-                                                      double& LB)
+inline int PosEdge<GR, WGHT>::apply(Graph& g,
+                                    const ArcLookUpType& arcLookUp,
+                                    LabelNodeMap& label,
+                                    WeightNodeMap& score,
+                                    NodeMap& mapToPre,
+                                    NodeSetMap& preOrigNodes,
+                                    NodeSetMap& neighbors,
+                                    int& nNodes,
+                                    int& nArcs,
+                                    int& nEdges,
+                                    DegreeNodeMap& degree,
+                                    DegreeNodeSetVector& degreeVector,
+                                    double& LB)
 {
-  int res = 0;
-
   for (EdgeIt e(g); e != lemon::INVALID; ++e)
   {
     Node u = g.u(e);
     Node v = g.v(e);
 
-    if (score[u] <= 0 && score[v] <= 0 && degree[u] == 2 && degree[v] == 2)
+    if (score[u] >= 0 && score[v] >= 0)
     {
-      res++;
       merge(g, arcLookUp, label, score,
-            mapToPre, preOrigNodes,
+            mapToPre, preOrigNodes, neighbors,
             nNodes, nArcs, nEdges,
             degree, degreeVector, u, v, LB);
+      return 1;
     }
   }
-
-  return res;
+  return 0;
 }
 
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSPREPROCESSRULENEGEDGE_H
+#endif // POSEDGE_H

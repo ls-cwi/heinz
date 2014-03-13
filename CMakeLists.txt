@@ -12,14 +12,13 @@ set( Heinz_Hdr
   src/parser/mwcsparser.h
   src/parser/mwcsstpparser.h
   src/parser/identityparser.h
-  src/preprocessing/mwcspreprocessrootrule.h
-  src/preprocessing/mwcspreprocessrule.h
-  src/preprocessing/mwcspreprocessrulebase.h
-  src/preprocessing/mwcspreprocessrulenegdeg01.h
-  src/preprocessing/mwcspreprocessrulenegedge.h
-  src/preprocessing/mwcspreprocessruleneghub.h
-  src/preprocessing/mwcspreprocessruleposdeg01.h
-  src/preprocessing/mwcspreprocessruleposedge.h
+  src/preprocessing/base.h
+  src/preprocessing/rootedrule.h
+  src/preprocessing/unrootedrule.h
+  src/preprocessing/negdeg01.h
+  src/preprocessing/negedge.h
+  src/preprocessing/rootedposdeg01.h
+  src/preprocessing/posedge.h
   src/preprocessing/negcircuit.h
   src/preprocessing/negdiamond.h
   src/preprocessing/negmirroredhubs.h
@@ -86,6 +85,7 @@ execute_process( COMMAND git log --pretty=format:%h WORKING_DIRECTORY ${PROJECT_
                  COMMAND head -n 1  COMMAND tr -d "\\n" OUTPUT_VARIABLE GitHashtag )
 set( HEINZ_VERSION \"${GitBranch}-${GitHashtag}\" )
 
+set( LIBOGDF_ROOT "$ENV{HOME}/ogdf" CACHE PATH "Additional search directory for OGDF library" )
 set( LIBLEMON_ROOT "$ENV{HOME}/lemon" CACHE PATH "Additional search directory for lemon library" )
 
 if( NOT CPLEX_INC_DIR OR NOT CPLEX_LIB_DIR OR NOT CONCERT_INC_DIR OR NOT CONCERT_LIB_DIR )
@@ -148,8 +148,8 @@ if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
   set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
 endif()
 
-include_directories( ${CPLEX_INC_DIR} ${CONCERT_INC_DIR} "${LIBLEMON_ROOT}/include" "src" "src/externlib" )
-link_directories( ${CPLEX_LIB_DIR} ${CONCERT_LIB_DIR} "${LIBLEMON_ROOT}/lib" )
+include_directories( ${CPLEX_INC_DIR} ${CONCERT_INC_DIR} "${LIBLEMON_ROOT}/include" "${LIBOGDF_ROOT}/include" "src" "src/externlib" )
+link_directories( ${CPLEX_LIB_DIR} ${CONCERT_LIB_DIR} "${LIBLEMON_ROOT}/lib" "${LIBOGDF_ROOT}/lib" )
 
 set( CommonLibs
 	m

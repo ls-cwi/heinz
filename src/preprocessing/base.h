@@ -1,12 +1,12 @@
 /*
- * mwcspreprocessrulebase.h
+ * base.h
  *
  *  Created on: 21-jan-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef MWCSPREPROCESSRULEBASE_H
-#define MWCSPREPROCESSRULEBASE_H
+#ifndef BASE_H
+#define BASE_H
 
 #include <lemon/core.h>
 #include <string>
@@ -18,7 +18,7 @@ namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class MwcsPreprocessRuleBase
+class Base
 {
 public:
   typedef GR Graph;
@@ -39,6 +39,7 @@ protected:
   void remove(Graph& g,
               NodeMap& mapToPre,
               NodeSetMap& preOrigNodes,
+              NodeSetMap& neighbors,
               int& nNodes,
               int& nArcs,
               int& nEdges,
@@ -51,6 +52,7 @@ protected:
              WeightNodeMap& score,
              NodeMap& mapToPre,
              NodeSetMap& preOrigNodes,
+             NodeSetMap& neighbors,
              int& nNodes,
              int& nArcs,
              int& nEdges,
@@ -61,30 +63,32 @@ protected:
              double& LB);
 
 public:
-  MwcsPreprocessRuleBase() {}
-  virtual ~MwcsPreprocessRuleBase() {}
+  Base() {}
+  virtual ~Base() {}
   virtual std::string name() const = 0;
 };
 
 
 template<typename GR, typename WGHT>
-inline void MwcsPreprocessRuleBase<GR, WGHT>::remove(Graph& g,
-                                                     NodeMap& mapToPre,
-                                                     NodeSetMap& preOrigNodes,
-                                                     int& nNodes,
-                                                     int& nArcs,
-                                                     int& nEdges,
-                                                     DegreeNodeMap& degree,
-                                                     DegreeNodeSetVector& degreeVector,
-                                                     Node node)
+inline void Base<GR, WGHT>::remove(Graph& g,
+                                   NodeMap& mapToPre,
+                                   NodeSetMap& preOrigNodes,
+                                   NodeSetMap& neighbors,
+                                   int& nNodes,
+                                   int& nArcs,
+                                   int& nEdges,
+                                   DegreeNodeMap& degree,
+                                   DegreeNodeSetVector& degreeVector,
+                                   Node node)
 {
-  // decrease the degrees of adjacent nodes
+  // decrease the degrees of adjacent nodes and update neighbors
   for (IncEdgeIt e(g, node); e != lemon::INVALID; ++e)
   {
     Node adjNode = g.oppositeNode(node, e);
     int d = degree[adjNode]--;
     degreeVector[d].erase(adjNode);
     degreeVector[d-1].insert(adjNode);
+    neighbors[adjNode].erase(node);
 
     nEdges--;
     // TODO double check this
@@ -108,21 +112,21 @@ inline void MwcsPreprocessRuleBase<GR, WGHT>::remove(Graph& g,
 }
 
 template<typename GR, typename WGHT>
-inline typename MwcsPreprocessRuleBase<GR, WGHT>::Node
-MwcsPreprocessRuleBase<GR, WGHT>::merge(Graph& g,
-                                        const ArcLookUpType& arcLookUp,
-                                        LabelNodeMap& label,
-                                        WeightNodeMap& score,
-                                        NodeMap& mapToPre,
-                                        NodeSetMap& preOrigNodes,
-                                        int& nNodes,
-                                        int& nArcs,
-                                        int& nEdges,
-                                        DegreeNodeMap& degree,
-                                        DegreeNodeSetVector& degreeVector,
-                                        Node node1,
-                                        Node node2,
-                                        double& LB)
+inline typename Base<GR, WGHT>::Node Base<GR, WGHT>::merge(Graph& g,
+                                                           const ArcLookUpType& arcLookUp,
+                                                           LabelNodeMap& label,
+                                                           WeightNodeMap& score,
+                                                           NodeMap& mapToPre,
+                                                           NodeSetMap& preOrigNodes,
+                                                           NodeSetMap& neighbors,
+                                                           int& nNodes,
+                                                           int& nArcs,
+                                                           int& nEdges,
+                                                           DegreeNodeMap& degree,
+                                                           DegreeNodeSetVector& degreeVector,
+                                                           Node node1,
+                                                           Node node2,
+                                                           double& LB)
 {
   // TODO: prevent multiple edges from occurring
   if (node1 == node2)
@@ -150,11 +154,12 @@ MwcsPreprocessRuleBase<GR, WGHT>::merge(Graph& g,
   for (IncEdgeIt e(g, minNode); e != lemon::INVALID;)
   {
     Node node = g.oppositeNode(minNode, e);
+    neighbors[node].erase(minNode);
     if (node != maxNode)// && arcLookUp(maxNode, node) == lemon::INVALID)
     {
-
       if (arcLookUp(maxNode, node) == lemon::INVALID)
       {
+        neighbors[node].insert(maxNode);
         // introduce new edge between maxNode and node
         g.addEdge(maxNode, node);
 
@@ -228,4 +233,4 @@ MwcsPreprocessRuleBase<GR, WGHT>::merge(Graph& g,
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSPREPROCESSRULEBASE_H
+#endif // BASE_H

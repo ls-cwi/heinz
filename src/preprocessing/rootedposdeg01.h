@@ -1,31 +1,31 @@
 /*
- * mwcspreprocessruleposdeg01.h
+ * rootedposdeg01.h
  *
  *  Created on: 22-jan-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef MWCSPREPROCESSRULEPOSDEG01_H
-#define MWCSPREPROCESSRULEPOSDEG01_H
+#ifndef ROOTEDPOSDEG01_H
+#define ROOTEDPOSDEG01_H
 
 #include <lemon/core.h>
 #include <string>
 #include <vector>
 #include <set>
 #include <limits>
-#include "mwcspreprocessrootrule.h"
+#include "rootedrule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class MwcsPreprocessRulePosDeg01 : public MwcsPreprocessRootRule<GR, WGHT>
+class RootedPosDeg01 : public RootedRule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef MwcsPreprocessRootRule<GR, WGHT> Parent;
+  typedef RootedRule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -40,8 +40,8 @@ public:
   using Parent::remove;
   using Parent::merge;
 
-  MwcsPreprocessRulePosDeg01();
-  virtual ~MwcsPreprocessRulePosDeg01() {}
+  RootedPosDeg01();
+  virtual ~RootedPosDeg01() {}
   virtual int apply(Graph& g,
                     Node& root,
                     const ArcLookUpType& arcLookUp,
@@ -49,6 +49,7 @@ public:
                     WeightNodeMap& score,
                     NodeMap& mapToPre,
                     NodeSetMap& preOrigNodes,
+                    NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
@@ -59,24 +60,25 @@ public:
 };
 
 template<typename GR, typename WGHT>
-inline MwcsPreprocessRulePosDeg01<GR, WGHT>::MwcsPreprocessRulePosDeg01()
+inline RootedPosDeg01<GR, WGHT>::RootedPosDeg01()
   : Parent()
 {
 }
 
 template<typename GR, typename WGHT>
-inline int MwcsPreprocessRulePosDeg01<GR, WGHT>::apply(Graph& g,
-                                                       Node& root,
-                                                       const ArcLookUpType& arcLookUp,
-                                                       LabelNodeMap& label,
-                                                       WeightNodeMap& score,
-                                                       NodeMap& mapToPre,
-                                                       NodeSetMap& preOrigNodes,
-                                                       int& nNodes,
-                                                       int& nArcs,
-                                                       int& nEdges,
-                                                       DegreeNodeMap& degree,
-                                                       DegreeNodeSetVector& degreeVector)
+inline int RootedPosDeg01<GR, WGHT>::apply(Graph& g,
+                                           Node& root,
+                                           const ArcLookUpType& arcLookUp,
+                                           LabelNodeMap& label,
+                                           WeightNodeMap& score,
+                                           NodeMap& mapToPre,
+                                           NodeSetMap& preOrigNodes,
+                                           NodeSetMap& neighbors,
+                                           int& nNodes,
+                                           int& nArcs,
+                                           int& nEdges,
+                                           DegreeNodeMap& degree,
+                                           DegreeNodeSetVector& degreeVector)
 {
   // determine the max weight nodes among those with deg 0 and 1
   NodeSet maxNodes;
@@ -115,7 +117,7 @@ inline int MwcsPreprocessRulePosDeg01<GR, WGHT>::apply(Graph& g,
 
     if (*nodeIt != root)
     {
-      remove(g, mapToPre, preOrigNodes,
+      remove(g, mapToPre, preOrigNodes, neighbors,
              nNodes, nArcs, nEdges,
              degree, degreeVector, *nodeIt);
       res++;
@@ -138,7 +140,7 @@ inline int MwcsPreprocessRulePosDeg01<GR, WGHT>::apply(Graph& g,
 
       double tmp = 0;
       merge(g, arcLookUp, label,
-            score, mapToPre, preOrigNodes,
+            score, mapToPre, preOrigNodes, neighbors,
             nNodes, nArcs, nEdges,
             degree, degreeVector, g.u(e), g.v(e), tmp);
 
@@ -154,4 +156,4 @@ inline int MwcsPreprocessRulePosDeg01<GR, WGHT>::apply(Graph& g,
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSPREPROCESSRULEPOSDEG01_H
+#endif // ROOTEDPOSDEG01_H

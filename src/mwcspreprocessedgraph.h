@@ -9,9 +9,8 @@
 #define MWCSPREPROCESSEDGRAPH_H
 
 #include "mwcsgraphparser.h"
-#include "preprocessing/mwcspreprocessrule.h"
-#include "preprocessing/mwcspreprocessrootrule.h"
-#include "preprocessing/mwcspreprocessruleneghub.h"
+#include "preprocessing/unrootedrule.h"
+#include "preprocessing/rootedrule.h"
 #include <set>
 #include <vector>
 #include <algorithm>
@@ -33,18 +32,17 @@ public:
   typedef EWGHT WeightEdgeMap;
 
   typedef MwcsGraphParser<GR, NWGHT, NLBL, EWGHT> Parent;
-  typedef MwcsPreprocessRule<GR, NWGHT> MwcsPreprocessRuleType;
-  typedef MwcsPreprocessRootRule<GR, NWGHT> MwcsPreprocessRootRuleType;
+  typedef UnrootedRule<GR, NWGHT> UnrootedRuleType;
+  typedef RootedRule<GR, NWGHT> RootedRuleType;
   typedef typename Parent::ParserType ParserType;
   typedef typename Parent::InvLabelNodeMap InvLabelNodeMap;
   typedef typename Parent::InvLabelNodeMapIt InvLabelNodeMapIt;
-  typedef typename MwcsPreprocessRuleType::DegreeNodeMap DegreeNodeMap;
-  typedef typename MwcsPreprocessRuleType::DegreeNodeSetVector DegreeNodeSetVector;
-  typedef typename MwcsPreprocessRuleType::NodeMap NodeMap;
-  typedef typename MwcsPreprocessRuleType::NodeSet NodeSet;
-  typedef typename MwcsPreprocessRuleType::NodeSetIt NodeSetIt;
-  typedef typename MwcsPreprocessRuleType::NodeSetMap NodeSetMap;
-  typedef MwcsPreprocessRuleNegHub<GR> MwcsPreprocessRuleNegHubType;
+  typedef typename UnrootedRuleType::DegreeNodeMap DegreeNodeMap;
+  typedef typename UnrootedRuleType::DegreeNodeSetVector DegreeNodeSetVector;
+  typedef typename UnrootedRuleType::NodeMap NodeMap;
+  typedef typename UnrootedRuleType::NodeSet NodeSet;
+  typedef typename UnrootedRuleType::NodeSetIt NodeSetIt;
+  typedef typename UnrootedRuleType::NodeSetMap NodeSetMap;
 
   using Parent::getGraph;
   using Parent::getScores;
@@ -66,13 +64,13 @@ private:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   typedef typename Graph::Snapshot Snapshot;
-  typedef std::vector<MwcsPreprocessRuleType*> MwcsPreprocessRuleVector;
-  typedef typename MwcsPreprocessRuleVector::const_iterator MwcsPreprocessRuleVectorIt;
-  typedef typename MwcsPreprocessRuleVector::iterator MwcsPreprocessRuleVectorNonConstIt;
+  typedef std::vector<UnrootedRuleType*> UnrootedRuleVector;
+  typedef typename UnrootedRuleVector::const_iterator UnrootedRuleVectorIt;
+  typedef typename UnrootedRuleVector::iterator UnrootedRuleVectorNonConstIt;
 
-  typedef std::vector<MwcsPreprocessRootRuleType*> MwcsPreprocessRootRuleVector;
-  typedef typename MwcsPreprocessRootRuleVector::const_iterator MwcsPreprocessRootRuleVectorIt;
-  typedef typename MwcsPreprocessRootRuleVector::iterator MwcsPreprocessRootRuleVectorNonConstIt;
+  typedef std::vector<RootedRuleType*> RootedRuleVector;
+  typedef typename RootedRuleVector::const_iterator RootedRuleVectorIt;
+  typedef typename RootedRuleVector::iterator RootedRuleVectorNonConstIt;
 
 public:
   MwcsPreprocessedGraph();
@@ -129,8 +127,8 @@ private:
   GraphStruct* _pGraph;
   GraphStruct* _pBackupGraph;
   NodeMap* _pMapToPre;
-  MwcsPreprocessRuleVector _rules;
-  MwcsPreprocessRootRuleVector _rootRules;
+  UnrootedRuleVector _rules;
+  RootedRuleVector _rootRules;
 
 protected:
   virtual void initParserMembers(Graph*& pG,
@@ -265,12 +263,12 @@ public:
       return (*_pMapToPre)[node];
   }
 
-  void addPreprocessRootRule(MwcsPreprocessRootRuleType* pRule)
+  void addPreprocessRootRule(RootedRuleType* pRule)
   {
     _rootRules.push_back(pRule);
   }
 
-  void addPreprocessRule(MwcsPreprocessRuleType* pRule)
+  void addPreprocessRule(UnrootedRuleType* pRule)
   {
     _rules.push_back(pRule);
   }
@@ -299,6 +297,7 @@ public:
 protected:
   void constructDegreeMap(DegreeNodeMap& degree,
                           DegreeNodeSetVector& degreeVector) const;
+  void constructNeighborMap(NodeSetMap& neighbors) const;
   void backup();
   void restore();
 };
@@ -317,12 +316,12 @@ inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::MwcsPreprocessedGraph()
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::~MwcsPreprocessedGraph()
 {
-  for (MwcsPreprocessRuleVectorNonConstIt it = _rules.begin(); it != _rules.end(); it++)
+  for (UnrootedRuleVectorNonConstIt it = _rules.begin(); it != _rules.end(); it++)
   {
     delete *it;
   }
 
-  for (MwcsPreprocessRootRuleVectorNonConstIt it = _rootRules.begin(); it != _rootRules.end(); it++)
+  for (RootedRuleVectorNonConstIt it = _rootRules.begin(); it != _rootRules.end(); it++)
   {
     delete *it;
   }
@@ -389,8 +388,10 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
 {
   DegreeNodeMap degree(*_pGraph->_pG);
   DegreeNodeSetVector degreeVector;
-
+  NodeSetMap neighbors(*_pGraph->_pG);
+  
   constructDegreeMap(degree, degreeVector);
+  constructNeighborMap(neighbors);
 
   // determine max score
   double LB = std::max((*_pGraph->_pScore)[lemon::mapMax(*_pGraph->_pG, *_pGraph->_pScore)], 0.);
@@ -404,11 +405,12 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
     do
     {
       totRemovedNodes = 0;
-      for (MwcsPreprocessRuleVectorIt ruleIt = _rules.begin(); ruleIt != _rules.end(); ruleIt++)
+      for (UnrootedRuleVectorIt ruleIt = _rules.begin(); ruleIt != _rules.end(); ruleIt++)
       {
         int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(), *_pGraph->_pLabel,
                                             *_pGraph->_pScore, (*_pMapToPre),
-                                            *_pGraph->_pPreOrigNodes, _pGraph->_nNodes, _pGraph->_nArcs,
+                                            *_pGraph->_pPreOrigNodes, neighbors,
+                                            _pGraph->_nNodes, _pGraph->_nArcs,
                                             _pGraph->_nEdges, degree, degreeVector, LB);
         totRemovedNodes += removedNodes;
 
@@ -487,20 +489,23 @@ MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(Node root)
 
   DegreeNodeMap degree(*_pGraph->_pG);
   DegreeNodeSetVector degreeVector;
+  NodeSetMap neighbors(*_pGraph->_pG);
 
   constructDegreeMap(degree, degreeVector);
+  constructNeighborMap(neighbors);
 
   // now let's preprocess the graph
   int totRemovedNodes;
   do
   {
     totRemovedNodes = 0;
-    for (MwcsPreprocessRuleVectorIt ruleIt = _rules.begin();
+    for (UnrootedRuleVectorIt ruleIt = _rules.begin();
          ruleIt != _rules.end(); ruleIt++)
     {
       int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(),
                                           *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
-                                          *_pGraph->_pPreOrigNodes, _pGraph->_nNodes, _pGraph->_nArcs,
+                                          *_pGraph->_pPreOrigNodes, neighbors,
+                                          _pGraph->_nNodes, _pGraph->_nArcs,
                                           _pGraph->_nEdges, degree, degreeVector, (*_pGraph->_pScore)[root]);
       totRemovedNodes += removedNodes;
 
@@ -512,12 +517,13 @@ MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(Node root)
       }
     }
 
-    for (MwcsPreprocessRootRuleVectorIt ruleIt = _rootRules.begin();
+    for (RootedRuleVectorIt ruleIt = _rootRules.begin();
          ruleIt != _rootRules.end(); ruleIt++)
     {
       int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, root, getArcLookUp(),
                                           *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
-                                          *_pGraph->_pPreOrigNodes, _pGraph->_nNodes, _pGraph->_nArcs,
+                                          *_pGraph->_pPreOrigNodes, neighbors,
+                                          _pGraph->_nNodes, _pGraph->_nArcs,
                                           _pGraph->_nEdges, degree, degreeVector);
       totRemovedNodes += removedNodes;
 
@@ -544,6 +550,21 @@ MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(Node root)
   return (*_pMapToPre)[root];
 }
 
+template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
+inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::constructNeighborMap(NodeSetMap& neighbors) const
+{
+  const Graph& g = *_pGraph->_pG;
+  for (NodeIt n(g); n != lemon::INVALID; ++n)
+  {
+    NodeSet& neighborSet = neighbors[n];
+    neighborSet.clear();
+    for (IncEdgeIt e(g, n); e != lemon::INVALID; ++e)
+    {
+      neighborSet.insert(g.oppositeNode(n, e));
+    }
+  }
+}
+  
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::constructDegreeMap(
     DegreeNodeMap& degree,

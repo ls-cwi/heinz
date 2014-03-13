@@ -18,11 +18,10 @@
 #include "mwcsgraph.h"
 #include "mwcsgraphparser.h"
 #include "mwcspreprocessedgraph.h"
-#include "preprocessing/mwcspreprocessrulenegdeg01.h"
-#include "preprocessing/mwcspreprocessruleposedge.h"
-#include "preprocessing/mwcspreprocessrulenegedge.h"
-#include "preprocessing/mwcspreprocessruleposdeg01.h"
-#include "preprocessing/mwcspreprocessruleneghub.h"
+#include "preprocessing/negdeg01.h"
+#include "preprocessing/posedge.h"
+#include "preprocessing/negedge.h"
+#include "preprocessing/rootedposdeg01.h"
 #include "preprocessing/negcircuit.h"
 #include "preprocessing/negdiamond.h"
 #include "preprocessing/negmirroredhubs.h"
@@ -46,11 +45,10 @@ typedef MwcsParser<Graph> MwcsParserType;
 typedef MwcsStpParser<Graph> MwcsStpParserType;
 typedef MwcsGraphParser<Graph> MwcsGraphType;
 typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
-typedef MwcsPreprocessRuleNegDeg01<Graph> MwcsPreprocessRuleNegDeg01Type;
-typedef MwcsPreprocessRulePosEdge<Graph> MwcsPreprocessRulePosEdgeType;
-typedef MwcsPreprocessRuleNegEdge<Graph> MwcsPreprocessRuleNegEdgeType;
-typedef MwcsPreprocessRulePosDeg01<Graph> MwcsPreprocessRulePosDeg01Type;
-typedef MwcsPreprocessRuleNegHub<Graph> MwcsPreprocessRuleNegHubType;
+typedef NegDeg01<Graph> NegDeg01Type;
+typedef PosEdge<Graph> PosEdgeType;
+typedef NegEdge<Graph> NegEdgeType;
+typedef RootedPosDeg01<Graph> RootedPosDeg01Type;
 typedef NegCircuit<Graph> NegCircuitType;
 typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
@@ -180,9 +178,9 @@ int main(int argc, char** argv)
   {
     MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
     pMwcs = pPreprocessedMwcs;
-    pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRuleNegDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRulePosEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(new MwcsPreprocessRuleNegEdgeType());
+    pPreprocessedMwcs->addPreprocessRule(new NegDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(new PosEdgeType());
+    pPreprocessedMwcs->addPreprocessRule(new NegEdgeType());
     pPreprocessedMwcs->addPreprocessRule(new NegCircuitType());
     pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
     pPreprocessedMwcs->addPreprocessRule(new PosDiamondType());
@@ -193,7 +191,7 @@ int main(int argc, char** argv)
     }
     else
     {
-      pPreprocessedMwcs->addPreprocessRootRule(new MwcsPreprocessRulePosDeg01Type());
+      pPreprocessedMwcs->addPreprocessRootRule(new RootedPosDeg01Type());
     }
   }
   else

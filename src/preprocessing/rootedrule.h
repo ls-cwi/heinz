@@ -1,5 +1,5 @@
 /*
- * mwcspreprocessrootrule.h
+ * rootedrule.h
  *
  *  Created on: 21-jan-2013
  *      Author: M. El-Kebir
@@ -8,19 +8,19 @@
 #ifndef MWCSPREPROCESSROOTRULE_H
 #define MWCSPREPROCESSROOTRULE_H
 
-#include "mwcspreprocessrulebase.h"
+#include "base.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class MwcsPreprocessRootRule : public MwcsPreprocessRuleBase<GR, WGHT>
+class RootedRule : public Base<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef MwcsPreprocessRuleBase<GR, WGHT> Parent;
+  typedef Base<GR, WGHT> Parent;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -37,8 +37,8 @@ public:
   using Parent::remove;
 
 public:
-  MwcsPreprocessRootRule();
-  virtual ~MwcsPreprocessRootRule() {}
+  RootedRule();
+  virtual ~RootedRule() {}
   virtual int apply(Graph& g,
                     Node& root,
                     const ArcLookUpType& arcLookUp,
@@ -46,6 +46,7 @@ public:
                     WeightNodeMap& score,
                     NodeMap& mapToPre,
                     NodeSetMap& preOrigNodes,
+                    NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
@@ -55,7 +56,7 @@ public:
 };
 
 template<typename GR, typename WGHT>
-inline MwcsPreprocessRootRule<GR, WGHT>::MwcsPreprocessRootRule()
+inline RootedRule<GR, WGHT>::RootedRule()
   : Parent()
 {
 }
@@ -63,4 +64,4 @@ inline MwcsPreprocessRootRule<GR, WGHT>::MwcsPreprocessRootRule()
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSPREPROCESSROOTRULE_H
+#endif // ROOTEDRULE_H

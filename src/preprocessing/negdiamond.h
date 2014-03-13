@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "mwcspreprocessrule.h"
+#include "unrootedrule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class NegDiamond : public MwcsPreprocessRule<GR, WGHT>
+class NegDiamond : public UnrootedRule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef MwcsPreprocessRule<GR, WGHT> Parent;
+  typedef UnrootedRule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -47,6 +47,7 @@ public:
                     WeightNodeMap& score,
                     NodeMap& mapToPre,
                     NodeSetMap& preOrigNodes,
+                    NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
@@ -70,6 +71,7 @@ inline int NegDiamond<GR, WGHT>::apply(Graph& g,
                                        WeightNodeMap& score,
                                        NodeMap& mapToPre,
                                        NodeSetMap& preOrigNodes,
+                                       NodeSetMap& neighbors,
                                        int& nNodes,
                                        int& nArcs,
                                        int& nEdges,
@@ -127,19 +129,15 @@ inline int NegDiamond<GR, WGHT>::apply(Graph& g,
   for (NodePairMapIt it = map.begin(); it != map.end(); ++it)
   {
     const WeightNodePairSet& set = it->second;
-//    if (set.size() > 1)
+
+    // if there is a positive center node in the diamond remove all the negative center nodes
+    WeightNodePairSetIt it_end = posMap.find(it->first) != posMap.end() ? set.end() : --set.end();
+    for (WeightNodePairSetIt it = set.begin(); it != it_end; ++it)
     {
-      // if there is a positive center node in the diamond remove all the negative center nodes
-      WeightNodePairSetIt it_end = posMap.find(it->first) != posMap.end() ? set.end() : --set.end();
-      for (WeightNodePairSetIt it = set.begin(); it != it_end; ++it)
-      {
-        remove(g, mapToPre, preOrigNodes,
-               nNodes, nArcs, nEdges,
-               degree, degreeVector, it->second);
-//        std::cerr << it->first << "\t" << label[it->second] << std::endl;
-        ++res;
-      }
-//      std::cerr << "(" << label[it->first.first] << "," << label[it->first.second] << "): " << it->second.size() << " " << i << std::endl;
+      remove(g, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges,
+             degree, degreeVector, it->second);
+      ++res;
     }
   }
 

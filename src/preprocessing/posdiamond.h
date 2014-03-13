@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "mwcspreprocessrule.h"
+#include "unrootedrule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class PosDiamond : public MwcsPreprocessRule<GR, WGHT>
+class PosDiamond : public UnrootedRule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef MwcsPreprocessRule<GR, WGHT> Parent;
+  typedef UnrootedRule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -47,6 +47,7 @@ public:
                     WeightNodeMap& score,
                     NodeMap& mapToPre,
                     NodeSetMap& preOrigNodes,
+                    NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
@@ -70,6 +71,7 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
                                        WeightNodeMap& score,
                                        NodeMap& mapToPre,
                                        NodeSetMap& preOrigNodes,
+                                       NodeSetMap& neighbors,
                                        int& nNodes,
                                        int& nArcs,
                                        int& nEdges,
@@ -120,14 +122,14 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
     int set_size = static_cast<int>(set.size());
     if (degree[u] == set_size && degree[w] != set_size)
     {
-      remove(g, mapToPre, preOrigNodes,
+      remove(g, mapToPre, preOrigNodes, neighbors,
              nNodes, nArcs, nEdges,
              degree, degreeVector, u);
       ++res;
     }
     else if (degree[u] != set_size && degree[w] == set_size)
     {
-      remove(g, mapToPre, preOrigNodes,
+      remove(g, mapToPre, preOrigNodes, neighbors,
              nNodes, nArcs, nEdges,
              degree, degreeVector, w);
       ++res;
@@ -136,14 +138,14 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
     {
       if (score[u] < score[w])
       {
-        remove(g, mapToPre, preOrigNodes,
+        remove(g, mapToPre, preOrigNodes, neighbors,
                nNodes, nArcs, nEdges,
                degree, degreeVector, u);
         ++res;
       }
       else
       {
-        remove(g, mapToPre, preOrigNodes,
+        remove(g, mapToPre, preOrigNodes, neighbors,
                nNodes, nArcs, nEdges,
                degree, degreeVector, w);
         ++res;

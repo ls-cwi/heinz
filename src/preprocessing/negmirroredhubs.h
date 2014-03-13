@@ -13,12 +13,12 @@ namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class NegMirroredHubs : public MwcsPreprocessRule<GR, WGHT>
+class NegMirroredHubs : public UnrootedRule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef MwcsPreprocessRule<GR, WGHT> Parent;
+  typedef UnrootedRule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -41,6 +41,7 @@ public:
                     WeightNodeMap& score,
                     NodeMap& mapToPre,
                     NodeSetMap& preOrigNodes,
+                    NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
@@ -64,6 +65,7 @@ inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
                                             WeightNodeMap& score,
                                             NodeMap& mapToPre,
                                             NodeSetMap& preOrigNodes,
+                                            NodeSetMap& neighbors,
                                             int& nNodes,
                                             int& nArcs,
                                             int& nEdges,
@@ -79,7 +81,6 @@ inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
   typedef std::map<NodePair, WeightNodePairSet> NodePairMap;
   typedef typename NodePairMap::const_iterator NodePairMapIt;
 
-  // TODO maintain neighborlist!
   NodeSet negHubsToRemove;
   for (size_t d = 3; d < degreeVector.size(); ++d)
   {
@@ -89,29 +90,15 @@ inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
       Node u = *nodeIt1;
       if (score[u] > 0) continue;
       
-      NodeSet neighbors_u;
-      for (IncEdgeIt e(g, u); e != lemon::INVALID; ++e)
-      {
-        neighbors_u.insert(g.oppositeNode(u, e));
-      }
+      const NodeSet& neighbors_u = neighbors[u];
 
       for (NodeSetIt nodeIt2 = nodeIt1; nodeIt2 != nodes.end(); ++nodeIt2)
       {
         Node v = *nodeIt2;
         if (u == v) continue;
         if (score[v] > 0) continue;
-//        if (neighbors_u.find(v) != neighbors_u.end()) continue;
         
-        bool sameSets = true;
-        for (IncEdgeIt e(g, v); e != lemon::INVALID && sameSets; ++e)
-        {
-          if (neighbors_u.find(g.oppositeNode(v, e)) == neighbors_u.end())
-          {
-            sameSets = false;
-          }
-        }
-        
-        if (sameSets)
+        if (neighbors_u == neighbors[v])
         {
           // either u or v needs to go
           if (score[u] < score[v])
@@ -126,32 +113,11 @@ inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
   for (NodeSetIt nodeIt = negHubsToRemove.begin();
        nodeIt != negHubsToRemove.end(); ++nodeIt)
   {
-    remove(g, mapToPre, preOrigNodes,
+    remove(g, mapToPre, preOrigNodes, neighbors,
            nNodes, nArcs, nEdges,
            degree, degreeVector, *nodeIt);
-//    std::cerr << "Removing neg hub " << label[*nodeIt] << " with deg " << degree[*nodeIt] << " and weight " << score[*nodeIt] << std::endl;
   }
   
-//  int res = 0;
-//  for (NodePairMapIt it = map.begin(); it != map.end(); ++it)
-//  {
-//    const WeightNodePairSet& set = it->second;
-//    if (set.size() > 1)
-//    {
-//      for (WeightNodePairSetIt it = set.begin(), it_end = --set.end(); it != it_end; ++it)
-//      {
-//        remove(g, mapToPre, preOrigNodes,
-//               nNodes, nArcs, nEdges,
-//               degree, degreeVector, it->second);
-////        std::cerr << it->first << "\t" << label[it->second] << std::endl;
-//        ++res;
-//      }
-////      std::cerr << "(" << label[it->first.first] << "," << label[it->first.second] << "): " << it->second.size() << " " << i << std::endl;
-//    }
-//  }
-  
-//  std::cerr << "Done: " << negHubsToRemove.size() << std::endl;
-
   return static_cast<int>(negHubsToRemove.size());
 }
 

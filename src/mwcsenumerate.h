@@ -21,11 +21,15 @@
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcssizetreesolver.h"
 //#include "solver/mwcssizetreememsolver.h"
-#include "preprocessing/mwcspreprocessrulenegdeg01.h"
-#include "preprocessing/mwcspreprocessruleposedge.h"
-#include "preprocessing/mwcspreprocessrulenegedge.h"
-#include "preprocessing/mwcspreprocessruleposdeg01.h"
-#include "preprocessing/mwcspreprocessruleneghub.h"
+#include "preprocessing/negdeg01.h"
+#include "preprocessing/posedge.h"
+#include "preprocessing/negedge.h"
+#include "preprocessing/rootedposdeg01.h"
+#include "preprocessing/negcircuit.h"
+#include "preprocessing/negdiamond.h"
+#include "preprocessing/negmirroredhubs.h"
+#include "preprocessing/posdeg01.h"
+#include "preprocessing/posdiamond.h"
 
 namespace nina {
 namespace mwcs {
@@ -64,11 +68,15 @@ public:
   typedef MwcsSizeTreeSolver<Graph, WeightNodeMap> MwcsSizeTreeSolverType;
   //typedef MwcsSizeTreeMemSolver<Graph, WeightNodeMap> MwcsSizeTreeMemSolverType;
 
-  typedef MwcsPreprocessRuleNegDeg01<Graph, WeightNodeMap> MwcsPreprocessRuleNegDeg01Type;
-  typedef MwcsPreprocessRulePosEdge<Graph, WeightNodeMap> MwcsPreprocessRulePosEdgeType;
-  typedef MwcsPreprocessRuleNegEdge<Graph, WeightNodeMap> MwcsPreprocessRuleNegEdgeType;
-  typedef MwcsPreprocessRulePosDeg01<Graph, WeightNodeMap> MwcsPreprocessRulePosDeg01Type;
-  typedef MwcsPreprocessRuleNegHub<Graph, WeightNodeMap> MwcsPreprocessRuleNegHubType;
+  typedef NegDeg01<Graph, WeightNodeMap> NegDeg01Type;
+  typedef PosEdge<Graph, WeightNodeMap> PosEdgeType;
+  typedef NegEdge<Graph, WeightNodeMap> NegEdgeType;
+  typedef RootedPosDeg01<Graph, WeightNodeMap> RootedPosDeg01Type;
+  typedef NegCircuit<Graph, WeightNodeMap> NegCircuitType;
+  typedef NegDiamond<Graph, WeightNodeMap> NegDiamondType;
+  typedef NegMirroredHubs<Graph, WeightNodeMap> NegMirroredHubsType;
+  typedef PosDeg01<Graph, WeightNodeMap> PosDeg01Type;
+  typedef PosDiamond<Graph, WeightNodeMap> PosDiamondType;
 
 public:
   MwcsEnumerate(MwcsGraphType& mwcsGraph);
@@ -201,14 +209,18 @@ protected:
   {
     if (preprocess)
     {
-      MwcsPreprocessedGraphType* pMwcsPreprocessedSubGraph = new MwcsPreprocessedGraphType();
-      pMwcsPreprocessedSubGraph->addPreprocessRule(new MwcsPreprocessRuleNegDeg01Type());
-      pMwcsPreprocessedSubGraph->addPreprocessRule(new MwcsPreprocessRulePosEdgeType());
-      pMwcsPreprocessedSubGraph->addPreprocessRule(new MwcsPreprocessRuleNegEdgeType());
-      //pMwcsPreprocessedSubGraph->addPreprocessRule(new MwcsPreprocessRuleNegHubType());
-      pMwcsPreprocessedSubGraph->addPreprocessRootRule(new MwcsPreprocessRulePosDeg01Type());
+      MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
+      pPreprocessedMwcs->addPreprocessRule(new NegDeg01Type());
+      pPreprocessedMwcs->addPreprocessRule(new PosEdgeType());
+      pPreprocessedMwcs->addPreprocessRule(new NegEdgeType());
+      pPreprocessedMwcs->addPreprocessRootRule(new RootedPosDeg01Type());
+      pPreprocessedMwcs->addPreprocessRule(new NegCircuitType());
+      pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
+      pPreprocessedMwcs->addPreprocessRule(new NegMirroredHubsType());
+      pPreprocessedMwcs->addPreprocessRule(new PosDeg01Type());
+      pPreprocessedMwcs->addPreprocessRule(new PosDiamondType());
 
-      return pMwcsPreprocessedSubGraph;
+      return pPreprocessedMwcs;
     }
     else
     {

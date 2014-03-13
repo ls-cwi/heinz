@@ -1,12 +1,12 @@
 /*
- * posdeg01.h
+ * negdeg01.h
  *
- *  Created on: 8-mar-2014
+ *  Created on: 14-jan-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef POSDEG01_H
-#define POSDEG01_H
+#ifndef NEGDEG01_H
+#define NEGDEG01_H
 
 #include <lemon/core.h>
 #include <string>
@@ -19,7 +19,7 @@ namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class PosDeg01 : public UnrootedRule<GR, WGHT>
+class NegDeg01 : public UnrootedRule<GR, WGHT>
 {
 public:
   typedef GR Graph;
@@ -37,10 +37,9 @@ public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   using Parent::remove;
-  using Parent::merge;
 
-  PosDeg01();
-  virtual ~PosDeg01() {}
+  NegDeg01();
+  virtual ~NegDeg01() {}
   virtual int apply(Graph& g,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
@@ -55,17 +54,32 @@ public:
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
 
-  virtual std::string name() const { return "Unrooted - PosDeg01"; }
+  virtual std::string name() const { return "NegDeg01"; }
+
+protected:
+  int apply(Graph& g,
+            const ArcLookUpType& arcLookUp,
+            LabelNodeMap& label,
+            WeightNodeMap& score,
+            NodeMap& mapToPre,
+            NodeSetMap& preOrigNodes,
+            NodeSetMap& neighbors,
+            int& nNodes,
+            int& nArcs,
+            int& nEdges,
+            DegreeNodeMap& degree,
+            DegreeNodeSetVector& degreeVector,
+            int d);
 };
 
 template<typename GR, typename WGHT>
-inline PosDeg01<GR, WGHT>::PosDeg01()
+inline NegDeg01<GR, WGHT>::NegDeg01()
   : Parent()
 {
 }
 
 template<typename GR, typename WGHT>
-inline int PosDeg01<GR, WGHT>::apply(Graph& g,
+inline int NegDeg01<GR, WGHT>::apply(Graph& g,
                                      const ArcLookUpType& arcLookUp,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
@@ -79,40 +93,51 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
                                      DegreeNodeSetVector& degreeVector,
                                      double& LB)
 {
-  // positive deg 0 nodes smaller than LB are to be removed
-  const NodeSet& nodes0 = degreeVector[0];
-  for (NodeSetIt nodeIt = nodes0.begin(); nodeIt != nodes0.end(); ++nodeIt)
+  return apply(g, arcLookUp, label, score, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector, 0)
+      + apply(g, arcLookUp, label, score, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector, 1);
+}
+
+template<typename GR, typename WGHT>
+inline int NegDeg01<GR, WGHT>::apply(Graph& g,
+                                     const ArcLookUpType& arcLookUp,
+                                     LabelNodeMap& label,
+                                     WeightNodeMap& score,
+                                     NodeMap& mapToPre,
+                                     NodeSetMap& preOrigNodes,
+                                     NodeSetMap& neighbors,
+                                     int& nNodes,
+                                     int& nArcs,
+                                     int& nEdges,
+                                     DegreeNodeMap& degree,
+                                     DegreeNodeSetVector& degreeVector,
+                                     int d)
+{
+  if (static_cast<int>(degreeVector.size()) <= d)
+    return 0;
+
+  const NodeSet& nodes = degreeVector[d];
+
+  for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end();)
   {
-    if (0 <= score[*nodeIt] && score[*nodeIt] < LB)
+    NodeSetIt nextNodeIt = nodeIt;
+    nextNodeIt++;
+
+    // remove if negative
+    if (score[*nodeIt] < 0)
     {
       remove(g, mapToPre, preOrigNodes, neighbors,
              nNodes, nArcs, nEdges,
              degree, degreeVector, *nodeIt);
       return 1;
     }
+
+    nodeIt = nextNodeIt;
   }
-  
-  const NodeSet& nodes1 = degreeVector[1];
-  for (NodeSetIt nodeIt = nodes1.begin(); nodeIt != nodes1.end(); ++nodeIt)
-  {
-    Node v = *nodeIt;
-    if (0 <= score[v] && score[v] < LB)
-    {
-      Node u = g.oppositeNode(v, IncEdgeIt(g, v));
-      
-      merge(g, arcLookUp, label, score,
-            mapToPre, preOrigNodes, neighbors,
-            nNodes, nArcs, nEdges,
-            degree, degreeVector, u, v, LB);
-      
-      return 1;
-    }
-  }
-              
+
   return 0;
 }
 
 } // namespace mwcs
 } // namespace nina
 
-#endif // POSDEG01_H
+#endif // NEGDEG01_H

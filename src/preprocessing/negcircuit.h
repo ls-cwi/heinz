@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "mwcspreprocessrule.h"
+#include "unrootedrule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class NegCircuit : public MwcsPreprocessRule<GR, WGHT>
+class NegCircuit : public UnrootedRule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef MwcsPreprocessRule<GR, WGHT> Parent;
+  typedef UnrootedRule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -47,6 +47,7 @@ public:
                     WeightNodeMap& score,
                     NodeMap& mapToPre,
                     NodeSetMap& preOrigNodes,
+                    NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
@@ -70,6 +71,7 @@ inline int NegCircuit<GR, WGHT>::apply(Graph& g,
                                        WeightNodeMap& score,
                                        NodeMap& mapToPre,
                                        NodeSetMap& preOrigNodes,
+                                       NodeSetMap& neighbors,
                                        int& nNodes,
                                        int& nArcs,
                                        int& nEdges,
@@ -92,7 +94,7 @@ inline int NegCircuit<GR, WGHT>::apply(Graph& g,
       Node w = g.oppositeNode(v, e2);
       if (arcLookUp(u, w) != lemon::INVALID)
       {
-        remove(g, mapToPre, preOrigNodes,
+        remove(g, mapToPre, preOrigNodes, neighbors,
                nNodes, nArcs, nEdges,
                degree, degreeVector, v);
         return 1;
