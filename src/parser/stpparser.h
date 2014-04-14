@@ -1,12 +1,12 @@
 /*
- * mwcsstpparser.h
+ * stpparser.h
  *
  *  Created on: 11-oct-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef MWCSSTPPARSER_H
-#define MWCSSTPPARSER_H
+#ifndef STPPARSER_H
+#define STPPARSER_H
 
 #include <assert.h>
 #include <string.h>
@@ -20,7 +20,7 @@ namespace nina {
 namespace mwcs {
 
 template<typename GR>
-class MwcsStpParser : public Parser<GR>
+class StpParser : public Parser<GR>
 {
 public:
   /// Graph type
@@ -56,18 +56,18 @@ private:
   bool parseTerminal(std::istream& in, int& lineNumber);
 
 public:
-  MwcsStpParser(const std::string& filename);
+  StpParser(const std::string& filename);
   bool parse();
 };
 
 template<typename GR>
-inline MwcsStpParser<GR>::MwcsStpParser(const std::string& filename)
+inline StpParser<GR>::StpParser(const std::string& filename)
   : Parent(filename)
 {
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parseHeader(std::istream& in, int& lineNumber)
+inline bool StpParser<GR>::parseHeader(std::istream& in, int& lineNumber)
 {
   std::string line;
   if (std::getline(in, line))
@@ -82,7 +82,7 @@ inline bool MwcsStpParser<GR>::parseHeader(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parseNrTerminals(std::istream& in, int& lineNumber)
+inline bool StpParser<GR>::parseNrTerminals(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -116,7 +116,7 @@ inline bool MwcsStpParser<GR>::parseNrTerminals(std::istream& in, int& lineNumbe
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
+inline bool StpParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -145,7 +145,7 @@ inline bool MwcsStpParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
+inline bool StpParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -174,7 +174,7 @@ inline bool MwcsStpParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
+inline bool StpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -235,7 +235,7 @@ inline bool MwcsStpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parseEdge(std::istream& in, int& lineNumber)
+inline bool StpParser<GR>::parseEdge(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -276,7 +276,7 @@ inline bool MwcsStpParser<GR>::parseEdge(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
+inline bool StpParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -325,7 +325,7 @@ inline bool MwcsStpParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool MwcsStpParser<GR>::parse()
+inline bool StpParser<GR>::parse()
 {
   if (!_pG)
     return false;
@@ -347,4 +347,4 @@ inline bool MwcsStpParser<GR>::parse()
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSSTPPARSER_H
+#endif // STPPARSER_H

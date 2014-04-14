@@ -7,6 +7,12 @@ High priority:
 * Unit test: solution is an entire connected component in the input graph
 * If #separated cuts drops below threshold stop separating in the root node!
 
+New preprocessing rules:
+
+* Look at biconnected components
+* Diamond with two pos nodes at center and one corner with deg 2
+* Positive deg 1 nodes, merge those (if they have a score below LB!)
+
 Low priority:
 
 * More sophisticated branching rules (favor y-vars)

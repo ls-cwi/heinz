@@ -10,7 +10,7 @@ set( BK_MaxFlow_Hdr
 set( Heinz_Hdr
   src/parser/parser.h
   src/parser/mwcsparser.h
-  src/parser/mwcsstpparser.h
+  src/parser/stpparser.h
   src/parser/identityparser.h
   src/preprocessing/base.h
   src/preprocessing/rootedrule.h
@@ -24,6 +24,10 @@ set( Heinz_Hdr
   src/preprocessing/negmirroredhubs.h
   src/preprocessing/posdeg01.h
   src/preprocessing/posdiamond.h
+  src/preprocessing/negbicomponent.h
+  src/preprocessing/negtricomponent.h
+  src/solver/spqrtree.h
+  src/solver/blockcuttree.h
   src/verbose.h
   src/mwcs.h
   src/mwcsanalyze.h
@@ -158,13 +162,14 @@ set( CommonLibs
 	concert
 	pthread
 	emon
+  ogdf
 )
 
 add_executable( heinz ${Heinz_Src} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( heinz ${CommonLibs} )
 
 add_executable( heinz-mc ${Heinz_Monte_Carlo_Src} ${Heinz_Hdr} ${CommonObjs} )
-target_link_libraries( heinz-mc emon )
+target_link_libraries( heinz-mc emon ogdf )
 
 add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
-target_link_libraries( print emon )
+target_link_libraries( print emon ogdf )

@@ -124,15 +124,15 @@ int main (int argc, char** argv)
   {
     MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
     pMwcs = pPreprocessedMwcs;
-    pPreprocessedMwcs->addPreprocessRule(new NegDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new PosEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(new NegEdgeType());
-    pPreprocessedMwcs->addPreprocessRootRule(new RootedPosDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new NegCircuitType());
-    pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(new NegMirroredHubsType());
-    pPreprocessedMwcs->addPreprocessRule(new PosDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new PosDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosEdgeType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegEdgeType());
+    pPreprocessedMwcs->addPreprocessRootRule(1, new RootedPosDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegCircuitType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
   }
   else
   {

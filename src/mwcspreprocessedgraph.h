@@ -67,11 +67,12 @@ private:
   typedef std::vector<UnrootedRuleType*> UnrootedRuleVector;
   typedef typename UnrootedRuleVector::const_iterator UnrootedRuleVectorIt;
   typedef typename UnrootedRuleVector::iterator UnrootedRuleVectorNonConstIt;
+  typedef std::vector<UnrootedRuleVector> UnrootedRuleMatrix;
 
   typedef std::vector<RootedRuleType*> RootedRuleVector;
   typedef typename RootedRuleVector::const_iterator RootedRuleVectorIt;
   typedef typename RootedRuleVector::iterator RootedRuleVectorNonConstIt;
-
+  typedef std::vector<RootedRuleVector> RootedRuleMatrix;
 public:
   MwcsPreprocessedGraph();
   virtual ~MwcsPreprocessedGraph();
@@ -127,8 +128,8 @@ private:
   GraphStruct* _pGraph;
   GraphStruct* _pBackupGraph;
   NodeMap* _pMapToPre;
-  UnrootedRuleVector _rules;
-  RootedRuleVector _rootRules;
+  UnrootedRuleMatrix _rules;
+  RootedRuleMatrix _rootRules;
 
 protected:
   virtual void initParserMembers(Graph*& pG,
@@ -263,14 +264,20 @@ public:
       return (*_pMapToPre)[node];
   }
 
-  void addPreprocessRootRule(RootedRuleType* pRule)
+  void addPreprocessRootRule(int phase, RootedRuleType* pRule)
   {
-    _rootRules.push_back(pRule);
+    while (static_cast<int>(_rootRules.size()) < phase)
+      _rootRules.push_back(RootedRuleVector());
+    
+    _rootRules[phase - 1].push_back(pRule);
   }
 
-  void addPreprocessRule(UnrootedRuleType* pRule)
+  void addPreprocessRule(int phase, UnrootedRuleType* pRule)
   {
-    _rules.push_back(pRule);
+    while (static_cast<int>(_rules.size()) < phase)
+      _rules.push_back(UnrootedRuleVector());
+    
+    _rules[phase - 1].push_back(pRule);
   }
 
   virtual std::string getLabel(Node n) const
@@ -316,16 +323,22 @@ inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::MwcsPreprocessedGraph()
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::~MwcsPreprocessedGraph()
 {
-  for (UnrootedRuleVectorNonConstIt it = _rules.begin(); it != _rules.end(); it++)
+  for (size_t i = 0; i < _rules.size(); ++i)
   {
-    delete *it;
+    for (UnrootedRuleVectorNonConstIt it = _rules[i].begin(); it != _rules[i].end(); it++)
+    {
+      delete *it;
+    }
   }
 
-  for (RootedRuleVectorNonConstIt it = _rootRules.begin(); it != _rootRules.end(); it++)
+  for (size_t i = 0; i < _rootRules.size(); ++i)
   {
-    delete *it;
+    for (RootedRuleVectorNonConstIt it = _rootRules[i].begin(); it != _rootRules[i].end(); it++)
+    {
+      delete *it;
+    }
   }
-
+  
   delete _pMapToPre;
   delete _pGraph;
   delete _pBackupGraph;
@@ -397,37 +410,44 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
   double LB = std::max((*_pGraph->_pScore)[lemon::mapMax(*_pGraph->_pG, *_pGraph->_pScore)], 0.);
   
   // now let's preprocess the graph
+  // in phases: first do phase 0 until no more change
+  // then move on to phase 1 upon change fallback to phase 0
+  //
   int uberTotRemovedNodes;
   do
   {
     uberTotRemovedNodes = 0;
-    int totRemovedNodes;
-    do
+    for (size_t phase = 0; phase < _rules.size(); ++phase)
     {
-      totRemovedNodes = 0;
-      for (UnrootedRuleVectorIt ruleIt = _rules.begin(); ruleIt != _rules.end(); ruleIt++)
+      int totRemovedNodes;
+      do
       {
-        int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(), *_pGraph->_pLabel,
-                                            *_pGraph->_pScore, (*_pMapToPre),
-                                            *_pGraph->_pPreOrigNodes, neighbors,
-                                            _pGraph->_nNodes, _pGraph->_nArcs,
-                                            _pGraph->_nEdges, degree, degreeVector, LB);
-        totRemovedNodes += removedNodes;
-
-        if (g_verbosity >= VERBOSE_DEBUG && removedNodes > 0)
+        totRemovedNodes = 0;
+        for (UnrootedRuleVectorIt ruleIt = _rules[phase].begin(); ruleIt != _rules[phase].end(); ruleIt++)
         {
-          std::cout << "// Applied rule '" << (*ruleIt)->name()
-                    << "' and removed " << removedNodes
-                    << " node(s)" << std::endl;
-        }
-      }
-    } while (totRemovedNodes > 0);
+          int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(), *_pGraph->_pLabel,
+                                              *_pGraph->_pScore, (*_pMapToPre),
+                                              *_pGraph->_pPreOrigNodes, neighbors,
+                                              _pGraph->_nNodes, _pGraph->_nArcs,
+                                              _pGraph->_nEdges, degree, degreeVector, LB);
+          totRemovedNodes += removedNodes;
 
-    //MwcsPreprocessRuleNegHubType negHubRule;
-    //uberTotRemovedNodes = negHubRule.apply(*_pGraph->_pG, getArcLookUp(), *_pGraph->_pLabel,
-    //                                       *_pGraph->_pScore, (*_pMapToPre),
-    //                                       *_pGraph->_pPreOrigNodes, _pGraph->_nNodes, _pGraph->_nArcs,
-    //                                       _pGraph->_nEdges, degree, degreeVector);
+          if (g_verbosity >= VERBOSE_DEBUG && removedNodes > 0)
+          {
+            std::cout << "// Phase " << phase
+                      << ": applied rule '" << (*ruleIt)->name()
+                      << "' and removed " << removedNodes
+                      << " node(s)" << std::endl;
+          }
+        }
+        
+        if (totRemovedNodes > 0)
+        {
+          phase = 0;
+          uberTotRemovedNodes += totRemovedNodes;
+        }
+      } while (totRemovedNodes > 0);
+    }
   } while (uberTotRemovedNodes > 0);
 
   // determine the connected components
@@ -499,39 +519,45 @@ MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(Node root)
   do
   {
     totRemovedNodes = 0;
-    for (UnrootedRuleVectorIt ruleIt = _rules.begin();
-         ruleIt != _rules.end(); ruleIt++)
+    for (size_t phase = 0; phase < _rules.size(); ++phase)
     {
-      int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(),
-                                          *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
-                                          *_pGraph->_pPreOrigNodes, neighbors,
-                                          _pGraph->_nNodes, _pGraph->_nArcs,
-                                          _pGraph->_nEdges, degree, degreeVector, (*_pGraph->_pScore)[root]);
-      totRemovedNodes += removedNodes;
-
-      if (g_verbosity >= VERBOSE_ESSENTIAL && removedNodes > 0)
+      for (UnrootedRuleVectorIt ruleIt = _rules[phase].begin();
+           ruleIt != _rules[phase].end(); ruleIt++)
       {
-        std::cout << "// Applied rule '" << (*ruleIt)->name()
-                  << "' and removed " << removedNodes
-                  << " node(s)" << std::endl;
+        int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(),
+                                            *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
+                                            *_pGraph->_pPreOrigNodes, neighbors,
+                                            _pGraph->_nNodes, _pGraph->_nArcs,
+                                            _pGraph->_nEdges, degree, degreeVector, (*_pGraph->_pScore)[root]);
+        totRemovedNodes += removedNodes;
+
+        if (g_verbosity >= VERBOSE_ESSENTIAL && removedNodes > 0)
+        {
+          std::cout << "// Applied rule '" << (*ruleIt)->name()
+                    << "' and removed " << removedNodes
+                    << " node(s)" << std::endl;
+        }
       }
     }
 
-    for (RootedRuleVectorIt ruleIt = _rootRules.begin();
-         ruleIt != _rootRules.end(); ruleIt++)
+    for (size_t phase = 0; phase < _rootRules.size(); ++phase)
     {
-      int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, root, getArcLookUp(),
-                                          *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
-                                          *_pGraph->_pPreOrigNodes, neighbors,
-                                          _pGraph->_nNodes, _pGraph->_nArcs,
-                                          _pGraph->_nEdges, degree, degreeVector);
-      totRemovedNodes += removedNodes;
-
-      if (g_verbosity >= VERBOSE_ESSENTIAL && removedNodes > 0)
+      for (RootedRuleVectorIt ruleIt = _rootRules[phase].begin();
+           ruleIt != _rootRules[phase].end(); ruleIt++)
       {
-        std::cout << "// Applied rule '" << (*ruleIt)->name()
-                  << "' and removed " << removedNodes
-                  << " node(s)" << std::endl;
+        int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, root, getArcLookUp(),
+                                            *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
+                                            *_pGraph->_pPreOrigNodes, neighbors,
+                                            _pGraph->_nNodes, _pGraph->_nArcs,
+                                            _pGraph->_nEdges, degree, degreeVector);
+        totRemovedNodes += removedNodes;
+
+        if (g_verbosity >= VERBOSE_ESSENTIAL && removedNodes > 0)
+        {
+          std::cout << "// Applied rule '" << (*ruleIt)->name()
+                    << "' and removed " << removedNodes
+                    << " node(s)" << std::endl;
+        }
       }
     }
   } while (totRemovedNodes > 0);

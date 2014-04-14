@@ -19,6 +19,7 @@
 #include <lemon/connectivity.h>
 #include "verbose.h"
 #include "parser/parser.h"
+#include "solver/spqrtree.h"
 
 namespace nina {
 namespace mwcs {
@@ -306,6 +307,11 @@ public:
     else
       return lemon::INVALID;
   }
+  
+  virtual void printNodeList(std::ostream& out,
+                             bool orig = false) const;
+  virtual void printEdgeList(std::ostream& out,
+                             bool orig = false) const;
 
   virtual void print(std::ostream& out,
                      bool orig = false) const;
@@ -422,6 +428,48 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printModule(const BoolNodeMap& mo
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
+inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printNodeList(std::ostream& out,
+                                                             bool orig) const
+{
+  const Graph& g = orig ? getOrgGraph() : getGraph();
+  const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
+  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
+  const WeightNodeMap* pPVal = orig ? getOrgPValues() : NULL;
+  
+  for (NodeIt n(g); n != lemon::INVALID; ++n)
+  {
+    out << g.id(n) << " " << weight[n];
+    
+    if (pPVal)
+    {
+      out << (*_pPVal)[n] << "\\n";
+    }
+    
+    out << std::endl;
+  }
+}
+  
+template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
+inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printEdgeList(std::ostream& out,
+                                                             bool orig) const
+{
+  const Graph& g = orig ? getOrgGraph() : getGraph();
+  const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
+  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
+  
+  SpqrTree<Graph> spqr(g);
+  spqr.run();
+  
+  for (EdgeIt e(g); e != lemon::INVALID; ++e)
+  {
+    out << g.id(g.u(e)) << " (pp) " << g.id(g.v(e));// << "\t" << tri.getTriComponentIndex(e) << "\t";
+    out << spqr.toChar(spqr.getSpqrNodeType(e));
+   
+    out << std::endl;
+  }
+}
+  
+template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::print(std::ostream& out,
                                                      bool orig) const
 {
@@ -438,19 +486,19 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::print(std::ostream& out,
   // nodes
   for (NodeIt n(g); n != lemon::INVALID; ++n)
   {
-     out << "\t" << g.id(n) << " [label=\""
-        << label[n] << "\\n"
-        << weight[n] << "\\n";
+    out << "\t" << g.id(n) << " [label=\""
+       << label[n] << "\\n"
+       << weight[n] << "\\n";
 
-     if (pPVal)
-     {
-       out << (*_pPVal)[n] << "\\n";
-     }
+    if (pPVal)
+    {
+      out << (*_pPVal)[n] << "\\n";
+    }
 
-     out << g.id(n)
-        << "\""
-        << (weight[n] < 0 ? ",shape=box" : "")
-        << "]" << std::endl;
+    out << g.id(n)
+       << "\""
+       << (weight[n] < 0 ? ",shape=box" : "")
+       << "]" << std::endl;
   }
 
   // edges

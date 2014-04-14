@@ -326,8 +326,10 @@ inline void MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 
   if (_root == lemon::INVALID)
   {
-    // if you pick a negative node, then at least one of its direct neighbors
+    // if you pick a negative node, then at least two of its direct neighbors
     // must be part of the solution as well
+    // if you get in, you have to get out as well
+    // BIG FAT WARNING: not true for xHeinz!!!
     for (NodeIt i(g); i != lemon::INVALID; ++i)
     {
       if (_mwcsGraph.getScore(i) <= 0)
@@ -338,7 +340,7 @@ inline void MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
           Node j = g.oppositeNode(i, e);
           expr += _x[(*_pNode)[j]];
         }
-        _model.add(_x[(*_pNode)[i]] <= expr);
+        _model.add(2 * _x[(*_pNode)[i]] <= expr);
       }
       else
       {

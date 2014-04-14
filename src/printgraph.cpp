@@ -6,6 +6,7 @@
  */
 
 #include <iostream>
+#include <fstream>
 #include <lemon/arg_parser.h>
 #include "parser/mwcsparser.h"
 #include "mwcsgraph.h"
@@ -20,6 +21,8 @@
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
 #include "preprocessing/posdiamond.h"
+#include "preprocessing/negbicomponent.h"
+#include "preprocessing/negtricomponent.h"
 #include "utils.h"
 
 using namespace nina;
@@ -38,6 +41,8 @@ typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
+typedef NegBiComponent<Graph> NegBiComponentType;
+typedef NegTriComponent<Graph> NegTriComponentType;
 
 void pairs(const MwcsGraphType& mwcsGraph)
 {
@@ -94,6 +99,10 @@ int main (int argc, char** argv)
   double lambda = 0;
   double a = 0;
   double fdr = 0;
+  int verbosityLevel = 2;
+  
+  std::string nodeListOutput;
+  std::string edgeListOutput;
 
   lemon::ArgParser ap(argc, argv);
 
@@ -101,8 +110,17 @@ int main (int argc, char** argv)
     .refOption("p", "Enable preprocessing", preprocess, false)
     .refOption("lambda", "Specifies lambda", lambda, false)
     .refOption("a", "Specifies a", a, false)
-    .refOption("FDR", "Specifies fdr", fdr, false);
+    .refOption("FDR", "Specifies fdr", fdr, false)
+    .refOption("v", "Specifies the verbosity level:\n"
+               "     0 - No output\n"
+               "     1 - Only necessary output\n"
+               "     2 - More verbose output (default)\n"
+               "     3 - Debug output", verbosityLevel, false)
+    .refOption("no", "Node list output filename", nodeListOutput, false)
+    .refOption("eo", "Edge list output filename", edgeListOutput, false);
   ap.parse();
+  
+  g_verbosity = static_cast<VerbosityLevel>(verbosityLevel);
 
   bool pval = ap.given("FDR") && ap.given("lambda") && ap.given("a");
   if (pval)
@@ -125,7 +143,6 @@ int main (int argc, char** argv)
     }
   }
 
-
   // Construct parser
   ParserType* pParser = NULL;
   if (ap.files().size() < 2)
@@ -142,15 +159,17 @@ int main (int argc, char** argv)
   {
     MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
     pMwcs = pPreprocessedMwcs;
-    pPreprocessedMwcs->addPreprocessRule(new NegDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new PosEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(new NegEdgeType());
-    pPreprocessedMwcs->addPreprocessRootRule(new RootedPosDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new NegCircuitType());
-    pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(new NegMirroredHubsType());
-    pPreprocessedMwcs->addPreprocessRule(new PosDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new PosDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosEdgeType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegEdgeType());
+    pPreprocessedMwcs->addPreprocessRootRule(1, new RootedPosDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegCircuitType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
+    pPreprocessedMwcs->addPreprocessRule(3, new NegBiComponentType());
+    pPreprocessedMwcs->addPreprocessRule(4, new NegTriComponentType());
   }
   else
   {
@@ -170,17 +189,33 @@ int main (int argc, char** argv)
 
   // Now let's print the graph
   //pairs(*pMwcs);
-  BoolNodeMap cut(pMwcs->getGraph());
-  std::cerr << "#articulation nodes: " << lemon::biNodeConnectedCutNodes(pMwcs->getGraph(), cut) << std::endl;
-  for (NodeIt v(pMwcs->getGraph()); v != lemon::INVALID; ++v)
-  {
-    if (cut[v])
-    {
-      std::cerr << pMwcs->getLabel(v) << std::endl;
-    }
-  }
+//  BoolNodeMap cut(pMwcs->getGraph());
+//  std::cerr << "#articulation nodes: " << lemon::biNodeConnectedCutNodes(pMwcs->getGraph(), cut) << std::endl;
+//  for (NodeIt v(pMwcs->getGraph()); v != lemon::INVALID; ++v)
+//  {
+//    if (cut[v])
+//    {
+//      std::cerr << pMwcs->getLabel(v) << std::endl;
+//    }
+//  }
 //  std::cerr << "Bi-edge connected components: " << lemon::biEdgeConnected(pMwcs->getGraph()) << std::endl;
   pMwcs->print(std::cout);
+  
+  if (!edgeListOutput.empty())
+  {
+    std::ofstream outFile(edgeListOutput.c_str());
+    pMwcs->printEdgeList(outFile);
+    outFile.flush();
+    outFile.close();
+  }
+  
+  if (!nodeListOutput.empty())
+  {
+    std::ofstream outFile(nodeListOutput.c_str());
+    pMwcs->printNodeList(outFile);
+    outFile.flush();
+    outFile.close();
+  }
 
   delete pMwcs;
   delete pParser;

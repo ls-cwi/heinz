@@ -5,6 +5,8 @@
  *      Authors: C.I. Bucur and M. El-Kebir
  */
 
+// TODO: determine which preprocessing rules are invalid for rooted formulation!
+
 #include <iostream>
 #include <lemon/arg_parser.h>
 #include <lemon/time_measure.h>
@@ -14,7 +16,7 @@
 #include <ilcplex/ilocplex.h>
 
 #include "parser/mwcsparser.h"
-#include "parser/mwcsstpparser.h"
+#include "parser/stpparser.h"
 #include "mwcsgraph.h"
 #include "mwcsgraphparser.h"
 #include "mwcspreprocessedgraph.h"
@@ -27,6 +29,8 @@
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
 #include "preprocessing/posdiamond.h"
+#include "preprocessing/negbicomponent.h"
+#include "preprocessing/negtricomponent.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcstreeheuristicsolver.h"
@@ -42,7 +46,7 @@ using namespace nina;
 
 typedef Parser<Graph> ParserType;
 typedef MwcsParser<Graph> MwcsParserType;
-typedef MwcsStpParser<Graph> MwcsStpParserType;
+typedef StpParser<Graph> StpParserType;
 typedef MwcsGraphParser<Graph> MwcsGraphType;
 typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 typedef NegDeg01<Graph> NegDeg01Type;
@@ -54,6 +58,8 @@ typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
+typedef NegBiComponent<Graph> NegBiComponentType;
+typedef NegTriComponent<Graph> NegTriComponentType;
 typedef MwcsSolver<Graph> MwcsSolverType;
 typedef MwcsCutSolver<Graph> MwcsCutSolverType;
 typedef MwcsTreeSolver<Graph> MwcsTreeSolverType;
@@ -165,7 +171,7 @@ int main(int argc, char** argv)
   ParserType* pParser = NULL;
   if (!stpNodeFile.empty())
   {
-    pParser = new MwcsStpParserType(stpNodeFile);
+    pParser = new StpParserType(stpNodeFile);
   }
   else
   {
@@ -178,20 +184,22 @@ int main(int argc, char** argv)
   {
     MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
     pMwcs = pPreprocessedMwcs;
-    pPreprocessedMwcs->addPreprocessRule(new NegDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(new PosEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(new NegEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(new NegCircuitType());
-    pPreprocessedMwcs->addPreprocessRule(new NegDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(new PosDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(new NegMirroredHubsType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegDeg01Type());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosEdgeType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegEdgeType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegCircuitType());
+    pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
+    pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
+    pPreprocessedMwcs->addPreprocessRule(3, new NegBiComponentType());
+    pPreprocessedMwcs->addPreprocessRule(3, new NegTriComponentType());
     if (root.empty())
     {
-      pPreprocessedMwcs->addPreprocessRule(new PosDeg01Type());
+      pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
     }
     else
     {
-      pPreprocessedMwcs->addPreprocessRootRule(new RootedPosDeg01Type());
+      pPreprocessedMwcs->addPreprocessRootRule(1, new RootedPosDeg01Type());
     }
   }
   else
