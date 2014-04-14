@@ -1,5 +1,7 @@
 High priority:
 
+* Get rid of distinction between run and construct
+* Put bi/tri information in base class preprocessing rules
 * Rooted formulation: identify S... and exploit
 * Bug in multi-threading: cutCount = 0
 * If there is only one root node => use rooted separation...

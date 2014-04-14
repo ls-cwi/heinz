@@ -44,6 +44,7 @@ public:
   typedef typename Graph::template EdgeMap<Tree::Node> ToSpqrNodeMap;
   typedef Tree::template EdgeMap<NodePair> SpqrCutPairMap;
   typedef Tree::template NodeMap<EdgeVector> SpqrRealEdgesMap;
+  typedef Tree::template NodeMap<int> SpqrIntEdgeMap;
   
   SpqrTree(const Graph& g)
     : _lemonG(g)
@@ -57,6 +58,7 @@ public:
     , _spqrNodeType(_T)
     , _spqrCutPair(_T)
     , _spqrRealEdges(_T)
+    , _deg(_T)
     , _numSpqrNodes(0)
   {
     // construct graph
@@ -100,6 +102,11 @@ public:
     return _spqrNodeType[_toSpqrNode[e]];
   }
   
+  int getDegree(Tree::Node n) const
+  {
+    return _deg[n];
+  }
+  
   static char toChar(SpqrNodeType type)
   {
     switch (type)
@@ -135,6 +142,7 @@ private:
   SpqrNodeTypeMap _spqrNodeType;
   SpqrCutPairMap _spqrCutPair;
   SpqrRealEdgesMap _spqrRealEdges;
+  SpqrIntEdgeMap _deg;
   int _numSpqrNodes;
 };
 
@@ -159,6 +167,10 @@ inline void SpqrTree<GR>::construct()
     _toOgdfEdge[e] = new_e;
     _toLemonEdge[new_e] = e;
   }
+  
+  // constructed graph
+//  std::cerr << "Constructed graph: " << _ogdfG.numberOfNodes()
+//            << " nodes, " << _ogdfG.numberOfEdges() << " edges" << std::endl;
 }
 
 template<typename GR>
@@ -176,7 +188,7 @@ inline bool SpqrTree<GR>::run()
   const ogdf::Graph & ogdfT = spqr.tree();
 
   ogdf::node ogdf_n;
-  ogdf::edge ogdf_e;
+  ogdf::edge ogdf_e, ogdf_e2;
  
   _numSpqrNodes = ogdfT.numberOfNodes();
   _T.clear();
@@ -191,6 +203,7 @@ inline bool SpqrTree<GR>::run()
     const ogdf::Graph& Gn = Sn.getGraph();
 
     const Tree::Node lemon_n = toSpqrLemonNode[ogdf_n] = _T.addNode();
+    _deg[lemon_n] = 0;
     
     SpqrNodeType nodeType;
     switch (spqr.typeOf(ogdf_n))
@@ -220,6 +233,36 @@ inline bool SpqrTree<GR>::run()
     }
   }
   
+  forall_edges(ogdf_e, ogdfT)
+  {
+    const ogdf::node ogdf_u = ogdf_e->source();
+    const ogdf::node ogdf_v = ogdf_e->target();
+    
+    const Tree::Node lemon_u = toSpqrLemonNode[ogdf_u];
+    const Tree::Node lemon_v = toSpqrLemonNode[ogdf_v];
+    
+    const Tree::Edge lemon_e = _T.addEdge(lemon_u, lemon_v);
+    ++_deg[lemon_u];
+    ++_deg[lemon_v];
+    
+    // now, let's identify the cut pair (p,q)
+    const ogdf::Skeleton& Su = spqr.skeleton(ogdf_u);
+    forall_edges(ogdf_e2, Su.getGraph())
+    {
+      if (Su.isVirtual(ogdf_e2))
+      {
+        if (Su.twinTreeNode(ogdf_e2) == ogdf_v)
+        {
+          ogdf::node ogdf_org_p = Su.original(ogdf_e2->source());
+          ogdf::node ogdf_org_q = Su.original(ogdf_e2->target());
+          NodePair cutPair = std::make_pair(_toLemonNode[ogdf_org_p], _toLemonNode[ogdf_org_q]);
+          _spqrCutPair[lemon_e] = cutPair;
+          break;
+        }
+      }
+    }
+  }
+
   return true;
 }
 

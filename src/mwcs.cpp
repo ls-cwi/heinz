@@ -192,7 +192,7 @@ int main(int argc, char** argv)
     pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
     pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
     pPreprocessedMwcs->addPreprocessRule(3, new NegBiComponentType());
-    pPreprocessedMwcs->addPreprocessRule(3, new NegTriComponentType());
+    pPreprocessedMwcs->addPreprocessRule(4, new NegTriComponentType());
     if (root.empty())
     {
       pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
