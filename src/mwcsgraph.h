@@ -433,7 +433,7 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printNodeList(std::ostream& out,
 {
   const Graph& g = orig ? getOrgGraph() : getGraph();
   const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
-  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
+//  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
   const WeightNodeMap* pPVal = orig ? getOrgPValues() : NULL;
   
   for (NodeIt n(g); n != lemon::INVALID; ++n)
@@ -454,15 +454,15 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printEdgeList(std::ostream& out,
                                                              bool orig) const
 {
   const Graph& g = orig ? getOrgGraph() : getGraph();
-  const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
-  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
+//  const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
+//  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
   
   SpqrTree<Graph> spqr(g);
   spqr.run();
   
   for (EdgeIt e(g); e != lemon::INVALID; ++e)
   {
-    out << g.id(g.u(e)) << " (pp) " << g.id(g.v(e));// << "\t" << tri.getTriComponentIndex(e) << "\t";
+    out << g.id(g.u(e)) << " (pp) " << g.id(g.v(e)) << "\t" << spqr.getSpqrTree().id(spqr.toSpqrNode(e)) << "\t";
     out << spqr.toChar(spqr.getSpqrNodeType(e));
    
     out << std::endl;

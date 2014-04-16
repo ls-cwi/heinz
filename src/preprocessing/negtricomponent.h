@@ -480,7 +480,30 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
         }
       }
     }
+  
+    if (res == 0)
+    {
+      std::ofstream eOut("spqr.edges.txt");
+      // let's print the spqr tree
+      for (typename SpqrT::EdgeIt e(spqrT); e != lemon::INVALID; ++e)
+      {
+        eOut << spqrT.id(spqrT.u(e)) << " (pp) " << spqrT.id(spqrT.v(e))
+             << "\t" << g.id(spqr.getCutPair(e).first)
+             << "\t" << g.id(spqr.getCutPair(e).second)
+             << std::endl;
+      }
+      eOut.close();
+      
+      std::ofstream nOut("spqr.nodes.txt");
+      // let's print the spqr tree
+      for (typename SpqrT::NodeIt v(spqrT); v != lemon::INVALID; ++v)
+      {
+        nOut << spqrT.id(v) << "\t" << spqr.toChar(spqr.getSpqrNodeType(v)) << "\t" << negative[v] << "\t" << realEdgesSize[v] << std::endl;
+      }
+      nOut.close();
+    }
   }
+  
   
   return res;
 }
