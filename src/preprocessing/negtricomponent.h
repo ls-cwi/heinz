@@ -104,20 +104,21 @@ private:
                      const BoolSpqrTreeNodeMap& negSubTree,
                      SpqrTreeNodeVector& roots);
   
-  void shortCircuit(const Graph& g,
-                    const ArcLookUpType& arcLookUp,
-                    const WeightNodeMap& score,
-                    const SpqrType& spqr,
-                    const RootedSpqrT& rootedT,
-                    const typename SpqrT::Node v,
-                    NodeList& path);
-  
-  double induce(const SpqrType& spqr,
-                const RootedSpqrT& rootedT,
-                const WeightNodeMap& score,
-                const typename SpqrT::Node v,
-                const Graph& g,
-                BoolNodeMap& presence);
+  double shortCircuit(const bool reverse,
+                      const Graph& g,
+                      const ArcLookUpType& arcLookUp,
+                      const WeightNodeMap& score,
+                      const SpqrType& spqr,
+                      const RootedSpqrT& rootedT,
+                      const typename SpqrT::Node v,
+                      NodeList& path);
+    
+  void induce(const bool reverse,
+              const SpqrType& spqr,
+              const RootedSpqrT& rootedT,
+              const typename SpqrT::Node v,
+              const Graph& g,
+              BoolNodeMap& presence);
 };
   
 template<typename GR, typename WGHT>
@@ -128,77 +129,76 @@ inline NegTriComponent<GR, WGHT>::NegTriComponent()
   
   
 template<typename GR, typename WGHT>
-inline double NegTriComponent<GR, WGHT>::induce(const SpqrType& spqr,
-                                                const RootedSpqrT& rootedT,
-                                                const WeightNodeMap& score,
-                                                const typename SpqrT::Node v,
-                                                const Graph& g,
-                                                BoolNodeMap& presence)
+inline void NegTriComponent<GR, WGHT>::induce(const bool reverse,
+                                              const SpqrType& spqr,
+                                              const RootedSpqrT& rootedT,
+                                              const typename SpqrT::Node v,
+                                              const Graph& g,
+                                              BoolNodeMap& presence)
 {
-  double minScore = std::numeric_limits<double>::max();
-  
   const EdgeVector& edges = spqr.getRealEdges(v);
   for (EdgeVectorIt edgeIt = edges.begin(); edgeIt != edges.end(); ++edgeIt)
   {
     Node u = g.u(*edgeIt);
     Node w = g.v(*edgeIt);
-    presence[u] = presence[w] = true;
-    
-    if (score[u] < minScore)
-    {
-      minScore = score[u];
-    }
-    if (score[w] < minScore)
-    {
-      minScore = score[w];
-    }
+    presence[u] = presence[w] = !reverse;
   }
   
   for (typename RootedSpqrT::OutArcIt a(rootedT, v); a != lemon::INVALID; ++a)
   {
     const typename SpqrT::Node w = rootedT.target(a);
-    minScore = std::min(minScore, induce(spqr, rootedT, score, w, g, presence));
+    induce(reverse, spqr, rootedT, w, g, presence);
   }
-  
-  return minScore;
 }
 
 template<typename GR, typename WGHT>
-inline void NegTriComponent<GR, WGHT>::shortCircuit(const Graph& g,
-                                                    const ArcLookUpType& arcLookUp,
-                                                    const WeightNodeMap& score,
-                                                    const SpqrType& spqr,
-                                                    const RootedSpqrT& rootedT,
-                                                    const typename SpqrT::Node v,
-                                                    NodeList& path)
+inline double NegTriComponent<GR, WGHT>::shortCircuit(const bool reverse,
+                                                      const Graph& g,
+                                                      const ArcLookUpType& arcLookUp,
+                                                      const WeightNodeMap& score,
+                                                      const SpqrType& spqr,
+                                                      const RootedSpqrT& rootedT,
+                                                      const typename SpqrT::Node v,
+                                                      NodeList& path)
 {
   typedef typename lemon::FilterNodes<const Graph> InducedSubGraph;
   
-  // identify cut pair
-  typename RootedSpqrT::InArcIt inArc(rootedT, v);
+  double pathLength = 0;
   
-  if (inArc == lemon::INVALID)
+  // identify cut pair
+  const typename RootedSpqrT::InArcIt cutArc(rootedT, v);
+  
+  if (cutArc == lemon::INVALID)
   {
-    // degenerate case: complete biconnected component is negative
-    return;
+    // degenerate case (reverse == false): complete biconnected component is negative, i.e. v is the root
+    // degenerate case (reverse == true): only one node in SPQR tree => bicomponent is triconnected
+    return pathLength;
   }
   
-  const NodePair& cutPair = spqr.getCutPair(inArc);
+  const NodePair& cutPair = spqr.getCutPair(cutArc);
   path.clear();
   
   // check: is there an edge between the cut pair?
   if (arcLookUp(cutPair.first, cutPair.second) == lemon::INVALID)
   {
     // find the shortest path
-    BoolNodeMap filter(g, false);
-    double minScore = induce(spqr, rootedT, score, v, g, filter);
+    BoolNodeMap filter(g, reverse);
+    induce(reverse, spqr, rootedT, v, g, filter);
     
     // let's construct the subgraph
     IntArcMap cost(g, 0);
     InducedSubGraph subG(g, filter);
+    
+    if (reverse)
+    {
+      // add the cut pair to the subgraph
+      filter[cutPair.first] = filter[cutPair.second] = true;
+    }
+    
+    double maxScore = lemon::mapMaxValue(subG, score);
     for (typename InducedSubGraph::ArcIt a(subG); a != lemon::INVALID; ++a)
     {
-      cost[a] = -minScore - score[subG.target(a)];
+      cost[a] = -score[subG.target(a)] + maxScore;
       assert(cost[a] >= 0);
     }
     
@@ -213,9 +213,12 @@ inline void NegTriComponent<GR, WGHT>::shortCircuit(const Graph& g,
       if (u != cutPair.first)
       {
         path.push_front(u);
+        pathLength += score[u];
       }
     }
   }
+  
+  return pathLength;
 }
   
 template<typename GR, typename WGHT>
@@ -369,18 +372,20 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
     
     for (typename SpqrTreeNodeVector::const_iterator it = negativeRoots.begin(); it != negativeRoots.end(); ++it)
     {
+      const NodePair& cutPair = spqr.getCutPair(typename RootedSpqrT::InArcIt(rootedSpqrT, *it));
+      
+      // first reduce to a single node (if necessary)
+      Node singleNode = lemon::INVALID;
       if (realEdgesSize[*it] > 2)
       {
         NodeList path;
-        shortCircuit(g, arcLookUp, score, spqr, rootedSpqrT, *it, path);
+        double pathLength = shortCircuit(false, g, arcLookUp, score, spqr, rootedSpqrT, *it, path);
         
-        std::cerr << "Node " << spqrT.id(*it)
-        << ": size " << size[*it]
-        << ": edges size " << realEdgesSize[*it]
-        << ", degree " << spqr.getDegree(*it)
-        << std::endl;
-        
-        const NodePair& cutPair = spqr.getCutPair(typename RootedSpqrT::InArcIt(rootedSpqrT, *it));
+//        std::cerr << "Node " << spqrT.id(*it)
+//        << ": size " << size[*it]
+//        << ": edges size " << realEdgesSize[*it]
+//        << ", degree " << spqr.getDegree(*it)
+//        << std::endl;
         
         NodeSet nodesToRemove = orgNodesInSubTree[*it];
         nodesToRemove.erase(cutPair.first);
@@ -398,21 +403,81 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
           ++res;
         }
 
-        bool first = true;
-        Node v = cutPair.first;
-        for (NodeListIt it2 = path.begin(); it2 != path.end(); ++it2)
+        singleNode = *path.begin();
+//        std::cerr << pathLength << ": " << g.id(singleNode) << " (" << score[singleNode] << ")";
+        if (path.size() > 1)
         {
-          v = merge(g, arcLookUp, label, score,
-                    mapToPre, preOrigNodes, neighbors,
-                    nNodes, nArcs, nEdges,
-                    degree, degreeVector, v, *it2, LB);
-          ++res;
-          
-          if (first) first = false;
-          else std::cerr << " -- ";
-          std::cerr << g.id(*it2) << " (" << score[*it2] << ")";
+//          bool first = true;
+          for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
+          {
+//            if (first)
+//            {
+//              first = false;
+//            }
+//            std::cerr << " -- ";
+//            
+//            std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
+            
+            singleNode = merge(g, arcLookUp, label, score,
+                      mapToPre, preOrigNodes, neighbors,
+                      nNodes, nArcs, nEdges,
+                      degree, degreeVector, singleNode, *nodeIt, LB);
+            ++res;
+          }
         }
-        std::cerr << std::endl;
+//        std::cerr << std::endl;
+      }
+      else
+      {
+        assert(realEdgesSize[*it] == 2);
+        const Edge& e = spqr.getRealEdges(*it).front();
+        if (g.u(e) == cutPair.first || g.u(e) == cutPair.second)
+        {
+          singleNode = g.v(e);
+        }
+        else
+        {
+          singleNode = g.u(e);
+        }
+      }
+      
+      // try to see if we can get rid of this single node
+      {
+        // determine whether there is a better way to connect the cut pair using nodes not in *it
+        NodeList path;
+        double pathLength = shortCircuit(true, g, arcLookUp, score, spqr, rootedSpqrT, *it, path);
+        
+        Node v = *path.begin();
+        
+        if (score[singleNode] <= pathLength)
+        {
+//          std::cerr << "Node " << spqrT.id(*it)
+//          << ": size " << size[*it]
+//          << ": edges size " << realEdgesSize[*it]
+//          << ", degree " << spqr.getDegree(*it)
+//          << std::endl;
+//          std::cerr << g.id(singleNode) << ": " << score[singleNode] << " <= " << pathLength << ": " << g.id(v) << " (" << score[v] << ")";
+//          if (path.size() > 1)
+//          {
+//            bool first = true;
+//            for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
+//            {
+//              if (first)
+//              {
+//                first = false;
+//              }
+//              std::cerr << " -- ";
+//              
+//              std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
+//            }
+//          }
+//          std::cerr << std::endl;
+          
+          remove(g, mapToPre, preOrigNodes, neighbors,
+                 nNodes, nArcs, nEdges,
+                 degree, degreeVector, singleNode);
+          ++res;
+        }
       }
     }
   }
