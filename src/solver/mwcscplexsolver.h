@@ -207,16 +207,16 @@ inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
 
     // x_i = 0 if node i is not in the subgraph
     // x_i = 1 if node i is the subgraph
-//    snprintf(buf, 1024, "x_%s", _mwcsGraph.getLabel(v).c_str());
-    snprintf(buf, 1024, "x_%d", g.id(v));
+    snprintf(buf, 1024, "x_%s", _mwcsGraph.getLabel(v).c_str());
+//    snprintf(buf, 1024, "x_%d", g.id(v));
     _x[i].setName(buf);
 
     if (_root == lemon::INVALID)
     {
       // y_i = 0 if node i is not the root node
       // y_i = 1 if node i is picked as the root node
-//      snprintf(buf, 1024, "y_%s", _mwcsGraph.getLabel(v).c_str());
-      snprintf(buf, 1024, "y_%d", g.id(v));
+      snprintf(buf, 1024, "y_%s", _mwcsGraph.getLabel(v).c_str());
+//      snprintf(buf, 1024, "y_%d", g.id(v));
       _y[i].setName(buf);
     }
 
