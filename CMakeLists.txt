@@ -162,14 +162,14 @@ set( CommonLibs
 	concert
 	pthread
 	emon
-  ogdf
+	OGDF
 )
 
 add_executable( heinz ${Heinz_Src} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( heinz ${CommonLibs} )
 
 add_executable( heinz-mc ${Heinz_Monte_Carlo_Src} ${Heinz_Hdr} ${CommonObjs} )
-target_link_libraries( heinz-mc emon ogdf )
+target_link_libraries( heinz-mc emon OGDF pthread )
 
 add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
-target_link_libraries( print emon ogdf )
+target_link_libraries( print emon OGDF pthread )
