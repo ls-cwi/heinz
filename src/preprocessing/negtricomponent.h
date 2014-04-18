@@ -186,7 +186,7 @@ inline double NegTriComponent<GR, WGHT>::shortCircuit(const bool reverse,
     induce(reverse, spqr, rootedT, v, g, filter);
     
     // let's construct the subgraph
-    IntArcMap cost(g, 0);
+    DoubleArcMap cost(g, 0);
     InducedSubGraph subG(g, filter);
     
     if (reverse)
@@ -194,16 +194,16 @@ inline double NegTriComponent<GR, WGHT>::shortCircuit(const bool reverse,
       // add the cut pair to the subgraph
       filter[cutPair.first] = filter[cutPair.second] = true;
     }
-    
+
     double maxScore = lemon::mapMaxValue(subG, score);
     for (typename InducedSubGraph::ArcIt a(subG); a != lemon::INVALID; ++a)
     {
-      cost[a] = -score[subG.target(a)] + maxScore;
+      cost[a] = maxScore - score[subG.target(a)];
       assert(cost[a] >= 0);
     }
     
     // and now let's do a Dijkstra
-    lemon::Dijkstra<InducedSubGraph, IntArcMap> dijkstra(subG, cost);
+    lemon::Dijkstra<InducedSubGraph, DoubleArcMap> dijkstra(subG, cost);
     dijkstra.run(cutPair.first);
     
     typename InducedSubGraph::Node u = cutPair.second;
@@ -447,32 +447,30 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
         NodeList path;
         double pathLength = shortCircuit(true, g, arcLookUp, score, spqr, rootedSpqrT, *it, path);
         
-        Node v = *path.begin();
-        
+//        Node v = *path.begin();
+//        std::cerr << "Node " << spqrT.id(*it)
+//        << ": size " << size[*it]
+//        << ": edges size " << realEdgesSize[*it]
+//        << ", degree " << spqr.getDegree(*it)
+//        << std::endl;
+//        std::cerr << g.id(singleNode) << ": " << score[singleNode] << " <= " << pathLength << ": " << g.id(v) << " (" << score[v] << ")";
+//        if (path.size() > 1)
+//        {
+//          bool first = true;
+//          for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
+//          {
+//            if (first)
+//            {
+//              first = false;
+//            }
+//            std::cerr << " -- ";
+//            
+//            std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
+//          }
+//        }
+//        std::cerr << std::endl;
         if (score[singleNode] <= pathLength)
         {
-//          std::cerr << "Node " << spqrT.id(*it)
-//          << ": size " << size[*it]
-//          << ": edges size " << realEdgesSize[*it]
-//          << ", degree " << spqr.getDegree(*it)
-//          << std::endl;
-//          std::cerr << g.id(singleNode) << ": " << score[singleNode] << " <= " << pathLength << ": " << g.id(v) << " (" << score[v] << ")";
-//          if (path.size() > 1)
-//          {
-//            bool first = true;
-//            for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
-//            {
-//              if (first)
-//              {
-//                first = false;
-//              }
-//              std::cerr << " -- ";
-//              
-//              std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
-//            }
-//          }
-//          std::cerr << std::endl;
-          
           remove(g, mapToPre, preOrigNodes, neighbors,
                  nNodes, nArcs, nEdges,
                  degree, degreeVector, singleNode);
