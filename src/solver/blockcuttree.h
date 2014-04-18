@@ -80,14 +80,17 @@ public:
   
   void printNodes(std::ostream& out) const
   {
-    for (Tree::BlueNodeIt v(_T); v != lemon::INVALID; ++v)
+    for (Tree::NodeIt v(_T); v != lemon::INVALID; ++v)
     {
-      out << "Block node: " << _T.id(v) << ", deg: " << _deg[v] << ", #edges: " << _realEdges[v].size() << std::endl;
-    }
-    
-    for (Tree::RedNodeIt v(_T); v != lemon::INVALID; ++v)
-    {
-      out << "Cut node: " << _T.id(v) << ", deg: " << _deg[v] << std::endl;
+      if (_T.blue(v))
+      {
+        out << "Block node: " << _T.id(v) << ", deg: " << _deg[v]
+            << ", #edges: " << _realEdges[_T.asBlueNode(v)].size() << std::endl;
+      }
+      else
+      {
+        out << "Cut node: " << _T.id(v) << ", deg: " << _deg[v] << std::endl;
+      }
     }
   }
   

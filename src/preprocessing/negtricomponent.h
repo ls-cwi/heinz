@@ -86,6 +86,7 @@ private:
   typedef typename std::vector<typename SpqrT::Node> SpqrTreeNodeVector;
   
   void root(const Graph& g,
+            const WeightNodeMap& score,
             const SpqrType& spqr,
             const BoolSpqrTreeNodeMap& neg,
             const typename SpqrT::Node u,
@@ -97,27 +98,32 @@ private:
             IntSpqrTreeNodeMap& size,
             IntSpqrTreeNodeMap& realEdgesSize,
             BoolSpqrTreeNodeMap& negSubTree,
-            NodeSetTreeNodeMap& orgNodesInSubTree);
+            NodeSetTreeNodeMap& orgNodesInSubTree,
+            NodeSetTreeNodeMap& orgPosNodesInSubTree);
   
-  void identifyRoots(const RootedSpqrT& rootedT,
+  void identifyRoots(const SpqrType& spqr,
+                     const RootedSpqrT& rootedT,
                      const typename SpqrT::Node v,
-                     const BoolSpqrTreeNodeMap& negSubTree,
+                     const NodeSetTreeNodeMap& orgPosNodesInSubTree,
                      SpqrTreeNodeVector& roots);
   
-  double shortCircuit(const bool reverse,
-                      const Graph& g,
+  double shortCircuit(const Graph& orgG,
+                      const bool reverse,
+                      const SubGraphType& g,
                       const ArcLookUpType& arcLookUp,
                       const WeightNodeMap& score,
                       const SpqrType& spqr,
                       const RootedSpqrT& rootedT,
                       const typename SpqrT::Node v,
+                      BoolNodeMap& filter,
+                      DoubleArcMap& arcCost,
                       NodeList& path);
-    
+  
   void induce(const bool reverse,
               const SpqrType& spqr,
               const RootedSpqrT& rootedT,
               const typename SpqrT::Node v,
-              const Graph& g,
+              const SubGraphType& g,
               BoolNodeMap& presence);
 };
   
@@ -133,7 +139,7 @@ inline void NegTriComponent<GR, WGHT>::induce(const bool reverse,
                                               const SpqrType& spqr,
                                               const RootedSpqrT& rootedT,
                                               const typename SpqrT::Node v,
-                                              const Graph& g,
+                                              const SubGraphType& g,
                                               BoolNodeMap& presence)
 {
   const EdgeVector& edges = spqr.getRealEdges(v);
@@ -152,13 +158,16 @@ inline void NegTriComponent<GR, WGHT>::induce(const bool reverse,
 }
 
 template<typename GR, typename WGHT>
-inline double NegTriComponent<GR, WGHT>::shortCircuit(const bool reverse,
-                                                      const Graph& g,
+inline double NegTriComponent<GR, WGHT>::shortCircuit(const Graph& orgG,
+                                                      const bool reverse,
+                                                      const SubGraphType& g,
                                                       const ArcLookUpType& arcLookUp,
                                                       const WeightNodeMap& score,
                                                       const SpqrType& spqr,
                                                       const RootedSpqrT& rootedT,
                                                       const typename SpqrT::Node v,
+                                                      BoolNodeMap& filter,
+                                                      DoubleArcMap& arcCost,
                                                       NodeList& path)
 {
   typedef typename lemon::FilterNodes<const Graph> InducedSubGraph;
@@ -182,12 +191,16 @@ inline double NegTriComponent<GR, WGHT>::shortCircuit(const bool reverse,
   if (arcLookUp(cutPair.first, cutPair.second) == lemon::INVALID)
   {
     // find the shortest path
-    BoolNodeMap filter(g, reverse);
+    lemon::mapFill(g, filter, false);
+    for (typename SubGraphType::NodeIt n(g); n != lemon::INVALID; ++n)
+    {
+      filter[n] = reverse;
+    }
     induce(reverse, spqr, rootedT, v, g, filter);
     
     // let's construct the subgraph
-    DoubleArcMap cost(g, 0);
-    InducedSubGraph subG(g, filter);
+    lemon::mapFill(g, arcCost, 0);
+    InducedSubGraph subG(orgG, filter);
     
     if (reverse)
     {
@@ -198,12 +211,12 @@ inline double NegTriComponent<GR, WGHT>::shortCircuit(const bool reverse,
     double maxScore = lemon::mapMaxValue(subG, score);
     for (typename InducedSubGraph::ArcIt a(subG); a != lemon::INVALID; ++a)
     {
-      cost[a] = maxScore - score[subG.target(a)];
-      assert(cost[a] >= 0);
+      arcCost[a] = maxScore - score[subG.target(a)];
+      assert(arcCost[a] >= 0);
     }
     
     // and now let's do a Dijkstra
-    lemon::Dijkstra<InducedSubGraph, DoubleArcMap> dijkstra(subG, cost);
+    lemon::Dijkstra<InducedSubGraph, DoubleArcMap> dijkstra(subG, arcCost);
     dijkstra.run(cutPair.first);
     
     typename InducedSubGraph::Node u = cutPair.second;
@@ -222,12 +235,24 @@ inline double NegTriComponent<GR, WGHT>::shortCircuit(const bool reverse,
 }
   
 template<typename GR, typename WGHT>
-inline void NegTriComponent<GR, WGHT>::identifyRoots(const RootedSpqrT& rootedT,
+inline void NegTriComponent<GR, WGHT>::identifyRoots(const SpqrType& spqr,
+                                                     const RootedSpqrT& rootedT,
                                                      const typename SpqrT::Node v,
-                                                     const BoolSpqrTreeNodeMap& negSubTree,
+                                                     const NodeSetTreeNodeMap& orgPosNodesInSubTree,
                                                      SpqrTreeNodeVector& roots)
 {
-  if (negSubTree[v])
+  // identify cut pair
+  const typename RootedSpqrT::InArcIt cutArc(rootedT, v);
+  
+  NodeSet posNodes = orgPosNodesInSubTree[v];
+  if (cutArc != lemon::INVALID)
+  {
+    const NodePair& cutPair = spqr.getCutPair(cutArc);
+    posNodes.erase(cutPair.first);
+    posNodes.erase(cutPair.second);
+  }
+  
+  if (posNodes.size() == 0)
   {
     roots.push_back(v);
   }
@@ -235,13 +260,14 @@ inline void NegTriComponent<GR, WGHT>::identifyRoots(const RootedSpqrT& rootedT,
   {
     for (typename RootedSpqrT::OutArcIt a(rootedT, v); a != lemon::INVALID; ++a)
     {
-      identifyRoots(rootedT, rootedT.target(a), negSubTree, roots);
+      identifyRoots(spqr, rootedT, rootedT.target(a), orgPosNodesInSubTree, roots);
     }
   }
 }
 
 template<typename GR, typename WGHT>
 inline void NegTriComponent<GR, WGHT>::root(const Graph& g,
+                                            const WeightNodeMap& score,
                                             const SpqrType& spqr,
                                             const BoolSpqrTreeNodeMap& neg,
                                             const typename SpqrT::Node u,
@@ -253,7 +279,8 @@ inline void NegTriComponent<GR, WGHT>::root(const Graph& g,
                                             IntSpqrTreeNodeMap& size,
                                             IntSpqrTreeNodeMap& realEdgesSize,
                                             BoolSpqrTreeNodeMap& negSubTree,
-                                            NodeSetTreeNodeMap& orgNodesInSubTree)
+                                            NodeSetTreeNodeMap& orgNodesInSubTree,
+                                            NodeSetTreeNodeMap& orgPosNodesInSubTree)
 {
   const SpqrT& T = spqr.getSpqrTree();
   
@@ -275,8 +302,20 @@ inline void NegTriComponent<GR, WGHT>::root(const Graph& g,
   realEdgesSize[v] = static_cast<int>(realEdges.size());
   for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
   {
-    orgNodesInSubTree[v].insert(g.u(*edgeIt));
-    orgNodesInSubTree[v].insert(g.v(*edgeIt));
+    Node org_u = g.u(*edgeIt);
+    Node org_v = g.v(*edgeIt);
+    
+    orgNodesInSubTree[v].insert(org_u);
+    orgNodesInSubTree[v].insert(org_v);
+    
+    if (score[org_u] > 0)
+    {
+      orgPosNodesInSubTree[v].insert(org_u);
+    }
+    if (score[org_v] > 0)
+    {
+      orgPosNodesInSubTree[v].insert(org_v);
+    }
   }
   
   for (typename SpqrT::IncEdgeIt e(T, v); e != lemon::INVALID; ++e)
@@ -284,11 +323,25 @@ inline void NegTriComponent<GR, WGHT>::root(const Graph& g,
     typename SpqrT::Node w = T.oppositeNode(v, e);
     if (w != u)
     {
-      root(g, spqr, neg, v, e, w, rootedT, dir, depth, size, realEdgesSize, negSubTree, orgNodesInSubTree);
+      root(g, score, spqr, neg, v, e, w,
+           rootedT, dir, depth, size,
+           realEdgesSize, negSubTree,
+           orgNodesInSubTree, orgPosNodesInSubTree);
       negSubTree[v] = negSubTree[v] && negSubTree[w];
       size[v] += size[w];
       realEdgesSize[v] += realEdgesSize[w];
       orgNodesInSubTree[v].insert(orgNodesInSubTree[w].begin(), orgNodesInSubTree[w].end());
+      
+//      const NodePair& cutPair = spqr.getCutPair(e);
+      orgPosNodesInSubTree[v].insert(orgPosNodesInSubTree[w].begin(), orgPosNodesInSubTree[w].end());
+//      if (score[cutPair.first] > 0)
+//      {
+//        orgPosNodesInSubTree[v].insert(cutPair.first);
+//      }
+//      if (score[cutPair.second] > 0)
+//      {
+//        orgPosNodesInSubTree[v].insert(cutPair.second);
+//      }
     }
   }
 }
@@ -310,10 +363,16 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
 {
   BlockCutTreeType blockCutTree(g);
   blockCutTree.run();
+//  blockCutTree.printNodes(std::cerr);
+//  blockCutTree.printEdges(std::cerr);
+//  std::cerr << std::endl;
   
   BoolNodeMap filterNodes(g, false);
   BoolEdgeMap filterEdges(g, false);
   SubGraphType subG(g, filterNodes, filterEdges);
+  
+  DoubleArcMap arcCost(g, 0);
+  BoolNodeMap filter2(g, false);
   
   const typename BlockCutTreeType::Tree& blockT = blockCutTree.getBlockCutTree();
   
@@ -322,6 +381,8 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
   for (typename BlockCutTreeType::Tree::BlueNodeIt block(blockT);
        block != lemon::INVALID; ++block)
   {
+    if (blockCutTree.getRealEdges(block).size() == 2) continue;
+    
     lemon::mapFill(g, filterNodes, false);
     lemon::mapFill(g, filterEdges, false);
     
@@ -361,14 +422,15 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
     BoolSpqrTreeEdgeMap dir(spqrT, true);
     RootedSpqrT rootedSpqrT(spqrT, dir);
     BoolSpqrTreeNodeMap negativeSubTree(spqrT, false);
-    NodeSetTreeNodeMap orgNodesInSubTree(spqrT);
-    root(g, spqr, negative, lemon::INVALID, lemon::INVALID,
+    NodeSetTreeNodeMap orgNodesInSubTree(spqrT), orgPosNodesInSubTree(spqrT);
+    root(g, score, spqr, negative, lemon::INVALID, lemon::INVALID,
          rootNode, rootedSpqrT, dir, depth, size,
-         realEdgesSize, negativeSubTree, orgNodesInSubTree);
+         realEdgesSize, negativeSubTree,
+         orgNodesInSubTree, orgPosNodesInSubTree);
     
     // determine roots of negative subtrees
     SpqrTreeNodeVector negativeRoots;
-    identifyRoots(rootedSpqrT, rootNode, negativeSubTree, negativeRoots);
+    identifyRoots(spqr, rootedSpqrT, rootNode, orgPosNodesInSubTree, negativeRoots);
     
     for (typename SpqrTreeNodeVector::const_iterator it = negativeRoots.begin(); it != negativeRoots.end(); ++it)
     {
@@ -379,13 +441,16 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
       if (realEdgesSize[*it] > 2)
       {
         NodeList path;
-        double pathLength = shortCircuit(false, g, arcLookUp, score, spqr, rootedSpqrT, *it, path);
+        double pathLength = shortCircuit(g, false, subG, arcLookUp, score, spqr, rootedSpqrT, *it, filter2, arcCost, path);
         
-//        std::cerr << "Node " << spqrT.id(*it)
-//        << ": size " << size[*it]
-//        << ": edges size " << realEdgesSize[*it]
-//        << ", degree " << spqr.getDegree(*it)
-//        << std::endl;
+        if (orgPosNodesInSubTree[*it].size() > 0)
+        {
+          std::cerr << "Node " << spqrT.id(*it)
+          << ": size " << size[*it]
+          << ": edges size " << realEdgesSize[*it]
+          << ", degree " << spqr.getDegree(*it)
+          << std::endl;
+        }
         
         NodeSet nodesToRemove = orgNodesInSubTree[*it];
         nodesToRemove.erase(cutPair.first);
@@ -404,19 +469,28 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
         }
 
         singleNode = *path.begin();
-//        std::cerr << pathLength << ": " << g.id(singleNode) << " (" << score[singleNode] << ")";
+        if (orgPosNodesInSubTree[*it].size() > 0)
+        {
+          std::cerr << "Cut pair = " << g.id(cutPair.first) << " (" << score[cutPair.first]
+                    << ", deg " << degree[cutPair.first] << ") : "
+                    << g.id(cutPair.second) << " (" << score[cutPair.second]
+                    << ", deg " << degree[cutPair.second] << ")" << std::endl;
+          std::cerr << pathLength << ": " << g.id(singleNode) << " (" << score[singleNode] << ")";
+        }
         if (path.size() > 1)
         {
-//          bool first = true;
+          bool first = true;
           for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
           {
-//            if (first)
-//            {
-//              first = false;
-//            }
-//            std::cerr << " -- ";
-//            
-//            std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
+            if (orgPosNodesInSubTree[*it].size() > 0)
+            {
+              if (first)
+              {
+                first = false;
+              }
+              std::cerr << " -- ";
+              std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
+            }
             
             singleNode = merge(g, arcLookUp, label, score,
                       mapToPre, preOrigNodes, neighbors,
@@ -425,7 +499,10 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
             ++res;
           }
         }
-//        std::cerr << std::endl;
+        if (orgPosNodesInSubTree[*it].size() > 0)
+        {
+          std::cerr << std::endl;
+        }
       }
       else
       {
@@ -445,32 +522,46 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
       {
         // determine whether there is a better way to connect the cut pair using nodes not in *it
         NodeList path;
-        double pathLength = shortCircuit(true, g, arcLookUp, score, spqr, rootedSpqrT, *it, path);
-        
-//        Node v = *path.begin();
-//        std::cerr << "Node " << spqrT.id(*it)
-//        << ": size " << size[*it]
-//        << ": edges size " << realEdgesSize[*it]
-//        << ", degree " << spqr.getDegree(*it)
-//        << std::endl;
-//        std::cerr << g.id(singleNode) << ": " << score[singleNode] << " <= " << pathLength << ": " << g.id(v) << " (" << score[v] << ")";
-//        if (path.size() > 1)
-//        {
-//          bool first = true;
-//          for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
-//          {
-//            if (first)
-//            {
-//              first = false;
-//            }
-//            std::cerr << " -- ";
-//            
-//            std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
-//          }
-//        }
-//        std::cerr << std::endl;
-        if (score[singleNode] <= pathLength)
+        double pathLength = shortCircuit(g, true, subG, arcLookUp, score, spqr, rootedSpqrT, *it, filter2, arcCost, path);
+
+        if (score[singleNode] <= pathLength && path.size() == 1)
         {
+          if (orgPosNodesInSubTree[*it].size() > 0)
+          {
+            const typename RootedSpqrT::InArcIt cutArc(rootedSpqrT, *it);
+            const NodePair& cutPair = spqr.getCutPair(cutArc);
+            
+            Node v = *path.begin();
+            std::cerr << "Node " << spqrT.id(*it)
+            << ": size " << size[*it]
+            << ": edges size " << realEdgesSize[*it]
+            << ", degree " << spqr.getDegree(*it)
+            << ", #nodes " << orgNodesInSubTree[*it].size()
+            << ", #pos-nodes " << orgPosNodesInSubTree[*it].size()
+//            << ", cutPair {" << g.id(cutPair.first) << "," << g.id(cutPair.second) << "}"
+            << ", cutPair {" << label[cutPair.first] << "," << label[cutPair.second] << "}"
+            << std::endl;
+//            std::cerr << g.id(singleNode) << ": " << score[singleNode] << " <= " << pathLength << ": " << g.id(v) << " (" << score[v] << ")";
+            std::cerr << label[singleNode] << ": " << score[singleNode] << " <= " << pathLength << ": " << label[v] << " (" << score[v] << ")";
+            if (path.size() > 1)
+            {
+              bool first = true;
+              for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
+              {
+                if (first)
+                {
+                  first = false;
+                }
+                std::cerr << " -- ";
+                
+//                std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
+                std::cerr << label[*nodeIt] << " (" << score[*nodeIt] << ")";
+              }
+            }
+            
+            std::cerr << "*" << std::endl;
+          }
+          
           remove(g, mapToPre, preOrigNodes, neighbors,
                  nNodes, nArcs, nEdges,
                  degree, degreeVector, singleNode);
@@ -496,7 +587,7 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
       // let's print the spqr tree
       for (typename SpqrT::NodeIt v(spqrT); v != lemon::INVALID; ++v)
       {
-        nOut << spqrT.id(v) << "\t" << spqr.toChar(spqr.getSpqrNodeType(v)) << "\t" << negative[v] << "\t" << realEdgesSize[v] << std::endl;
+        nOut << spqrT.id(v) << "\t" << spqr.toChar(spqr.getSpqrNodeType(v)) << "\t" << negative[v] << "\t" << realEdgesSize[v] << "\t" << orgNodesInSubTree[v].size() << "\t" << orgPosNodesInSubTree[v].size() << std::endl;
       }
       nOut.close();
     }
