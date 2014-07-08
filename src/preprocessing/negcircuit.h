@@ -80,6 +80,7 @@ inline int NegCircuit<GR, WGHT>::apply(Graph& g,
                                        double& LB)
 {
   const NodeSet& nodes = degreeVector[2];
+  std::cout << nodes.size() << std::endl;
   
   for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
   {

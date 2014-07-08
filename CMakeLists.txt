@@ -30,7 +30,8 @@ set( Heinz_Hdr
   src/solver/blockcuttree.h
   src/verbose.h
   src/mwcs.h
-  src/mwcsanalyze.h
+  src/analysis.h
+#  src/elementarypaths.h
   src/mwcsenumerate.h
   src/solver/mwcssolver.h
   src/solver/mwcstreeheuristicsolver.h

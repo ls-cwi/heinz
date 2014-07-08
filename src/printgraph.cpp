@@ -24,6 +24,8 @@
 #include "preprocessing/negbicomponent.h"
 #include "preprocessing/negtricomponent.h"
 #include "utils.h"
+//#include "elementarypaths.h"
+#include "analysis.h"
 
 using namespace nina;
 using namespace nina::mwcs;
@@ -138,9 +140,16 @@ int main (int argc, char** argv)
   {
     pMwcs->computeScores(lambda, a, fdr);
   }
+  
+//  ElementaryPaths<Graph> ep(pMwcs->getGraph(), pMwcs->getScores());
+//  ep.enumerate(pMwcs->getGraph().nodeFromId(3460));
+//  MwcsAnalyze<Graph>* pAnalyze = new MwcsAnalyze<Graph>(*pMwcs);
+//  pAnalyze->analyze(true);
+//  pAnalyze->print(std::cerr);
+//  delete pAnalyze;
 
   // Now let's print the graph
-  pMwcs->print(std::cout);
+//  pMwcs->print(std::cout);
   
   if (!edgeListOutput.empty())
   {

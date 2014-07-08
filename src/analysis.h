@@ -1,5 +1,5 @@
 /*
- * mwcsgraph.h
+ * analysis.h
  *
  *  Created on: 25-jan-2013
  *      Author: M. El-Kebir
@@ -81,6 +81,44 @@ public:
       }
       out << std::endl;
     }
+  }
+  
+  void print(const PathType& p, std::ostream& out) const
+  {
+    NodeList path;
+    bool f = true;
+    for (typename PathType::ArcIt a(p); a != lemon::INVALID; ++a)
+    {
+      if (f)
+      {
+        path.push_back(_g.source(a));
+        f = false;
+      }
+      path.push_back(_g.target(a));
+    }
+    
+    double cumWeight = 0;
+    double maxCumWeight = -std::numeric_limits<double>::max();
+    
+    bool first = true;
+    for (NodeListIt nodeIt = path.begin(); nodeIt != path.end(); nodeIt++)
+    {
+      cumWeight += _weight[*nodeIt];
+      if (cumWeight > maxCumWeight)
+        maxCumWeight = cumWeight;
+      
+      if (!first)
+      {
+        std::cout << " -> ";
+      }
+      else
+      {
+        first = false;
+      }
+      
+      out << _g.id(*nodeIt) << " (" << _weight[*nodeIt] << ")";
+    }
+    out << " : " << cumWeight << "/" << maxCumWeight << std::endl;
   }
 
   bool ok(Node i, Node j) const
@@ -318,27 +356,32 @@ inline void MwcsAnalyze<GR, WGHT>::analyze(bool eqClasses)
     _path[i] = new PathMap(_g);
 
     // compute single source shortest path from i
-    dijkstra.run(i);
-
-    for (NodeIt j(_g); j != lemon::INVALID; ++j)
+    int localCount = 0;
+    do
     {
-      if (i == j)
-        continue;
+      dijkstra.init();
+      dijkstra.run(i);
 
-      if (_weight[j] <= 0 || comp_i != _comp[j])
-        continue;
-
-      if (dijkstra.reached(j))
+      for (NodeIt j(_g); j != lemon::INVALID; ++j)
       {
-        PathType p = dijkstra.path(j);
-        if (isPathOK(p))
+        if (i == j)
+          continue;
+
+        if (_weight[j] <= 0 || comp_i != _comp[j])
+          continue;
+
+        if (dijkstra.reached(j))
         {
-          (*_ok[i])[j] = true;
-          (*_path[i])[j] = p;
-          count++;
+          PathType p = dijkstra.path(j);
+          if (isPathOK(p))
+          {
+            (*_ok[i])[j] = true;
+            (*_path[i])[j] = p;
+            count++;
+          }
         }
       }
-    }
+    } while (localCount != 0);
   }
 
   if (g_verbosity >= VERBOSE_ESSENTIAL)
@@ -347,6 +390,7 @@ inline void MwcsAnalyze<GR, WGHT>::analyze(bool eqClasses)
   // determine all equivalence classes
   if (eqClasses)
   {
+    lemon::mapFill(_g, _eqClassMap, -1);
     int eqClassIdx = 0;
     _eqClasses.clear();
 
@@ -364,9 +408,18 @@ inline void MwcsAnalyze<GR, WGHT>::analyze(bool eqClasses)
         {
           bool ok_i_j = (*_ok[i])[j];
           bool ok_j_i = (*_ok[j])[i];
+          
+          if (_g.id(i) == 3522 && _g.id(j) == 3437)
+          {
+            print(path(i, j), std::cerr);
+            print(path(j, i), std::cerr);
+          }
 
           if (ok_i_j && ok_j_i)
           {
+            print(path(i, j), std::cerr);
+            print(path(j, i), std::cerr);
+            
             if (_eqClassMap[i] == -1 && _eqClassMap[j] == -1)
             {
               // add to new eqClass
@@ -389,19 +442,28 @@ inline void MwcsAnalyze<GR, WGHT>::analyze(bool eqClasses)
             }
             else
             {
-              assert(_eqClassMap[i] == _eqClassMap[j]);
+//              assert(_eqClassMap[i] == _eqClassMap[j]);
+              // merge j into i
+              for (NodeSetIt it = _eqClasses[_eqClassMap[j]].begin(), it_end = _eqClasses[_eqClassMap[j]].end();
+                   it != it_end; ++it)
+              {
+                _eqClassMap[*it] = _eqClassMap[i];
+              }
+              _eqClasses[_eqClassMap[i]].insert(_eqClasses[_eqClassMap[j]].begin(), _eqClasses[_eqClassMap[j]].end());
             }
+            std::cerr << _eqClassMap[i] << std::endl << std::endl;
           }
         }
       }
 
-      if (_eqClassMap[i] == -1)
-      {
-        _eqClassMap[i] = eqClassIdx;
-        _eqClasses.push_back(NodeSet());
-        _eqClasses[eqClassIdx].insert(i);
-        eqClassIdx++;
-      }
+      // wtf is this?
+//      if (_eqClassMap[i] == -1)
+//      {
+//        _eqClassMap[i] = eqClassIdx;
+//        _eqClasses.push_back(NodeSet());
+//        _eqClasses[eqClassIdx].insert(i);
+//        eqClassIdx++;
+//      }
     }
   }
 }

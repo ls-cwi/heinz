@@ -75,8 +75,8 @@ protected:
   typedef typename Parent::SubGraph SubGraph;
   typedef typename Parent::SubNodeIt SubNodeIt;
   typedef typename Parent::SubEdgeIt SubEdgeIt;
-  
-  typedef std::queue<Node> NodeQueue;
+  typedef typename Parent::NodeQueue NodeQueue;
+
   typedef std::queue<DiNode> DiNodeQueue;
   typedef std::set<DiNode> DiNodeSet;
   typedef std::list<DiNode> DiNodeList;
@@ -201,7 +201,7 @@ protected:
                           DiBoolNodeMap& marked,
                           DiNodeList& diS)
   {
-    // we do a DFS on the *residual network* starting from _diRoot
+    // we do a BFS on the *residual network* starting from _diRoot
     // and only following arcs that have nonzero residual capacity
     
     lemon::mapFill(h, marked, false);
@@ -249,7 +249,7 @@ protected:
                           DiBoolNodeMap& marked,
                           DiNodeList& diS)
   {
-    // we do a DFS on the reversed *residual network* starting from target
+    // we do a BFS on the reversed *residual network* starting from target
     // and only following arcs that have nonzero residual capacity
     
     lemon::mapFill(h, marked, false);

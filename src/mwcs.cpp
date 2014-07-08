@@ -35,7 +35,6 @@
 #include "solver/mwcstreesolver.h"
 #include "solver/mwcstreeheuristicsolver.h"
 #include "solver/cplex_cut/backoff.h"
-#include "mwcsanalyze.h"
 #include "mwcsenumerate.h"
 #include "mwcs.h"
 #include "utils.h"

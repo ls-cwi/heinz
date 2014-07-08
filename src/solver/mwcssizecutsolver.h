@@ -24,7 +24,7 @@
 #include <ilconcert/ilothread.h>
 
 #include "mwcscplexsolver.h"
-#include "mwcsanalyze.h"
+#include "analysis.h"
 #include "cplex_cut/nodecutrooted.h"
 #include "cplex_cut/nodecutunrooted.h"
 #include "parser/identityparser.h"

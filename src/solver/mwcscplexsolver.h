@@ -226,7 +226,7 @@ inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
-{
+{ 
   if (_root == lemon::INVALID)
   {
     IloExpr expr(_env);

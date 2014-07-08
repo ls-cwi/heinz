@@ -433,16 +433,18 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printNodeList(std::ostream& out,
 {
   const Graph& g = orig ? getOrgGraph() : getGraph();
   const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
-//  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
+  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
   const WeightNodeMap* pPVal = orig ? getOrgPValues() : NULL;
   
   for (NodeIt n(g); n != lemon::INVALID; ++n)
   {
     out << g.id(n) << " " << weight[n];
     
+    out << " " << label[n];
+    
     if (pPVal)
     {
-      out << (*_pPVal)[n] << "\\n";
+      out << " " << (*_pPVal)[n];
     }
     
     out << std::endl;

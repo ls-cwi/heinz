@@ -211,7 +211,7 @@ inline double NegTriComponent<GR, WGHT>::shortCircuit(const Graph& orgG,
     double maxScore = lemon::mapMaxValue(subG, score);
     for (typename InducedSubGraph::ArcIt a(subG); a != lemon::INVALID; ++a)
     {
-      arcCost[a] = maxScore - score[subG.target(a)];
+      arcCost[a] = score[subG.target(a)] > 0 ? 0 : -score[subG.target(a)];
       assert(arcCost[a] >= 0);
     }
     
@@ -226,7 +226,8 @@ inline double NegTriComponent<GR, WGHT>::shortCircuit(const Graph& orgG,
       if (u != cutPair.first)
       {
         path.push_front(u);
-        pathLength += score[u];
+        if (score[u] < 0)
+          pathLength += score[u];
       }
     }
   }
@@ -443,14 +444,14 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
         NodeList path;
         double pathLength = shortCircuit(g, false, subG, arcLookUp, score, spqr, rootedSpqrT, *it, filter2, arcCost, path);
         
-        if (orgPosNodesInSubTree[*it].size() > 0)
-        {
-          std::cerr << "Node " << spqrT.id(*it)
-          << ": size " << size[*it]
-          << ": edges size " << realEdgesSize[*it]
-          << ", degree " << spqr.getDegree(*it)
-          << std::endl;
-        }
+//        if (orgPosNodesInSubTree[*it].size() > 0)
+//        {
+//          std::cerr << "Node " << spqrT.id(*it)
+//          << ": size " << size[*it]
+//          << ": edges size " << realEdgesSize[*it]
+//          << ", degree " << spqr.getDegree(*it)
+//          << std::endl;
+//        }
         
         NodeSet nodesToRemove = orgNodesInSubTree[*it];
         nodesToRemove.erase(cutPair.first);
@@ -474,7 +475,8 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
           std::cerr << "Cut pair = " << g.id(cutPair.first) << " (" << score[cutPair.first]
                     << ", deg " << degree[cutPair.first] << ") : "
                     << g.id(cutPair.second) << " (" << score[cutPair.second]
-                    << ", deg " << degree[cutPair.second] << ")" << std::endl;
+                    << ", deg " << degree[cutPair.second] << "), #real edges = "
+                    << realEdgesSize[*it] << std::endl;
           std::cerr << pathLength << ": " << g.id(singleNode) << " (" << score[singleNode] << ")";
         }
         if (path.size() > 1)
@@ -524,25 +526,37 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
         NodeList path;
         double pathLength = shortCircuit(g, true, subG, arcLookUp, score, spqr, rootedSpqrT, *it, filter2, arcCost, path);
 
-        if (score[singleNode] <= pathLength && path.size() == 1)
+//        if (score[singleNode] <= pathLength)
         {
-          if (orgPosNodesInSubTree[*it].size() > 0)
+          bool removeSingleNode = score[singleNode] <= pathLength;
+//          {
+//            if (path.size() > 1)
+//            {
+//              for (NodeListIt nodeIt = ++path.begin(); nodeIt != path.end(); ++nodeIt)
+//              {
+//                removeSingleNode &= score[*nodeIt] <= 0;
+//              }
+//            }
+//          }
+          
+//          if (removeSingleNode)
           {
             const typename RootedSpqrT::InArcIt cutArc(rootedSpqrT, *it);
             const NodePair& cutPair = spqr.getCutPair(cutArc);
             
             Node v = *path.begin();
             std::cerr << "Node " << spqrT.id(*it)
-            << ": size " << size[*it]
-            << ": edges size " << realEdgesSize[*it]
-            << ", degree " << spqr.getDegree(*it)
-            << ", #nodes " << orgNodesInSubTree[*it].size()
-            << ", #pos-nodes " << orgPosNodesInSubTree[*it].size()
-//            << ", cutPair {" << g.id(cutPair.first) << "," << g.id(cutPair.second) << "}"
-            << ", cutPair {" << label[cutPair.first] << "," << label[cutPair.second] << "}"
-            << std::endl;
-//            std::cerr << g.id(singleNode) << ": " << score[singleNode] << " <= " << pathLength << ": " << g.id(v) << " (" << score[v] << ")";
-            std::cerr << label[singleNode] << ": " << score[singleNode] << " <= " << pathLength << ": " << label[v] << " (" << score[v] << ")";
+                      << ": size " << size[*it]
+                      << ": edges size " << realEdgesSize[*it]
+                      << ", degree " << spqr.getDegree(*it)
+                      << ", #nodes " << orgNodesInSubTree[*it].size()
+                      << ", #pos-nodes " << orgPosNodesInSubTree[*it].size()
+                      << ", cutPair {" << g.id(cutPair.first) << "," << g.id(cutPair.second) << "}"
+                      << std::endl;
+            std::cerr << g.id(singleNode) << ": "
+                      << score[singleNode] << " <= "
+                      << pathLength << ": " << g.id(v) << " ("
+                      << score[v] << ")";
             if (path.size() > 1)
             {
               bool first = true;
@@ -553,24 +567,23 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
                   first = false;
                 }
                 std::cerr << " -- ";
-                
-//                std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
-                std::cerr << label[*nodeIt] << " (" << score[*nodeIt] << ")";
+                std::cerr << g.id(*nodeIt) << " (" << score[*nodeIt] << ")";
               }
             }
-            
-            std::cerr << "*" << std::endl;
+            std::cerr << std::endl;
           }
-          
-          remove(g, mapToPre, preOrigNodes, neighbors,
+          if (removeSingleNode)
+          {
+            remove(g, mapToPre, preOrigNodes, neighbors,
                  nNodes, nArcs, nEdges,
                  degree, degreeVector, singleNode);
-          ++res;
+            ++res;
+          }
         }
       }
     }
   
-    if (res == 0)
+//    if (res == 0)
     {
       std::ofstream eOut("spqr.edges.txt");
       // let's print the spqr tree
@@ -592,7 +605,6 @@ inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
       nOut.close();
     }
   }
-  
   
   return res;
 }

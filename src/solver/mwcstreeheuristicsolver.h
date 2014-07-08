@@ -20,7 +20,7 @@
 #include <lemon/kruskal.h>
 #include <lemon/random.h>
 #include "mwcstreesolver.h"
-#include "mwcsanalyze.h"
+#include "analysis.h"
 
 namespace nina {
 namespace mwcs {

@@ -14,6 +14,7 @@
 #include <lemon/adaptors.h>
 #include <lemon/tolerance.h>
 #include <set>
+#include <queue>
 
 namespace nina {
 namespace mwcs {
@@ -39,6 +40,7 @@ protected:
   typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
   typedef typename SubGraph::NodeIt SubNodeIt;
   typedef typename SubGraph::EdgeIt SubEdgeIt;
+  typedef std::queue<Node> NodeQueue;
 
 protected:
   IloBoolVarArray _x;
@@ -411,6 +413,36 @@ protected:
           ddS.insert(v);
         }
       }
+    }
+    
+    // let's do a bfs from target
+    NodeSet SS;
+    BoolNodeMap visited(_g, false);
+
+    NodeQueue Q;
+    Q.push(target);
+    while (!Q.empty())
+    {
+      Node v = Q.front();
+      Q.pop();
+      visited[v] = true;
+      SS.insert(v);
+      
+      for (IncEdgeIt e(_g, v); e != lemon::INVALID; ++e)
+      {
+        Node u = _g.oppositeNode(v, e);
+        if (!visited[u] && dS.find(u) == dS.end())
+        {
+          Q.push(u);
+        }
+      }
+    }
+    
+    if (S != SS)
+    {
+      std::cerr << std::endl << "SS" << std::endl;
+      printNodeSet(SS, _y);
+      return false;
     }
     
     if (dS != ddS)

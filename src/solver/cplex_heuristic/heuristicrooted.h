@@ -42,19 +42,23 @@ protected:
 public:
   HeuristicRooted(IloEnv env,
                   IloBoolVarArray x,
+                  IloBoolVarArray z,
                   const Graph& g,
                   const WeightNodeMap& weight,
                   Node root,
                   const IntNodeMap& nodeMap,
+                  const IntEdgeMap& edgeMap,
                   int n,
                   int m,
                   IloFastMutex* pMutex)
     : IloCplex::HeuristicCallbackI(env)
     , _x(x)
+    , _z(z)
     , _g(g)
     , _weight(weight)
     , _root(root)
     , _nodeMap(nodeMap)
+    , _edgeMap(edgeMap)
     , _n(n)
     , _m(m)
     , _pEdgeCost(NULL)
@@ -77,10 +81,12 @@ public:
   HeuristicRooted(const HeuristicRooted& other)
     : IloCplex::HeuristicCallbackI(other._env)
     , _x(other._x)
+    , _z(other._z)
     , _g(other._g)
     , _weight(other._weight)
     , _root(other._root)
     , _nodeMap(other._nodeMap)
+    , _edgeMap(other._edgeMap)
     , _n(other._n)
     , _m(other._m)
     , _pEdgeCost(NULL)
@@ -190,11 +196,22 @@ protected:
       solutionWeight = _pMwcsSubTreeSolver->getSolutionWeight();
       solutionVar.add(_x);
       solution.add(_x.getSize(), 0);
+
+      solutionVar.add(_z);
+      solution.add(_z.getSize(), 0);
       
       const NodeSet& module = _pMwcsSubTreeSolver->getSolutionModule();
       for (NodeSetIt it = module.begin(); it != module.end(); ++it)
       {
         solution[_nodeMap[*it]] = 1;
+      }
+      
+      for (EdgeIt e(_g); e != lemon::INVALID; ++e)
+      {
+        if (module.find(_g.u(e)) != module.end() && module.find(_g.v(e)) != module.end())
+        {
+          solution[_x.getSize() + _edgeMap[e]] = 1;
+        }
       }
       
       return true;
@@ -205,10 +222,12 @@ protected:
   
 protected:
   IloBoolVarArray _x;
+  IloBoolVarArray _z;
   const Graph& _g;
   const WeightNodeMap& _weight;
   Node _root;
   const IntNodeMap& _nodeMap;
+  const IntEdgeMap& _edgeMap;
   const int _n;
   const int _m;
   DoubleEdgeMap* _pEdgeCost;
