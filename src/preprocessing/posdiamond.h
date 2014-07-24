@@ -87,6 +87,12 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
   typedef std::map<NodePair, WeightNodePairSet> NodePairMap;
   typedef typename NodePairMap::const_iterator NodePairMapIt;
 
+  if (degreeVector.size() <= 2)
+  {
+    // nothing to remove, there are no degree 2 nodes
+    return 0;
+  }
+  
   NodePairMap posMap;
   const NodeSet& nodes = degreeVector[2];
   for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)

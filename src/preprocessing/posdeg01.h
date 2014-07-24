@@ -92,6 +92,12 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
     }
   }
   
+  if (degreeVector.size() <= 1)
+  {
+    // nothing to remove, there are no degree 1 nodes
+    return 0;
+  }
+  
   const NodeSet& nodes1 = degreeVector[1];
   for (NodeSetIt nodeIt = nodes1.begin(); nodeIt != nodes1.end(); ++nodeIt)
   {

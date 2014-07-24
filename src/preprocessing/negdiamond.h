@@ -90,6 +90,12 @@ inline int NegDiamond<GR, WGHT>::apply(Graph& g,
   NodePairMap map;
   NodePairMap posMap;
 
+  if (degreeVector.size() <= 2)
+  {
+    // nothing to remove, there are no degree 2 nodes
+    return 0;
+  }
+  
   const NodeSet& nodes = degreeVector[2];
   for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
   {
