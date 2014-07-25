@@ -8,7 +8,7 @@
 #ifndef MWCSCPLEXSOLVER_H
 #define MWCSCPLEXSOLVER_H
 
-#include "mwcssolver.h"
+#include "mwcssolverunrooted.h"
 
 // ILOG stuff
 #include <ilconcert/iloalg.h>
@@ -21,7 +21,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsCplexSolver : public MwcsSolver<GR, NWGHT, NLBL, EWGHT>
+class MwcsCplexSolver : public MwcsSolverUnrooted<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -29,7 +29,7 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef MwcsSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef MwcsSolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);

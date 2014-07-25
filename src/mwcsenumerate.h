@@ -15,7 +15,7 @@
 #include "mwcsgraph.h"
 #include "mwcspreprocessedgraph.h"
 #include "solver/cplex_cut/backoff.h"
-#include "solver/mwcssolver.h"
+#include "solver/mwcssolverunrooted.h"
 #include "solver/mwcscutsolver.h"
 #include "solver/mwcssizecutsolver.h"
 #include "solver/mwcstreesolver.h"
@@ -43,7 +43,7 @@ public:
   typedef WGHT WeightNodeMap;
   typedef MwcsGraph<Graph, WeightNodeMap> MwcsGraphType;
   typedef MwcsPreprocessedGraph<Graph, WeightNodeMap> MwcsPreprocessedGraphType;
-  typedef MwcsSolver<Graph, WeightNodeMap> MwcsSolverType;
+  typedef MwcsSolverUnrooted<Graph, WeightNodeMap> MwcsSolverType;
   typedef typename MwcsGraphType::LabelNodeMap LabelNodeMap;
   typedef typename MwcsGraphType::WeightEdgeMap WeightEdgeMap;
 

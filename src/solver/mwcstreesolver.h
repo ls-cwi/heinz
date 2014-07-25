@@ -8,7 +8,7 @@
 #ifndef MWCSTREESOLVER_H
 #define MWCSTREESOLVER_H
 
-#include "mwcssolver.h"
+#include "mwcssolverunrooted.h"
 #include <set>
 #include <map>
 #include <limits>
@@ -23,7 +23,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsTreeSolver : public MwcsSolver<GR, NWGHT, NLBL, EWGHT>
+class MwcsTreeSolver : public MwcsSolverUnrooted<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -31,7 +31,7 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef MwcsSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef MwcsSolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);

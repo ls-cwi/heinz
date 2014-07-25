@@ -33,7 +33,7 @@ set( Heinz_Hdr
   src/analysis.h
 #  src/elementarypaths.h
   src/mwcsenumerate.h
-  src/solver/mwcssolver.h
+  src/solver/mwcssolverunrooted.h
   src/solver/mwcstreesolver.h
   src/solver/cplex_cut/backoff.h
   src/solver/cplex_cut/nodecut.h

@@ -1,12 +1,12 @@
 /*
- * mwcssolver.h
+ * mwcssolverunrooted.h
  *
  *  Created on: 7-aug-2012
  *     Authors: C.I. Bucur, M. El-Kebir
  */
 
-#ifndef MWCSSOLVER_H
-#define MWCSSOLVER_H
+#ifndef MWCSSOLVERUNROOTED_H
+#define MWCSSOLVERUNROOTED_H
 
 #include <set>
 #include <lemon/maps.h>
@@ -19,7 +19,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsSolver
+class MwcsSolverUnrooted
 {
 public:
   typedef GR Graph;
@@ -27,7 +27,7 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef MwcsSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsSolverType;
+  typedef MwcsSolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsSolverUnrootedType;
   typedef MwcsGraph<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsGraphType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
@@ -41,9 +41,9 @@ public:
   typedef typename ModuleVector::const_iterator ModuleVectorIt;
 
 public:
-  MwcsSolver(const MwcsGraphType& mwcsGraph);
+  MwcsSolverUnrooted(const MwcsGraphType& mwcsGraph);
 
-  virtual ~MwcsSolver();
+  virtual ~MwcsSolverUnrooted();
   virtual void init(Node root = lemon::INVALID) = 0;
   virtual bool solve() = 0;
   virtual void setLowerBound(double LB) = 0;
@@ -87,7 +87,7 @@ public:
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline MwcsSolver<GR, NWGHT, NLBL, EWGHT>::MwcsSolver(const MwcsGraphType& mwcsGraph)
+inline MwcsSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::MwcsSolverUnrooted(const MwcsGraphType& mwcsGraph)
   : _mwcsGraph(mwcsGraph)
   , _root(lemon::INVALID)
   , _score(0)
@@ -97,12 +97,12 @@ inline MwcsSolver<GR, NWGHT, NLBL, EWGHT>::MwcsSolver(const MwcsGraphType& mwcsG
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline MwcsSolver<GR, NWGHT, NLBL, EWGHT>::~MwcsSolver()
+inline MwcsSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::~MwcsSolverUnrooted()
 {
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsSolver<GR, NWGHT, NLBL, EWGHT>::printSolution(std::ostream& out, bool moduleOnly) const
+inline void MwcsSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::printSolution(std::ostream& out, bool moduleOnly) const
 {
   const Graph& g = _mwcsGraph.getGraph();
 
@@ -123,4 +123,4 @@ inline void MwcsSolver<GR, NWGHT, NLBL, EWGHT>::printSolution(std::ostream& out,
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSSOLVER_H
+#endif // MWCSSOLVERUNROOTED_H

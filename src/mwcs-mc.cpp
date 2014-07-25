@@ -43,7 +43,7 @@ typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
-typedef MwcsSolver<Graph> MwcsSolverType;
+typedef MwcsSolverUnrooted<Graph> MwcsSolverType;
 typedef MwcsTreeHeuristicSolver<Graph> MwcsTreeHeuristicSolverType;
 typedef MwcsTreeHeuristicSolverType::MwcsAnalyzeType MwcsAnalyzeType;
 
