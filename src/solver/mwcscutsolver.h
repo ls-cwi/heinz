@@ -109,8 +109,8 @@ private:
   int _timeLimit;
   int _multiThreading;
   
-  IntEdgeMap* _pEdge;
-  IloBoolVarArray _z;
+//  IntEdgeMap* _pEdge;
+//  IloBoolVarArray _z;
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -124,16 +124,16 @@ inline MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::MwcsCutSolver(const MwcsGraphType&
   , _maxNumberOfCuts(maxNumberOfCuts)
   , _timeLimit(timeLimit)
   , _multiThreading(multiThreading)
-  , _pEdge(NULL)
-  , _z()
+//  , _pEdge(NULL)
+//  , _z()
 {
 }
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::~MwcsCutSolver()
 {
-  delete _pEdge;
-  _pEdge = NULL;
+//  delete _pEdge;
+//  _pEdge = NULL;
 }
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -144,23 +144,23 @@ inline void MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
   const Graph& g = _mwcsGraph.getGraph();
   int m = _mwcsGraph.getEdgeCount();
   
-  _z = IloBoolVarArray(_env, m);
-  
-  delete _pEdge;
-  _pEdge = new IntEdgeMap(g);
-  
-  char buf[1024];
-  
-  int i = 0;
-  for (EdgeIt e(g); e != lemon::INVALID; ++e, ++i)
-  {
-    snprintf(buf, 1024, "z_%s_%s",
-             _mwcsGraph.getLabel(g.u(e)).c_str(),
-             _mwcsGraph.getLabel(g.v(e)).c_str());
-    _z[i].setName(buf);
-    
-    (*_pEdge)[e] = i;
-  }
+//  _z = IloBoolVarArray(_env, m);
+//  
+//  delete _pEdge;
+//  _pEdge = new IntEdgeMap(g);
+//  
+//  char buf[1024];
+//  
+//  int i = 0;
+//  for (EdgeIt e(g); e != lemon::INVALID; ++e, ++i)
+//  {
+//    snprintf(buf, 1024, "z_%s_%s",
+//             _mwcsGraph.getLabel(g.u(e)).c_str(),
+//             _mwcsGraph.getLabel(g.v(e)).c_str());
+//    _z[i].setName(buf);
+//    
+//    (*_pEdge)[e] = i;
+//  }
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -204,9 +204,9 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
                                                                        _n, _maxNumberOfCuts, pMutex, _backOff);
     
-    pHeuristic = new (_env) HeuristicRootedType(_env, _x, _z,
+    pHeuristic = new (_env) HeuristicRootedType(_env, _x, //_z,
                                                 g, weight, _root,
-                                                *_pNode, *_pEdge,
+                                                *_pNode, //*_pEdge,
                                                 _n, _m, pMutex);
   }
   else
@@ -236,9 +236,9 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
     pUserCut = new (_env) NodeCutUnrootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, _y, g, weight, *_pNode,
                                                                          _n, _maxNumberOfCuts, pMutex, _backOff);
 
-    pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y, _z,
+    pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y, //_z,
                                                   g, weight,
-                                                  *_pNode, *_pEdge,
+                                                  *_pNode, //*_pEdge,
                                                   _n, _m, pMutex);
   }
 
@@ -333,15 +333,15 @@ inline void MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
   const WeightNodeMap& weight = _mwcsGraph.getScores();
   
   // z_ij = x_i * x_j for all (i,j) in E
-  for (EdgeIt ij(g); ij != lemon::INVALID; ++ij)
-  {
-    Node i = g.u(ij);
-    Node j = g.v(ij);
-    
-    _model.add(_z[(*_pEdge)[ij]] <= _x[(*_pNode)[i]]);
-    _model.add(_z[(*_pEdge)[ij]] <= _x[(*_pNode)[j]]);
-    _model.add(_z[(*_pEdge)[ij]] >= _x[(*_pNode)[i]] + _x[(*_pNode)[j]] - 1);
-  }
+//  for (EdgeIt ij(g); ij != lemon::INVALID; ++ij)
+//  {
+//    Node i = g.u(ij);
+//    Node j = g.v(ij);
+//    
+//    _model.add(_z[(*_pEdge)[ij]] <= _x[(*_pNode)[i]]);
+//    _model.add(_z[(*_pEdge)[ij]] <= _x[(*_pNode)[j]]);
+//    _model.add(_z[(*_pEdge)[ij]] >= _x[(*_pNode)[i]] + _x[(*_pNode)[j]] - 1);
+//  }
 
   // objective must be positive
   IloExpr expr(_env);

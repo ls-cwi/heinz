@@ -35,12 +35,12 @@ public:
   
   using Parent::_env;
   using Parent::_x;
-  using Parent::_z;
+//  using Parent::_z;
   using Parent::_g;
   using Parent::_weight;
   using Parent::_root;
   using Parent::_nodeMap;
-  using Parent::_edgeMap;
+//  using Parent::_edgeMap;
   using Parent::_n;
   using Parent::_m;
   using Parent::_pMutex;
@@ -65,15 +65,16 @@ public:
   HeuristicUnrooted(IloEnv env,
                     IloBoolVarArray x,
                     IloBoolVarArray y,
-                    IloBoolVarArray z,
+//                    IloBoolVarArray z,
                     const Graph& g,
                     const WeightNodeMap& weight,
                     const IntNodeMap& nodeMap,
-                    const IntEdgeMap& edgeMap,
+//                    const IntEdgeMap& edgeMap,
                     int n,
                     int m,
                     IloFastMutex* pMutex)
-    : Parent(env, x, z, g, weight, lemon::INVALID, nodeMap, edgeMap, n, m, pMutex)
+//    : Parent(env, x, z, g, weight, lemon::INVALID, nodeMap, edgeMap, n, m, pMutex)
+    : Parent(env, x, g, weight, lemon::INVALID, nodeMap, n, m, pMutex)
     , _y(y)
     , _tol(_epsilon)
   {
@@ -105,7 +106,8 @@ protected:
     {
       solutionVar.add(_y);
       solution.add(_y.getSize(), 0);
-      solution[_x.getSize() + _z.getSize() + _nodeMap[_root]] = 1;
+//      solution[_x.getSize() + _z.getSize() + _nodeMap[_root]] = 1;
+      solution[_x.getSize() + _nodeMap[_root]] = 1;
       
       std::cout << "Root: " << _y[_nodeMap[_root]].getName()
                 << " = " << getValue(_y[_nodeMap[_root]])

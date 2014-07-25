@@ -34,7 +34,6 @@ set( Heinz_Hdr
 #  src/elementarypaths.h
   src/mwcsenumerate.h
   src/solver/mwcssolver.h
-  src/solver/mwcstreeheuristicsolver.h
   src/solver/mwcstreesolver.h
   src/solver/cplex_cut/backoff.h
   src/solver/cplex_cut/nodecut.h
@@ -44,10 +43,6 @@ set( Heinz_Hdr
   src/solver/cplex_cut/nodecutunrooted.h
   src/solver/cplex_cut/bk_alg.h
   src/solver/mwcscplexsolver.h
-  src/solver/mwcssizecutsolver.h
-  src/solver/mwcssizetreememsolver.h
-  src/solver/mwcssizetreesolver.h
-  src/solver/cplex_heuristic/mwcssizecutsolverheuristic.h
   src/solver/cplex_heuristic/heuristicrooted.h
   src/solver/cplex_heuristic/heuristicunrooted.h
   src/solver/cplex_branch/branch.h
@@ -64,10 +59,21 @@ set( Heinz_Src
   src/verbose.cpp
 )
 
+set( Heinz_Monte_Carlo_Hdr
+  src/solver/mwcstreeheuristicsolver.h
+)
+
 set( Heinz_Monte_Carlo_Src
   src/mwcs-mc.cpp
   src/utils.cpp
   src/verbose.cpp
+)
+
+set( Heinz_Size_Hdr
+  src/solver/mwcssizecutsolver.h
+  src/solver/mwcssizetreememsolver.h
+  src/solver/mwcssizetreesolver.h
+  src/solver/cplex_heuristic/mwcssizecutsolverheuristic.h
 )
 
 set( Heinz_Size_Src
@@ -169,7 +175,7 @@ set( CommonLibs
 add_executable( heinz ${Heinz_Src} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( heinz ${CommonLibs} )
 
-add_executable( heinz-mc ${Heinz_Monte_Carlo_Src} ${Heinz_Hdr} ${CommonObjs} )
+add_executable( heinz-mc ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( heinz-mc emon OGDF pthread )
 
 add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )

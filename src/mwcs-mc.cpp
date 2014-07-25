@@ -81,7 +81,11 @@ int main (int argc, char** argv)
     .refOption("a", "Specifies a", a, false)
     .refOption("FDR", "Specifies fdr", fdr, false)
     .refOption("o", "Output file", outputFile, false)
-    .refOption("h", "Specifies heuristic", h, false)
+    .refOption("h", "Specifies heuristic\n"
+                    "     0 - fixed_edge\n"
+                    "     1 - random_edge\n"
+                    "     2 - uniform_edge\n"
+                    "     3 - min_max_edge (default)", h, false)
     .refOption("m", "Number of Monte Carlo iterations", n, false)
     .refOption("z", "Disable negative hubs sampling", noAnalyze, false);
   ap.parse();

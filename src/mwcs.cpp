@@ -85,7 +85,7 @@ int main(int argc, char** argv)
   int verbosityLevel = 2;
   int maxNumberOfCuts = 3;
   int timeLimit = -1;
-  bool preprocess = false;
+  bool noPreprocess = false;
   int multiThreading = 1;
   int backOffFunction = 1;
   int backOffPeriod = 1;
@@ -103,8 +103,8 @@ int main(int argc, char** argv)
   ap
     .boolOption("version", "Show version number")
     .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
-    .refOption("e", "Edge list file", edgeFile, false)
-    .refOption("n", "Node file", nodeFile, false)
+    .refOption("e", "Edge list file", edgeFile, true)
+    .refOption("n", "Node file", nodeFile, true)
     .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
     .refOption("b", "Back-off function:\n"
                         "     0 - Constant waiting (period: 1, override with '-period')\n"
@@ -112,14 +112,7 @@ int main(int argc, char** argv)
                         "     2 - Quadratic waiting\n"
                         "     3 - Exponential waiting\n"
                         "     4 - Infinite waiting", backOffFunction, false)
-    .refOption("f", "Formulation of the problem:\n"
-                        "     5 - Cut formulation (Node-separator, BK, default)\n"
-                        "     6 - Tree DP\n"
-                        "     7 - Tree DP heuristic (fixed_edge)\n"
-                        "     8 - Tree DP heuristic (random_edge)\n"
-                        "     9 - Tree DP heuristic (uniform_edge)",
-               formulation, false)
-    .refOption("p", "Enable preprocessing", preprocess, false)
+    .refOption("p", "Disable preprocessing", noPreprocess, false)
     .refOption("s", "STP node file", stpNodeFile, false)
     .refOption("v", "Specifies the verbosity level:\n"
                     "     0 - No output\n"
@@ -143,7 +136,7 @@ int main(int argc, char** argv)
     return 0;
   }
 
-  bool pval = ap.given("FDR");// && ap.given("lambda") && ap.given("a");
+  bool pval = ap.given("FDR");
   if (pval)
   {
     // check if ok
@@ -179,7 +172,7 @@ int main(int argc, char** argv)
 
   // Parse the input graph file and preprocess
   MwcsGraphType* pMwcs;
-  if (preprocess)
+  if (!noPreprocess)
   {
     MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
     pMwcs = pPreprocessedMwcs;
@@ -190,8 +183,8 @@ int main(int argc, char** argv)
     pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
     pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
     pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
-    pPreprocessedMwcs->addPreprocessRule(3, new NegBiComponentType());
-    pPreprocessedMwcs->addPreprocessRule(4, new NegTriComponentType());
+//    pPreprocessedMwcs->addPreprocessRule(3, new NegBiComponentType());
+//    pPreprocessedMwcs->addPreprocessRule(4, new NegTriComponentType());
     if (root.empty())
     {
       pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
@@ -237,7 +230,7 @@ int main(int argc, char** argv)
     mwcsEnumerate.setMultiThreading(multiThreading);
     mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
     mwcsEnumerate.setBackOff(createBackOff(backOffFunction, backOffPeriod));
-    mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), preprocess);
+    mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), !noPreprocess);
     
     const Graph& g = pMwcs->getOrgGraph();
     double maxScore = 0;
@@ -280,36 +273,9 @@ int main(int argc, char** argv)
                 << "' present. Defaulting to unrooted formulation." << std::endl;
     }
 
-    MwcsSolverType* pSolver = NULL;
-    switch (formulation)
-    {
-      case 5:
-        pSolver = new MwcsCutSolverType(*pMwcs, createBackOff(backOffFunction, backOffPeriod), maxNumberOfCuts, timeLimit, multiThreading);
-        break;
-      case 6:
-        pSolver = new MwcsTreeSolverType(*pMwcs);
-        break;
-      case 7:
-      case 8:
-      case 9:
-        {
-          MwcsTreeHeuristicSolverType* pTreeSolver = new MwcsTreeHeuristicSolverType(*pMwcs);
-          if (formulation == 7)
-            pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_FIXED);
-          else if (formulation == 8)
-            pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_RANDOM);
-          else if (formulation == 9)
-            pTreeSolver->computeEdgeWeights(MwcsTreeHeuristicSolverType::EDGE_COST_UNIFORM_RANDOM);
-          pSolver = pTreeSolver;
-        }
-        break;
-      default:
-      {
-        std::cerr << "Wrong formulation specified" << std::endl;
-        return 1;
-      }
-    }
-
+    MwcsSolverType* pSolver = new MwcsCutSolverType(*pMwcs,
+                                                    createBackOff(backOffFunction, backOffPeriod),
+                                                    maxNumberOfCuts, timeLimit, multiThreading);
     pSolver->init(rootNode);
     pSolver->solve();
     if (outputFile != "-" && !outputFile.empty())
