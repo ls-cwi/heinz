@@ -1,5 +1,5 @@
 /*
- *  montecarlo.cpp
+ *  mwcs-mc.cpp
  *
  *   Created on: 29-apr-2013
  *       Author: M. El-Kebir
@@ -22,7 +22,8 @@
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
 #include "preprocessing/posdiamond.h"
-#include "solver/mwcstreeheuristicsolver.h"
+#include "solver/treeheuristicsolverrooted.h"
+#include "solver/treeheuristicsolverunrooted.h"
 #include "mwcs.h"
 #include "utils.h"
 #include "config.h"
@@ -43,9 +44,11 @@ typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
-typedef MwcsSolverUnrooted<Graph> MwcsSolverType;
-typedef MwcsTreeHeuristicSolver<Graph> MwcsTreeHeuristicSolverType;
-typedef MwcsTreeHeuristicSolverType::MwcsAnalyzeType MwcsAnalyzeType;
+typedef TreeHeuristicSolver<Graph> TreeHeuristicSolverType;
+typedef TreeHeuristicSolverUnrooted<Graph> TreeHeuristicSolverUnrootedType;
+typedef TreeHeuristicSolverRooted<Graph> TreeHeuristicSolverRootedType;
+typedef typename TreeHeuristicSolverRootedType::NodeSet NodeSet;
+typedef TreeHeuristicSolverUnrootedType::MwcsAnalyzeType MwcsAnalyzeType;
 
 int main (int argc, char** argv)
 {
@@ -157,7 +160,6 @@ int main (int argc, char** argv)
 
   // Solve
   lemon::Timer t;
-  MwcsTreeHeuristicSolverType* pTreeSolver = new MwcsTreeHeuristicSolverType(*pMwcs);
 
   MwcsAnalyzeType* pAnalyze = NULL;
   if (!noAnalyze)
@@ -165,15 +167,33 @@ int main (int argc, char** argv)
     pAnalyze = new MwcsAnalyzeType(*pMwcs);
     pAnalyze->analyzeNegHubs();
     std::cout << "// Number of beneficial negative hubs: "
-              << pAnalyze->getNumberOfBeneficialNegHubs() << std::endl;
+    << pAnalyze->getNumberOfBeneficialNegHubs() << std::endl;
   }
 
   const Node rootNode = pMwcs->getNodeByLabel(root);
-  pTreeSolver->init(rootNode);
+  TreeHeuristicSolverType* pTreeSolver = NULL;
+  if (rootNode != lemon::INVALID)
+  {
+    NodeSet rootNodes;
+    rootNodes.insert(rootNode);
+    pTreeSolver = new TreeHeuristicSolverRootedType(*pMwcs,
+                                                    rootNodes,
+                                                    static_cast<TreeHeuristicSolverType::EdgeHeuristic>(h),
+                                                    pAnalyze);
+  }
+  else
+  {
+    pTreeSolver = new TreeHeuristicSolverUnrootedType(*pMwcs,
+                                                      static_cast<TreeHeuristicSolverType::EdgeHeuristic>(h),
+                                                      pAnalyze);
+  }
+
+  pTreeSolver->init();
   for (int i = 0; i < n; i++)
   {
     std::cerr << "\rIteration " << i << ": " << std::flush;
-    pTreeSolver->computeEdgeWeights(static_cast<MwcsTreeHeuristicSolverType::EdgeHeuristic>(h),
+    pTreeSolver->computeEdgeWeights(*pMwcs,
+                                    static_cast<TreeHeuristicSolverType::EdgeHeuristic>(h),
                                     pAnalyze);
     pTreeSolver->solve();
     std::cerr << pTreeSolver->getSolutionWeight() << std::flush;

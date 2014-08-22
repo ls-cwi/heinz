@@ -31,9 +31,10 @@
 #include "preprocessing/posdiamond.h"
 #include "preprocessing/negbicomponent.h"
 #include "preprocessing/negtricomponent.h"
-#include "solver/mwcscutsolver.h"
-#include "solver/mwcstreesolver.h"
-#include "solver/mwcstreeheuristicsolver.h"
+#include "solver/solver.h"
+#include "solver/cplexsolver.h"
+#include "solver/cutsolverrooted.h"
+#include "solver/cutsolverunrooted.h"
 #include "solver/cplex_cut/backoff.h"
 #include "mwcsenumerate.h"
 #include "mwcs.h"
@@ -59,10 +60,8 @@ typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
 typedef NegBiComponent<Graph> NegBiComponentType;
 typedef NegTriComponent<Graph> NegTriComponentType;
-typedef MwcsSolverUnrooted<Graph> MwcsSolverType;
-typedef MwcsCutSolver<Graph> MwcsCutSolverType;
-typedef MwcsTreeSolver<Graph> MwcsTreeSolverType;
-typedef MwcsTreeHeuristicSolver<Graph> MwcsTreeHeuristicSolverType;
+typedef Solver<Graph> SolverType;
+typedef CutSolverRooted<Graph> CutSolverRootedType;
 typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
 typedef MwcsEnumerate<Graph> MwcsEnumerateType;
 

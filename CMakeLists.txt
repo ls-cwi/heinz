@@ -33,8 +33,11 @@ set( Heinz_Hdr
   src/analysis.h
 #  src/elementarypaths.h
   src/mwcsenumerate.h
-  src/solver/mwcssolverunrooted.h
-  src/solver/mwcstreesolver.h
+  src/solver/solver.h
+  src/solver/solverunrooted.h
+  src/solver/solverrooted.h
+  src/solver/treesolver.h
+  src/solver/treesolverrooted.h
   src/solver/cplex_cut/backoff.h
   src/solver/cplex_cut/nodecut.h
   src/solver/cplex_cut/nodecutuser.h
@@ -42,11 +45,12 @@ set( Heinz_Hdr
   src/solver/cplex_cut/nodecutrooted.h
   src/solver/cplex_cut/nodecutunrooted.h
   src/solver/cplex_cut/bk_alg.h
-  src/solver/mwcscplexsolver.h
+  src/solver/cplexsolver.h
+  src/solver/cutsolverrooted.h
+  src/solver/cutsolverunrooted.h
   src/solver/cplex_heuristic/heuristicrooted.h
   src/solver/cplex_heuristic/heuristicunrooted.h
   src/solver/cplex_branch/branch.h
-  src/solver/mwcscutsolver.h
   src/mwcsgraph.h
   src/mwcspreprocessedgraph.h
   src/utils.h
@@ -60,7 +64,9 @@ set( Heinz_Src
 )
 
 set( Heinz_Monte_Carlo_Hdr
-  src/solver/mwcstreeheuristicsolver.h
+  src/solver/treeheuristicsolver.h
+  src/solver/treeheuristicsolverrooted.h
+  src/solver/treeheuristicsolverunrooted.h
 )
 
 set( Heinz_Monte_Carlo_Src

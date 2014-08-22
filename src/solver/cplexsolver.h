@@ -1,14 +1,16 @@
 /*
- * mwcsflowsolver.cpp
+ * cplexsolver.cpp
  *
  *  Created on: 10-aug-2012
  *     Authors: M. El-Kebir
  */
 
-#ifndef MWCSCPLEXSOLVER_H
-#define MWCSCPLEXSOLVER_H
+#ifndef CPLEXSOLVER_H
+#define CPLEXSOLVER_H
 
-#include "mwcssolverunrooted.h"
+#include "solver.h"
+#include "cplex_cut/backoff.h"
+#include "analysis.h"
 
 // ILOG stuff
 #include <ilconcert/iloalg.h>
@@ -21,7 +23,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsCplexSolver : public MwcsSolverUnrooted<GR, NWGHT, NLBL, EWGHT>
+class CplexSolver : public Solver<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -29,18 +31,23 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef MwcsSolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef Solver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
+  typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
+  
+  typedef typename Parent::NodeSet NodeSet;
+  typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::NodeSetNonConstIt NodeSetNonConstIt;
+  typedef typename Parent::NodeVector NodeVector;
+  typedef typename Parent::NodeVectorIt NodeVectorIt;
+  typedef typename Parent::NodeVectorNonConstIt NodeVectorNonConstIt;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   typedef std::vector<Node> InvNodeIntMap;
   typedef std::vector<Arc> InvArcIntMap;
-  typedef typename Parent::NodeVector NodeVector;
-  typedef typename Parent::NodeVectorIt NodeVectorIt;
 
   using Parent::_mwcsGraph;
-  using Parent::_root;
   using Parent::_score;
   using Parent::_solutionMap;
   using Parent::_solutionSet;
@@ -50,10 +57,48 @@ public:
   using Parent::getSolutionModule;
   using Parent::isNodeInSolution;
   using Parent::init;
+  
+  struct Options
+  {
+    Options(const BackOff& backOff,
+            int maxNumberOfCuts = -1,
+            int timeLimit = -1,
+            int multiThreading = 1)
+      : _backOff(backOff)
+      , _maxNumberOfCuts(maxNumberOfCuts)
+      , _timeLimit(timeLimit)
+      , _multiThreading(multiThreading)
+    {
+    }
+    
+    const BackOff& _backOff;
+    int _maxNumberOfCuts;
+    int _timeLimit;
+    int _multiThreading;
+  };
 
 public:
-  MwcsCplexSolver(const MwcsGraphType& mwcsGraph);
-  virtual ~MwcsCplexSolver();
+  CplexSolver(const MwcsGraphType& mwcsGraph,
+              const Options& options,
+              const MwcsAnalyzeType& analysis)
+    : Parent(mwcsGraph)
+    , _options(options)
+    , _analysis(analysis)
+    , _n(mwcsGraph.getNodeCount())
+    , _m(mwcsGraph.getArcCount())
+    , _pNode(NULL)
+    , _invNode()
+    , _env()
+    , _model(_env)
+    , _cplex(_model)
+    , _x()
+  {
+  }
+  
+  virtual ~CplexSolver()
+  {
+    _env.end();
+  }
 
   void exportModel(const std::string& filename)
   {
@@ -61,10 +106,12 @@ public:
   }
 
   virtual bool solve();
-  virtual void init(Node root);
+  virtual void init();
   virtual void printVariables(std::ostream& out);
 
 protected:
+  const Options& _options;
+  const MwcsAnalyzeType& _analysis;
   int _n;
   int _m;
   IntNodeMap* _pNode;
@@ -73,21 +120,12 @@ protected:
   IloModel _model;
   IloCplex _cplex;
   IloBoolVarArray _x;
-  IloBoolVarArray _y;
-  double _LB;
 
   virtual void initVariables();
   virtual void initConstraints();
   virtual void clean();
-  virtual void setLowerBound(double LB)
-  {
-    _LB = LB;
-  }
 
-  virtual bool solveCplex()
-  {
-    return _cplex.solve();
-  }
+  virtual bool solveCplex() = 0;
 
 private:
   struct NodesDegComp
@@ -109,29 +147,7 @@ private:
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::MwcsCplexSolver(const MwcsGraphType& mwcsGraph)
-  : Parent(mwcsGraph)
-  , _n(mwcsGraph.getNodeCount())
-  , _m(mwcsGraph.getArcCount())
-  , _pNode(NULL)
-  , _invNode()
-  , _env()
-  , _model(_env)
-  , _cplex(_model)
-  , _x()
-  , _y()
-  , _LB(0)
-{
-}
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::~MwcsCplexSolver()
-{
-  _env.end();
-}
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::clean()
+void CplexSolver<GR, NWGHT, NLBL, EWGHT>::clean()
 {
   _cplex.end();
   _env.end();
@@ -144,32 +160,26 @@ void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::clean()
 
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::init(Node root)
+inline void CplexSolver<GR, NWGHT, NLBL, EWGHT>::init()
 {
-  _root = root;
-
   initVariables();
   initConstraints();
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::printVariables(std::ostream& out)
+inline void CplexSolver<GR, NWGHT, NLBL, EWGHT>::printVariables(std::ostream& out)
 {
   for (int id_v = 0; id_v < _n; id_v++)
   {
     out << "Node '" << _mwcsGraph.getLabel(_invNode[id_v])
-        << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v]);
-
-    if (_root == lemon::INVALID)
-      out << ", y = " << _cplex.getValue(_y[id_v])
-          << ", w = " << _mwcsGraph.getScore(_invNode[id_v]);
-
-    out << std::endl;
+        << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v])
+        << ", w = " << _mwcsGraph.getScore(_invNode[id_v])
+        << std::endl;
   }
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
+inline void CplexSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
 {
   const Graph& g = _mwcsGraph.getGraph();
   _n = _mwcsGraph.getNodeCount();
@@ -179,9 +189,6 @@ inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
   _pNode = new IntNodeMap(g);
 
   _x = IloBoolVarArray(_env, _n);
-  if (_root == lemon::INVALID)
-    _y = IloBoolVarArray(_env, _n);
-
 
   // let's sort the nodes on degree
   IntNodeMap deg(g);
@@ -211,69 +218,49 @@ inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initVariables()
 //    snprintf(buf, 1024, "x_%d", g.id(v));
     _x[i].setName(buf);
 
-    if (_root == lemon::INVALID)
-    {
-      // y_i = 0 if node i is not the root node
-      // y_i = 1 if node i is picked as the root node
-      snprintf(buf, 1024, "y_%s", _mwcsGraph.getLabel(v).c_str());
-//      snprintf(buf, 1024, "y_%d", g.id(v));
-      _y[i].setName(buf);
-    }
-
     (*_pNode)[v] = i;
   }
 }
-
+  
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
-{ 
-  if (_root == lemon::INVALID)
+inline void CplexSolver<GR, NWGHT, NLBL, EWGHT>::initConstraints()
+{
+  const Graph& g = _mwcsGraph.getGraph();
+  const WeightNodeMap& weight = _mwcsGraph.getScores();
+  
+  // objective function
+  IloExpr expr(_env);
+  for (int i = 0; i < _n ; i++)
   {
-    IloExpr expr(_env);
-    // there is at most one root node
-    // \sum_{i \in V} y_i <= 1
-    for (int i = 0; i < _n; i++)
-    {
-      expr += _y[i];
-    }
-    IloConstraint c1;
-    _model.add(c1 = (expr == 1));
-    c1.setName("one_root");
+    expr += _x[i] * _mwcsGraph.getScore(_invNode[i]);
+  }
+  _model.add(IloObjective(_env, expr, IloObjective::Maximize));
 
-    // TODO maybe equality up there, but need to double check whether there are positive nodes
-
-    // the root node has to be one of the selected nodes
-    // in the final graph
-    // y_i <= x_i for all nodes i in V
-    for (int i = 0; i < _n; i++)
+  // add equality constraints
+  int nAnalyzeConstraints = 0;
+  for (NodeIt i(g); i != lemon::INVALID; ++i)
+  {
+    if (_mwcsGraph.getScore(i) > 0)
     {
-      IloConstraint c2;
-      _model.add(c2 = (_y[i] <= _x[i]));
-      c2.setName("root_in_x");
-    }
-
-    // root node has to be positive
-    for (int i = 0; i < _n; i++)
-    {
-      double weight = _mwcsGraph.getScore(_invNode[i]);
-      if (weight < 0)
+      for (NodeIt j(g); j != lemon::INVALID; ++j)
       {
-        _model.add(_y[i] == 0);
+        if (_mwcsGraph.getScore(j) > 0 && _analysis.ok(i, j))
+        {
+          _model.add(_x[(*_pNode)[i]] <= _x[(*_pNode)[j]]);
+          nAnalyzeConstraints++;
+        }
       }
     }
   }
-  else
+
+  if (g_verbosity >= VERBOSE_ESSENTIAL)
   {
-    // x_r = 1
-    int r = (*_pNode)[_root];
-    IloConstraint c2;
-    _model.add(c2 = (_x[r] == 1));
-    c2.setName("root");
+    std::cout << "// Added " << nAnalyzeConstraints << " analyze constraints" << std::endl;
   }
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline bool MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::solve()
+inline bool CplexSolver<GR, NWGHT, NLBL, EWGHT>::solve()
 {
   // shut up cplex
   if (g_verbosity < VERBOSE_NON_ESSENTIAL)
@@ -288,14 +275,17 @@ inline bool MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::solve()
     _cplex.setWarning(std::cerr);
     _cplex.setError(std::cerr);
   }
-
-  // objective function
-  IloExpr expr(_env);
-  for (int i = 0; i < _n ; i++)
+  
+  if (_options._timeLimit > 0)
   {
-    expr += _x[i] * _mwcsGraph.getScore(_invNode[i]);
+    _cplex.setParam(IloCplex::TiLim, _options._timeLimit);
   }
-  _model.add(IloObjective(_env, expr, IloObjective::Maximize));
+  
+  if (_options._multiThreading > 1)
+  {
+    _cplex.setParam(IloCplex::ParallelMode, -1);
+    _cplex.setParam(IloCplex::Threads, _options._multiThreading);
+  }
 
   bool optimal = solveCplex();
   if (!optimal)
@@ -327,7 +317,6 @@ inline bool MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::solve()
     Node node = _invNode[i];
     _solutionMap[node] = _cplex.getValue(_x[i]);
 
-
     if (tol.nonZero(_cplex.getValue(_x[i])))
     {
       _solutionSet.insert(node);
@@ -343,4 +332,4 @@ inline bool MwcsCplexSolver<GR, NWGHT, NLBL, EWGHT>::solve()
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSCPLEXSOLVER_H
+#endif // CPLEXSOLVER_H

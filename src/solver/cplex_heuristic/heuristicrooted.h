@@ -14,7 +14,7 @@
 #include <lemon/adaptors.h>
 #include <lemon/bfs.h>
 #include <set>
-#include "../mwcstreesolver.h"
+#include "solver/treesolverrooted.h"
 
 namespace nina {
 namespace mwcs {
@@ -35,7 +35,7 @@ protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   typedef lemon::FilterEdges<const Graph, const BoolEdgeMap> SubGraphType;
   typedef MwcsGraph<const SubGraphType, const WeightNodeMap, LabelNodeMap, DoubleEdgeMap> MwcsSubGraphType;
-  typedef MwcsTreeSolver<const SubGraphType, const WeightNodeMap, LabelNodeMap, DoubleEdgeMap> MwcsSubTreeSolver;
+  typedef TreeSolverRooted<const SubGraphType, const WeightNodeMap, LabelNodeMap, DoubleEdgeMap> MwcsSubTreeSolver;
   typedef typename std::set<Node> NodeSet;
   typedef typename NodeSet::const_iterator NodeSetIt;
   

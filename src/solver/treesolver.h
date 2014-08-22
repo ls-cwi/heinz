@@ -1,15 +1,16 @@
 /*
- * mwcstreesolver.h
+ * treesolver.h
  *
  *  Created on: 11-jan-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef MWCSTREESOLVER_H
-#define MWCSTREESOLVER_H
+#ifndef TREESOLVER_H
+#define TREESOLVER_H
 
-#include "mwcssolverunrooted.h"
+#include "solver.h"
 #include <set>
+#include <vector>
 #include <map>
 #include <limits>
 #include <assert.h>
@@ -23,7 +24,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class MwcsTreeSolver : public MwcsSolverUnrooted<GR, NWGHT, NLBL, EWGHT>
+class TreeSolver : public virtual Solver<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -31,13 +32,19 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef MwcsSolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef Solver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
+  
+  typedef typename Parent::NodeSet NodeSet;
+  typedef typename Parent::NodeSetIt NodeSetIt;
+  typedef typename Parent::NodeSetNonConstIt NodeSetNonConstIt;
+  typedef typename Parent::NodeVector NodeVector;
+  typedef typename Parent::NodeVectorIt NodeVectorIt;
+  typedef typename Parent::NodeVectorNonConstIt NodeVectorNonConstIt;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   using Parent::_mwcsGraph;
-  using Parent::_root;
   using Parent::_score;
   using Parent::_solutionMap;
   using Parent::_solutionSet;
@@ -48,11 +55,7 @@ public:
   using Parent::isNodeInSolution;
   using Parent::init;
 
-private:
-  typedef std::set<Node> NodeSet;
-  typedef typename NodeSet::const_iterator NodeSetIt;
-
-  typedef typename Graph::template NodeMap<NodeSet> NodeSetMap;
+protected:
   typedef typename lemon::Bfs<Graph>::PredMap PredMap;
   typedef typename lemon::Bfs<Graph>::DistMap DistMap;
 
@@ -83,37 +86,46 @@ private:
   typedef lemon::Bfs<Graph> BfsType;
 
 public:
-  MwcsTreeSolver(const MwcsGraphType& mwcsGraph);
-  virtual void init(Node root);
-  virtual bool solve();
-  virtual void setLowerBound(double LB) {}
+  TreeSolver(const MwcsGraphType& mwcsGraph);
+  virtual void init();
 
-private:
+  virtual void setRoot(Node root)
+  {
+    assert(root != lemon::INVALID);
+    _root = root;
+  }
+
+protected:
   DpEntryMap _dpMap;
   NodeSetVector _nodesPerLevel;
   PredMap _pred;
   DistMap _level;
   BfsType _bfs;
+  Node _root;
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline MwcsTreeSolver<GR, NWGHT, NLBL, EWGHT>::MwcsTreeSolver(const MwcsGraphType& mwcsGraph)
+inline TreeSolver<GR, NWGHT, NLBL, EWGHT>::TreeSolver(const MwcsGraphType& mwcsGraph)
   : Parent(mwcsGraph)
   , _dpMap(mwcsGraph.getGraph())
   , _nodesPerLevel()
   , _pred(mwcsGraph.getGraph())
   , _level(mwcsGraph.getGraph())
   , _bfs(mwcsGraph.getGraph())
+  , _root(lemon::INVALID)
 {
   _bfs.predMap(_pred);
   _bfs.distMap(_level);
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsTreeSolver<GR, NWGHT, NLBL, EWGHT>::init(Node root)
+inline void TreeSolver<GR, NWGHT, NLBL, EWGHT>::init()
 {
   const Graph& g = _mwcsGraph.getGraph();
+  assert(lemon::acyclic(g));
+  assert(_root != lemon::INVALID);
 
+  // initialize data structures
   _nodesPerLevel.clear();
   _score = 0;
   _solutionSet.clear();
@@ -122,15 +134,10 @@ inline void MwcsTreeSolver<GR, NWGHT, NLBL, EWGHT>::init(Node root)
     _solutionMap[v] = false;
     _dpMap[v].clear();
   }
-
-  _root = root;
-
-  //assert(lemon::acyclic(g));
-  assert(root != lemon::INVALID);
-
+  
   // start by doing a bfs to determine levels
   _bfs.init();
-  _bfs.addSource(root);
+  _bfs.addSource(_root);
 
   while (!_bfs.emptyQueue())
   {
@@ -154,47 +161,7 @@ inline void MwcsTreeSolver<GR, NWGHT, NLBL, EWGHT>::init(Node root)
   }
 }
 
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline bool MwcsTreeSolver<GR, NWGHT, NLBL, EWGHT>::solve()
-{
-  const WeightNodeMap& weight = _mwcsGraph.getScores();
-
-  // work bottom-up
-  for (NodeSetVectorRevIt nodeSetIt = _nodesPerLevel.rbegin();
-       nodeSetIt != _nodesPerLevel.rend(); nodeSetIt++)
-  {
-    for (NodeSetIt nodeIt = nodeSetIt->begin(); nodeIt != nodeSetIt->end(); nodeIt++)
-    {
-      Node node = *nodeIt;
-      _dpMap[node]._solution.insert(node);
-      _dpMap[node]._weight = weight[node];
-
-      const NodeSet& children = _dpMap[node]._children;
-      for (NodeSetIt childIt = children.begin(); childIt != children.end(); childIt++)
-      {
-        double childWeight = _dpMap[*childIt]._weight;
-        if (childWeight > 0)
-        {
-          _dpMap[node]._weight += childWeight;
-          _dpMap[node]._solution.insert(
-            _dpMap[*childIt]._solution.begin(), _dpMap[*childIt]._solution.end());
-        }
-      }
-    }
-  }
-
-  // construct the solution
-  _score = _dpMap[_root]._weight;
-  _solutionSet = _dpMap[_root]._solution;
-  for (NodeSetIt nodeIt = _solutionSet.begin(); nodeIt != _solutionSet.end(); nodeIt++)
-  {
-    _solutionMap[*nodeIt] = true;
-  }
-
-  return true;
-}
-
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSTREESOLVER_H
+#endif // TREESOLVER_H
