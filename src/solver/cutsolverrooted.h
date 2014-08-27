@@ -5,11 +5,13 @@
  *      Author: M. El-Kebir
  */
 
-#ifdef CUTSOLVERUNROOTED_H
-#define CUTSOLVERUNROOTED_H
+#ifndef CUTSOLVERROOTED_H
+#define CUTSOLVERROOTED_H
 
 #include "solverrooted.h"
 #include "cplexsolver.h"
+#include "cplex_cut/nodecutrooted.h"
+#include "cplex_heuristic/heuristicrooted.h"
 
 #include <ilconcert/ilothread.h>
 
@@ -43,6 +45,10 @@ public:
   typedef typename Parent2::InvNodeIntMap InvNodeIntMap;
   typedef typename Parent2::InvArcIntMap InvArcIntMap;
   typedef typename Parent2::Options Options;
+  
+  typedef NodeCutRootedLazyConstraint<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutRootedLazyConstraintType;
+  typedef NodeCutRootedUserCut<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutRootedUserCutType;
+  typedef HeuristicRooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicRootedType;
   
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   
@@ -83,7 +89,7 @@ public:
   {
   }
   
-  virtual ~CutSolverUnrooted()
+  virtual ~CutSolverRooted()
   {
   }
   
@@ -97,7 +103,11 @@ template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 {
   Parent2::initConstraints();
+
+  const Graph& g = _mwcsGraph.getGraph();
+  const WeightNodeMap& weight = _mwcsGraph.getScores();
   
+  IloExpr expr(_env);
   char buf[1024];
   
   int i = 0;
@@ -148,13 +158,13 @@ inline void CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 }
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
+inline bool CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 {
   const Graph& g = _mwcsGraph.getGraph();
   const WeightNodeMap& weight = _mwcsGraph.getScores();
 
   IloFastMutex* pMutex = NULL;
-  if (_multiThreading > 1)
+  if (_options._multiThreading > 1)
   {
     pMutex = new IloFastMutex();
   }
@@ -181,14 +191,14 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 //  _cplex.setParam( IloCplex::RepeatPresolve,  0 );
   _cplex.setParam( IloCplex::MIPEmphasis, IloCplex::MIPEmphasisBestBound );
 
-  pLazyCut = new (_env) NodeCutRootedLazyConstraint<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                            _n, _options._maxNumberOfCuts, pMutex);
-  pUserCut = new (_env) NodeCutRootedUserCut<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, _root, *_pNode,
-                                                                     _n, _options._maxNumberOfCuts, pMutex,
-                                                                     _options._backOff);
+  pLazyCut = new (_env) NodeCutRootedLazyConstraintType(_env, _x, g, weight, _rootNodes, *_pNode,
+                                                        _n, _options._maxNumberOfCuts, pMutex);
+  pUserCut = new (_env) NodeCutRootedUserCutType(_env, _x, g, weight, _rootNodes, *_pNode,
+                                                 _n, _options._maxNumberOfCuts, pMutex,
+                                                 _options._backOff);
     
   pHeuristic = new (_env) HeuristicRootedType(_env, _x, //_z,
-                                              g, weight, _root,
+                                              g, weight, _rootNodes,
                                               *_pNode, //*_pEdge,
                                               _n, _m, pMutex);
 
@@ -224,7 +234,7 @@ inline bool MwcsCutSolver<GR, NWGHT, NLBL, EWGHT>::solveCplex()
   cb.end();
   cb2.end();
   cb3.end();
-  cb4.end();
+//  cb4.end();
 
   if (res)
   {

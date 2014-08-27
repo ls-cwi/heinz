@@ -39,10 +39,9 @@ public:
   typedef typename NodeVector::iterator NodeVectorNonConstIt;
   
 public:
-  Solver(const MwcsGraphType& mwcsGraph)
-    : _mwcsGraph(mwcsGraph)
-    , _score(0)
-    , _solutionMap(mwcsGraph.getGraph(), false)
+  Solver()
+    : _score(0)
+    , _pSolutionMap(NULL)
     , _solutionSet()
   {
   }
@@ -52,41 +51,31 @@ public:
   }
   
 protected:
-  const MwcsGraphType& _mwcsGraph;
-  
   double _score;
-  
-  BoolNodeMap _solutionMap;
+  BoolNodeMap* _pSolutionMap;
   NodeSet _solutionSet;
   
 public:
-  virtual void init() = 0;
-  
-  virtual bool solve() = 0;
-
-  void printSolution(std::ostream& out, bool moduleOnly) const
+  void printSolution(const MwcsGraphType& mwcsGraph,
+                     std::ostream& out,
+                     bool moduleOnly) const
   {
-    const Graph& g = _mwcsGraph.getGraph();
+    const Graph& g = mwcsGraph.getGraph();
     
     for (NodeIt n(g); n != lemon::INVALID; ++n)
     {
       if (isNodeInSolution(n))
       {
-        out << "// " << _mwcsGraph.getLabel(n) << " "
-        << _mwcsGraph.getScore(n) << std::endl;
+        out << "// " << mwcsGraph.getLabel(n) << " "
+            << mwcsGraph.getScore(n) << std::endl;
       }
       else if (!moduleOnly)
       {
-        out << "// " << _mwcsGraph.getLabel(n) << " 0" << std::endl;
+        out << "// " << mwcsGraph.getLabel(n) << " 0" << std::endl;
       }
     }
   }
 
-  const MwcsGraphType& getMwcsGraph() const
-  {
-    return _mwcsGraph;
-  }
-  
   double getSolutionWeight() const
   {
     return _score;
@@ -94,7 +83,7 @@ public:
   
   const BoolNodeMap& getSolutionNodeMap() const
   {
-    return _solutionMap;
+    return *_pSolutionMap;
   }
   
   const NodeSet& getSolutionModule() const
@@ -105,7 +94,7 @@ public:
   bool isNodeInSolution(Node n) const
   {
     assert(n != lemon::INVALID);
-    return _solutionMap[n];
+    return (*_pSolutionMap)[n];
   }
 };
   

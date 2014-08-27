@@ -22,8 +22,11 @@
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
 #include "preprocessing/posdiamond.h"
-#include "solver/treeheuristicsolverrooted.h"
-#include "solver/treeheuristicsolverunrooted.h"
+#include "solver/solver.h"
+#include "solver/solverrooted.h"
+#include "solver/solverunrooted.h"
+#include "solver/impl/treeheuristicsolverrootedimpl.h"
+#include "solver/impl/treeheuristicsolverunrootedimpl.h"
 #include "mwcs.h"
 #include "utils.h"
 #include "config.h"
@@ -44,11 +47,15 @@ typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
-typedef TreeHeuristicSolver<Graph> TreeHeuristicSolverType;
-typedef TreeHeuristicSolverUnrooted<Graph> TreeHeuristicSolverUnrootedType;
-typedef TreeHeuristicSolverRooted<Graph> TreeHeuristicSolverRootedType;
-typedef typename TreeHeuristicSolverRootedType::NodeSet NodeSet;
-typedef TreeHeuristicSolverUnrootedType::MwcsAnalyzeType MwcsAnalyzeType;
+
+typedef Solver<Graph> SolverType;
+typedef SolverRooted<Graph> SolverRootedType;
+typedef SolverUnrooted<Graph> SolverUnrootedType;
+typedef TreeHeuristicSolverImpl<Graph> TreeHeuristicSolverImplType;
+typedef TreeHeuristicSolverUnrootedImpl<Graph> TreeHeuristicSolverUnrootedImplType;
+typedef TreeHeuristicSolverRootedImpl<Graph> TreeHeuristicSolverRootedImplType;
+typedef typename SolverType::NodeSet NodeSet;
+typedef typename TreeHeuristicSolverImplType::Options Options;
 
 int main (int argc, char** argv)
 {
@@ -119,6 +126,9 @@ int main (int argc, char** argv)
       return 1;
     }
   }
+  
+  Options options(static_cast<TreeHeuristicSolverImplType::EdgeHeuristic>(h),
+                  !noAnalyze, n);
 
   g_verbosity = static_cast<VerbosityLevel>(verbosityLevel);
 
@@ -161,64 +171,52 @@ int main (int argc, char** argv)
   // Solve
   lemon::Timer t;
 
-  MwcsAnalyzeType* pAnalyze = NULL;
-  if (!noAnalyze)
-  {
-    pAnalyze = new MwcsAnalyzeType(*pMwcs);
-    pAnalyze->analyzeNegHubs();
-    std::cout << "// Number of beneficial negative hubs: "
-    << pAnalyze->getNumberOfBeneficialNegHubs() << std::endl;
-  }
-
   const Node rootNode = pMwcs->getNodeByLabel(root);
-  TreeHeuristicSolverType* pTreeSolver = NULL;
+  SolverType* pSolver = NULL;
   if (rootNode != lemon::INVALID)
   {
     NodeSet rootNodes;
     rootNodes.insert(rootNode);
-    pTreeSolver = new TreeHeuristicSolverRootedType(*pMwcs,
-                                                    rootNodes,
-                                                    static_cast<TreeHeuristicSolverType::EdgeHeuristic>(h),
-                                                    pAnalyze);
+    
+    SolverRootedType* pSolverRooted = new SolverRootedType(new TreeHeuristicSolverRootedImplType(options));
+    pSolverRooted->solve(*pMwcs, rootNodes);
+    pSolver = pSolverRooted;
   }
   else
   {
-    pTreeSolver = new TreeHeuristicSolverUnrootedType(*pMwcs,
-                                                      static_cast<TreeHeuristicSolverType::EdgeHeuristic>(h),
-                                                      pAnalyze);
+    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new TreeHeuristicSolverUnrootedImplType(options));
+    pSolverUnrooted->solve(*pMwcs);
+    pSolver = pSolverUnrooted;
   }
 
-  pTreeSolver->init();
-  for (int i = 0; i < n; i++)
-  {
-    std::cerr << "\rIteration " << i << ": " << std::flush;
-    pTreeSolver->computeEdgeWeights(*pMwcs,
-                                    static_cast<TreeHeuristicSolverType::EdgeHeuristic>(h),
-                                    pAnalyze);
-    pTreeSolver->solve();
-    std::cerr << pTreeSolver->getSolutionWeight() << std::flush;
-  }
-  std::cerr << std::endl;
+//  for (int i = 0; i < n; i++)
+//  {
+//    std::cerr << "\rIteration " << i << ": " << std::flush;
+//    pTreeSolver->computeEdgeCosts(*pMwcs);
+//    pTreeSolver->solve();
+//    std::cerr << pTreeSolver->getSolutionWeight() << std::flush;
+//  }
+//  std::cerr << std::endl;
 
   if (outputFile != "-" && !outputFile.empty())
   {
     std::ofstream outFile(outputFile.c_str());
-    pMwcs->printHeinz(pTreeSolver->getSolutionModule(), outFile);
-    pMwcs->printModule(pTreeSolver->getSolutionModule(), std::cout, true);
+    pMwcs->printHeinz(pSolver->getSolutionModule(), outFile);
+    pMwcs->printModule(pSolver->getSolutionModule(), std::cout, true);
   }
   else if (outputFile == "-")
   {
-    pMwcs->printHeinz(pTreeSolver->getSolutionModule(), std::cout);
+    pMwcs->printHeinz(pSolver->getSolutionModule(), std::cout);
   }
   else
   {
-    pMwcs->printModule(pTreeSolver->getSolutionModule(), std::cout);
+    pMwcs->printModule(pSolver->getSolutionModule(), std::cout);
   }
 
-  std::cerr << "Score: " << pTreeSolver->getSolutionWeight() << std::endl;
+  std::cerr << "Score: " << pSolver->getSolutionWeight() << std::endl;
   std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 
-  delete pTreeSolver;
+  delete pSolver;
   delete pParser;
   delete pMwcs;
 

@@ -1,12 +1,12 @@
 /*
- * mwcsenumerate.h
+ * enumsolverunrooted.h
  *
  *  Created on: 30-jan-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef MWCSENUMERATE_H
-#define MWCSENUMERATE_H
+#ifndef ENUMSOLVERUNROOTED_H
+#define ENUMSOLVERUNROOTED_H
 
 #include <set>
 #include <assert.h>
@@ -14,12 +14,14 @@
 #include "mwcs.h"
 #include "mwcsgraph.h"
 #include "mwcspreprocessedgraph.h"
-#include "solver/cplex_cut/backoff.h"
+
 #include "solver/solver.h"
-#include "solver/mwcscutsolver.h"
-#include "solver/mwcssizecutsolver.h"
-#include "solver/mwcstreesolver.h"
-#include "solver/mwcssizetreesolver.h"
+#include "solver/solverrooted.h"
+#include "solver/solverunrooted.h"
+#include "solver/cutsolverrooted.h"
+#include "solver/cutsolverunrooted.h"
+#include "solver/cplex_cut/backoff.h"
+
 #include "preprocessing/negdeg01.h"
 #include "preprocessing/posedge.h"
 #include "preprocessing/negedge.h"
@@ -34,39 +36,38 @@ namespace nina {
 namespace mwcs {
 
 template<typename GR,
-         typename WGHT = typename GR::template NodeMap<double> >
-class MwcsEnumerate
+         typename NWGHT = typename GR::template NodeMap<double>,
+         typename NLBL = typename GR::template NodeMap<std::string>,
+         typename EWGHT = typename GR::template EdgeMap<double> >
+class EnumSolverUnrooted : public SolverUnrooted<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
-  typedef WGHT WeightNodeMap;
-  typedef MwcsGraph<Graph, WeightNodeMap> MwcsGraphType;
-  typedef MwcsPreprocessedGraph<Graph, WeightNodeMap> MwcsPreprocessedGraphType;
-  typedef Solver<Graph, WeightNodeMap> SolverType;
-  typedef typename MwcsGraphType::LabelNodeMap LabelNodeMap;
-  typedef typename MwcsGraphType::WeightEdgeMap WeightEdgeMap;
+  typedef NWGHT WeightNodeMap;
+  typedef NLBL LabelNodeMap;
+  typedef EWGHT WeightEdgeMap;
+  
+  typedef SolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef typename Parent::MwcsGraphType MwcsGraphType;
+  typedef typename Parent::NodeSet NodeSet;
+  typedef typename Parent::NodeSetIt NodeSetIt;
+  
+  typedef MwcsPreprocessedGraph<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsPreGraphType;
+  typedef Solver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> SolverType;
+  typedef CutSolverRooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> CutSolverRootedType;
+  typedef CutSolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> CutSolverUnrootedType;
+  typedef typename CutSolverRooted::Options Options;
+  typedef typename CutSolverRooted::MwcsAnalyzeType MwcsAnalyzeType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
-  typedef typename std::set<Node> Module;
-  typedef typename Module::const_iterator ModuleIt;
-  typedef typename std::vector<Module> ModuleVector;
-  typedef typename ModuleVector::const_iterator ModuleVectorIt;
-
-  typedef typename std::set<Node> NodeSet;
-  typedef typename NodeSet::const_iterator NodeSetIt;
   typedef typename std::vector<NodeSet> NodeSetVector;
   typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
 
   typedef lemon::FilterNodes<Graph, BoolNodeMap> SubGraph;
   typedef typename SubGraph::NodeIt SubNodeIt;
 
-  typedef MwcsCutSolver<Graph, WeightNodeMap> MwcsCutSolverType;
-  typedef MwcsTreeSolver<Graph, WeightNodeMap> MwcsTreeSolverType;
-  typedef MwcsSizeCutSolver<Graph, WeightNodeMap> MwcsSizeCutSolverType;
-  typedef MwcsSizeTreeSolver<Graph, WeightNodeMap> MwcsSizeTreeSolverType;
-  //typedef MwcsSizeTreeMemSolver<Graph, WeightNodeMap> MwcsSizeTreeMemSolverType;
-
+  // pre processing
   typedef NegDeg01<Graph, WeightNodeMap> NegDeg01Type;
   typedef PosEdge<Graph, WeightNodeMap> PosEdgeType;
   typedef NegEdge<Graph, WeightNodeMap> NegEdgeType;
@@ -78,17 +79,30 @@ public:
   typedef PosDiamond<Graph, WeightNodeMap> PosDiamondType;
 
 public:
-  MwcsEnumerate(MwcsGraphType& mwcsGraph);
-  virtual ~MwcsEnumerate() {}
-  virtual void enumerate(MwcsSolverEnum solver, bool preprocess);
+  EnumSolverUnrooted(MwcsGraphType& mwcsGraph,
+                     const Options& options,
+                     const MwcsAnalyzeType& analysis)
+    : Parent(mwcsGraph)
+    , _options(options)
+    , _analysis(analysis)
+  {
+  }
+  
+  virtual ~EnumSolverUnrooted()
+  {
+  }
+  
+  virtual void init();
+  virtual void solve();
+  
   void printOutput(std::ostream& out) const;
 
-  const ModuleVector& getModules() const
+  const NodeSetVector& getModules() const
   {
     return _modules;
   }
 
-  const Module& getModule(int idx) const
+  const NodeSet& getModule(int idx) const
   {
     assert(0 <= idx && idx < static_cast<int>(_modules.size()));
     return _modules[idx];
@@ -106,50 +120,16 @@ public:
     return _moduleWeight[node];
   }
 
-  void setTimeLimit(int timeLimit)
-  {
-    _timeLimit = timeLimit;
-  }
-
-  void setMultiThreading(int multiThreading)
-  {
-    _multiThreading = multiThreading;
-  }
-
-  void setModuleSize(int moduleSize)
-  {
-    _moduleSize = moduleSize;
-    if (moduleSize > 0)
-      lemon::mapFill(_mwcsGraph.getGraph(),
-                     _moduleWeight,
-                     -std::numeric_limits<double>::max());
-  }
-  
-  void setMaxNumberOfCuts(int maxNumberOfCuts)
-  {
-    _maxNumberOfCuts = maxNumberOfCuts;
-  }
-  
-  void setBackOff(BackOff backOff)
-  {
-    _backOff = backOff;
-  }
-
 protected:
-  MwcsGraphType& _mwcsGraph;
+  const Options& _options;
+  const MwcsAnalyzeType& _analysis;
 
   ModuleVector _modules;
   IntNodeMap _moduleIdx;
   WeightNodeMap _moduleWeight;
-  int _timeLimit;
-  int _multiThreading;
-  int _moduleSize;
-  int _maxNumberOfCuts;
-  BackOff _backOff;
 
   typedef typename Graph::template NodeMap<Node> NodeMap;
 
-protected:
   void processModule(const Module& module, double moduleWeight)
   {
     int idx = static_cast<int>(_modules.size());
@@ -377,4 +357,4 @@ inline void MwcsEnumerate<GR, WGHT>::enumerate(MwcsSolverEnum solver, bool prepr
 } // namespace mwcs
 } // namespace nina
 
-#endif // MWCSENUMERATE_H
+#endif // ENUMSOLVERUNROOTED_H

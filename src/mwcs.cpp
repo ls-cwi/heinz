@@ -36,7 +36,7 @@
 #include "solver/cutsolverrooted.h"
 #include "solver/cutsolverunrooted.h"
 #include "solver/cplex_cut/backoff.h"
-#include "mwcsenumerate.h"
+//#include "solver/enumsolverunrooted.h"
 #include "mwcs.h"
 #include "utils.h"
 #include "config.h"
@@ -49,6 +49,7 @@ typedef MwcsParser<Graph> MwcsParserType;
 typedef StpParser<Graph> StpParserType;
 typedef MwcsGraphParser<Graph> MwcsGraphType;
 typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
+
 typedef NegDeg01<Graph> NegDeg01Type;
 typedef PosEdge<Graph> PosEdgeType;
 typedef NegEdge<Graph> NegEdgeType;
@@ -60,10 +61,13 @@ typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
 typedef NegBiComponent<Graph> NegBiComponentType;
 typedef NegTriComponent<Graph> NegTriComponentType;
+
 typedef Solver<Graph> SolverType;
+typedef CplexSolver<Graph> CplexSolverType;
+typedef typename CplexSolverType::Options OptionsType;
 typedef CutSolverRooted<Graph> CutSolverRootedType;
+typedef CutSolverUnrooted<Graph> CutSolverUnrootedType;
 typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
-typedef MwcsEnumerate<Graph> MwcsEnumerateType;
 
 BackOff createBackOff(int function, int period)
 {
@@ -222,78 +226,103 @@ int main(int argc, char** argv)
     << "' present. Defaulting to unrooted formulation." << std::endl;
   }
   
-  if (rootNode == lemon::INVALID)
+  MwcsAnalyzeType analysis(*pMwcs);
+  analysis.analyze();
+  CutSolverUnrootedType* pSolver = new CutSolverUnrootedType(*pMwcs,
+                                                             OptionsType(createBackOff(backOffFunction, backOffPeriod),
+                                                                         maxNumberOfCuts, timeLimit, multiThreading),
+                                                             analysis);
+  pSolver->init();
+  pSolver->solve();
+  if (outputFile != "-" && !outputFile.empty())
   {
-    MwcsEnumerateType mwcsEnumerate(*pMwcs);
-    mwcsEnumerate.setTimeLimit(timeLimit);
-    mwcsEnumerate.setMultiThreading(multiThreading);
-    mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
-    mwcsEnumerate.setBackOff(createBackOff(backOffFunction, backOffPeriod));
-    mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), !noPreprocess);
-    
-    const Graph& g = pMwcs->getOrgGraph();
-    double maxScore = 0;
-    int maxIdx = -1;
-    for (NodeIt v(g); v != lemon::INVALID; ++v)
-    {
-      double score = mwcsEnumerate.getModuleWeight(v);
-      if (score >= maxScore)
-      {
-        maxScore = score;
-        maxIdx = mwcsEnumerate.getModuleIndex(v);
-      }
-    }
-    
-    if (maxIdx != -1)
-    {
-      if (outputFile != "-" && !outputFile.empty())
-      {
-        std::ofstream outFile(outputFile.c_str());
-        pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), outFile);
-        pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
-      }
-      else if (outputFile == "-")
-      {
-        pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), std::cout);
-      }
-      else
-      {
-        pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
-      }
-    }
+    std::ofstream outFile(outputFile.c_str());
+    pMwcs->printHeinz(pSolver->getSolutionModule(), outFile);
+    pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
+  }
+  else if (outputFile == "-")
+  {
+    pMwcs->printHeinz(pSolver->getSolutionModule(), std::cout);
   }
   else
   {
-    // Initialize solver
-    const Node rootNode = pMwcs->getNodeByLabel(root);
-    if (rootNode == lemon::INVALID && !root.empty())
-    {
-      std::cerr << "No node with label '" << root
-                << "' present. Defaulting to unrooted formulation." << std::endl;
-    }
-
-    MwcsSolverType* pSolver = new MwcsCutSolverType(*pMwcs,
-                                                    createBackOff(backOffFunction, backOffPeriod),
-                                                    maxNumberOfCuts, timeLimit, multiThreading);
-    pSolver->init(rootNode);
-    pSolver->solve();
-    if (outputFile != "-" && !outputFile.empty())
-    {
-      std::ofstream outFile(outputFile.c_str());
-      pMwcs->printHeinz(pSolver->getSolutionModule(), outFile);
-      pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
-    }
-    else if (outputFile == "-")
-    {
-      pMwcs->printHeinz(pSolver->getSolutionModule(), std::cout);
-    }
-    else
-    {
-      pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
-    }
-
-    delete pSolver;
+    pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
   }
+
+  delete pSolver;
+  
+//  if (rootNode == lemon::INVALID)
+//  {
+//    MwcsEnumerateType mwcsEnumerate(*pMwcs);
+//    mwcsEnumerate.setTimeLimit(timeLimit);
+//    mwcsEnumerate.setMultiThreading(multiThreading);
+//    mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
+//    mwcsEnumerate.setBackOff(createBackOff(backOffFunction, backOffPeriod));
+//    mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), !noPreprocess);
+//    
+//    const Graph& g = pMwcs->getOrgGraph();
+//    double maxScore = 0;
+//    int maxIdx = -1;
+//    for (NodeIt v(g); v != lemon::INVALID; ++v)
+//    {
+//      double score = mwcsEnumerate.getModuleWeight(v);
+//      if (score >= maxScore)
+//      {
+//        maxScore = score;
+//        maxIdx = mwcsEnumerate.getModuleIndex(v);
+//      }
+//    }
+//    
+//    if (maxIdx != -1)
+//    {
+//      if (outputFile != "-" && !outputFile.empty())
+//      {
+//        std::ofstream outFile(outputFile.c_str());
+//        pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), outFile);
+//        pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
+//      }
+//      else if (outputFile == "-")
+//      {
+//        pMwcs->printHeinzOrg(mwcsEnumerate.getModule(maxIdx), std::cout);
+//      }
+//      else
+//      {
+//        pMwcs->printModule(mwcsEnumerate.getModule(maxIdx), std::cout, true);
+//      }
+//    }
+//  }
+//  else
+//  {
+//    // Initialize solver
+//    const Node rootNode = pMwcs->getNodeByLabel(root);
+//    if (rootNode == lemon::INVALID && !root.empty())
+//    {
+//      std::cerr << "No node with label '" << root
+//                << "' present. Defaulting to unrooted formulation." << std::endl;
+//    }
+//
+//    MwcsSolverType* pSolver = new MwcsCutSolverType(*pMwcs,
+//                                                    createBackOff(backOffFunction, backOffPeriod),
+//                                                    maxNumberOfCuts, timeLimit, multiThreading);
+//    pSolver->init(rootNode);
+//    pSolver->solve();
+//    if (outputFile != "-" && !outputFile.empty())
+//    {
+//      std::ofstream outFile(outputFile.c_str());
+//      pMwcs->printHeinz(pSolver->getSolutionModule(), outFile);
+//      pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
+//    }
+//    else if (outputFile == "-")
+//    {
+//      pMwcs->printHeinz(pSolver->getSolutionModule(), std::cout);
+//    }
+//    else
+//    {
+//      pMwcs->printModule(pSolver->getSolutionModule(), std::cout, false);
+//    }
+//
+//    delete pSolver;
+//  }
 
   std::cerr << "Time: " << t.realTime() << "s" << std::endl;
 

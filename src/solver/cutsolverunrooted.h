@@ -5,11 +5,13 @@
  *      Author: M. El-Kebir
  */
 
-#ifdef CUTSOLVERUNROOTED_H
+#ifndef CUTSOLVERUNROOTED_H
 #define CUTSOLVERUNROOTED_H
 
 #include "solverunrooted.h"
 #include "cplexsolver.h"
+#include "cplex_cut/nodecutunrooted.h"
+#include "cplex_heuristic/heuristicunrooted.h"
 
 namespace nina {
 namespace mwcs {
@@ -41,6 +43,10 @@ public:
   typedef typename Parent2::InvNodeIntMap InvNodeIntMap;
   typedef typename Parent2::InvArcIntMap InvArcIntMap;
   typedef typename Parent2::Options Options;
+  
+  typedef NodeCutUnrootedLazyConstraint<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutUnrootedLazyConstraintType;
+  typedef NodeCutUnrootedUserCut<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutUnrootedUserCutType;
+  typedef HeuristicUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicUnrootedType;
   
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   
@@ -88,12 +94,22 @@ public:
   {
     for (int id_v = 0; id_v < _n; id_v++)
     {
-      out << "Node '" << _mwcsGraph.getLabel(_invNode[id_v])
+      out << "Node '" << Parent1::_mwcsGraph.getLabel(_invNode[id_v])
       << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v])
       << ", y = " << _cplex.getValue(_y[id_v])
-      << ", w = " << _mwcsGraph.getScore(_invNode[id_v])
+      << ", w = " << Parent1::_mwcsGraph.getScore(_invNode[id_v])
       << std::endl;
     }
+  }
+  
+  void init()
+  {
+    Parent2::init();
+  }
+  
+  bool solve()
+  {
+    return Parent2::solve();
   }
   
   bool solveCplex();
@@ -110,8 +126,8 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initVariables()
 {
   Parent2::initVariables();
   
-  const Graph& g = _mwcsGraph.getGraph();
-  _n = _mwcsGraph.getNodeCount();
+  const Graph& g = Parent1::_mwcsGraph.getGraph();
+  _n = Parent1::_mwcsGraph.getNodeCount();
   
   _y = IloBoolVarArray(_env, _n);
   
@@ -123,7 +139,7 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initVariables()
 
     // y_i = 0 if node i is not the root node
     // y_i = 1 if node i is picked as the root node
-    snprintf(buf, 1024, "y_%s", _mwcsGraph.getLabel(v).c_str());
+    snprintf(buf, 1024, "y_%s", Parent1::_mwcsGraph.getLabel(v).c_str());
     //snprintf(buf, 1024, "y_%d", g.id(v));
     _y[i].setName(buf);
   }
@@ -134,7 +150,11 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 {
   Parent2::initConstraints();
   
+  const Graph& g = Parent1::_mwcsGraph.getGraph();
+  const WeightNodeMap& weight = Parent1::_mwcsGraph.getScores();
+  
   IloExpr expr(_env);
+
   // there is at most one root node
   // \sum_{i \in V} y_i <= 1
   for (int i = 0; i < _n; i++)
@@ -160,7 +180,7 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
   // root node has to be positive
   for (int i = 0; i < _n; i++)
   {
-    double weight = _mwcsGraph.getScore(_invNode[i]);
+    double weight = Parent1::_mwcsGraph.getScore(_invNode[i]);
     if (weight < 0)
     {
       _model.add(_y[i] == 0);
@@ -202,7 +222,7 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
   // BIG FAT WARNING: not true for xHeinz!!!
   for (NodeIt i(g); i != lemon::INVALID; ++i)
   {
-    if (_mwcsGraph.getScore(i) <= 0)
+    if (Parent1::_mwcsGraph.getScore(i) <= 0)
     {
       expr.clear();
       for (IncEdgeIt e(g, i); e != lemon::INVALID; ++e)
@@ -230,8 +250,8 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline bool CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 {
-  const Graph& g = _mwcsGraph.getGraph();
-  const WeightNodeMap& weight = _mwcsGraph.getScores();
+  const Graph& g = Parent1::_mwcsGraph.getGraph();
+  const WeightNodeMap& weight = Parent1::_mwcsGraph.getScores();
 
   IloFastMutex* pMutex = NULL;
   if (_options._multiThreading > 1)

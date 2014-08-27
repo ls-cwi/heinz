@@ -23,7 +23,7 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class CplexSolver : public Solver<GR, NWGHT, NLBL, EWGHT>
+class CplexSolver
 {
 public:
   typedef GR Graph;
@@ -31,8 +31,7 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
 
-  typedef Solver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
-  typedef typename Parent::MwcsGraphType MwcsGraphType;
+  typedef MwcsGraph<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsGraphType;
   typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
   
   typedef typename Parent::NodeSet NodeSet;

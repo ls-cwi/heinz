@@ -13,6 +13,7 @@
 #include <ilconcert/ilothread.h>
 #include <lemon/adaptors.h>
 #include <lemon/bfs.h>
+#include <lemon/kruskal.h>
 #include <set>
 #include "solver/treesolverrooted.h"
 
