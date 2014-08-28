@@ -1,15 +1,15 @@
 /*
- * cutsolverunrooted.h
+ * cutsolverunrootedimpl.h
  *
  *  Created on: 22-aug-2014
  *      Author: M. El-Kebir
  */
 
-#ifndef CUTSOLVERUNROOTED_H
-#define CUTSOLVERUNROOTED_H
+#ifndef CUTSOLVERUNROOTEDIMPL_H
+#define CUTSOLVERUNROOTEDIMPL_H
 
-#include "solverunrooted.h"
-#include "cplexsolver.h"
+#include "solverunrootedimpl.h"
+#include "cplexsolverimpl.h"
 #include "cplex_cut/nodecutunrooted.h"
 #include "cplex_heuristic/heuristicunrooted.h"
 
@@ -20,8 +20,8 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class CutSolverUnrooted : public SolverUnrooted<GR, NWGHT, NLBL, EWGHT>,
-                          public CplexSolver<GR, NWGHT, NLBL, EWGHT>
+class CutSolverUnrootedImpl : public SolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>,
+                              public CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -29,16 +29,15 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
   
-  typedef Solver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> GrandParent;
-  typedef SolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent1;
-  typedef CplexSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent2;
+  typedef SolverUnrootedImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent1;
+  typedef CplexSolverImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent2;
 
   typedef typename Parent1::MwcsGraphType MwcsGraphType;
   typedef typename Parent1::NodeSet NodeSet;
   typedef typename Parent1::NodeSetIt NodeSetIt;
-  typedef typename Parent1::NodeVector NodeVector;
-  typedef typename Parent1::NodeVectorIt NodeVectorIt;
   
+  typedef typename Parent2::NodeVector NodeVector;
+  typedef typename Parent2::NodeVectorIt NodeVectorIt;
   typedef typename Parent2::MwcsAnalyzeType MwcsAnalyzeType;
   typedef typename Parent2::InvNodeIntMap InvNodeIntMap;
   typedef typename Parent2::InvArcIntMap InvArcIntMap;
@@ -50,16 +49,7 @@ public:
   
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   
-  using Parent1::_mwcsGraph;
-  using Parent1::_score;
-  using Parent1::_solutionMap;
-  using Parent1::_solutionSet;
-  using Parent1::printSolution;
-  using Parent1::getSolutionWeight;
-  using Parent1::getSolutionNodeMap;
-  using Parent1::getSolutionModule;
-  using Parent1::isNodeInSolution;
-
+  using Parent1::_pMwcsGraph;
   using Parent2::_options;
   using Parent2::_n;
   using Parent2::_m;
@@ -69,66 +59,63 @@ public:
   using Parent2::_model;
   using Parent2::_cplex;
   using Parent2::_x;
-  using Parent2::init;
   using Parent2::initVariables;
   using Parent2::initConstraints;
   using Parent2::clean;
   using Parent2::solveCplex;
   
 public:
-  CutSolverUnrooted(const MwcsGraphType& mwcsGraph,
-                    const Options& options,
-                    const MwcsAnalyzeType& analysis)
-    : GrandParent(mwcsGraph)
-    , Parent1(mwcsGraph)
-    , Parent2(mwcsGraph, options, analysis)
+  CutSolverUnrootedImpl(const Options& options)
+    : Parent1()
+    , Parent2(options)
     , _y()
   {
   }
   
-  virtual ~CutSolverUnrooted()
+  virtual ~CutSolverUnrootedImpl()
   {
   }
   
-  virtual void printVariables(std::ostream& out)
+  virtual void printVariables(const MwcsGraphType& mwcsGraph,
+                              std::ostream& out)
   {
     for (int id_v = 0; id_v < _n; id_v++)
     {
-      out << "Node '" << Parent1::_mwcsGraph.getLabel(_invNode[id_v])
+      out << "Node '" << mwcsGraph.getLabel(_invNode[id_v])
       << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v])
       << ", y = " << _cplex.getValue(_y[id_v])
-      << ", w = " << Parent1::_mwcsGraph.getScore(_invNode[id_v])
+      << ", w = " << mwcsGraph.getScore(_invNode[id_v])
       << std::endl;
     }
   }
   
-  void init()
+  void init(const MwcsGraphType& mwcsGraph)
   {
-    Parent2::init();
+    Parent1::init(mwcsGraph);
+    initVariables(mwcsGraph);
+    initConstraints(mwcsGraph);
   }
   
-  bool solve()
+  bool solve(double& score, BoolNodeMap& solutionMap, NodeSet& solutionSet)
   {
-    return Parent2::solve();
+    return Parent2::solveCplex(*_pMwcsGraph, score, solutionMap, solutionSet);
   }
-  
-  bool solveCplex();
 
 protected:
   IloBoolVarArray _y;
   
-  virtual void initVariables();
-  virtual void initConstraints();
+  virtual void initVariables(const MwcsGraphType& mwcsGraph);
+  virtual void initConstraints(const MwcsGraphType& mwcsGraph);
+  
+  bool solveModel();
 };
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initVariables()
+inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initVariables(const MwcsGraphType& mwcsGraph)
 {
-  Parent2::initVariables();
+  Parent2::initVariables(mwcsGraph);
   
-  const Graph& g = Parent1::_mwcsGraph.getGraph();
-  _n = Parent1::_mwcsGraph.getNodeCount();
-  
+  _n = mwcsGraph.getNodeCount();
   _y = IloBoolVarArray(_env, _n);
   
   char buf[1024];
@@ -139,19 +126,19 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initVariables()
 
     // y_i = 0 if node i is not the root node
     // y_i = 1 if node i is picked as the root node
-    snprintf(buf, 1024, "y_%s", Parent1::_mwcsGraph.getLabel(v).c_str());
+    snprintf(buf, 1024, "y_%s", mwcsGraph.getLabel(v).c_str());
     //snprintf(buf, 1024, "y_%d", g.id(v));
     _y[i].setName(buf);
   }
 }
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
+inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsGraphType& mwcsGraph)
 {
-  Parent2::initConstraints();
+  Parent2::initConstraints(mwcsGraph);
   
-  const Graph& g = Parent1::_mwcsGraph.getGraph();
-  const WeightNodeMap& weight = Parent1::_mwcsGraph.getScores();
+  const Graph& g = mwcsGraph.getGraph();
+  const WeightNodeMap& weight = mwcsGraph.getScores();
   
   IloExpr expr(_env);
 
@@ -180,8 +167,8 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
   // root node has to be positive
   for (int i = 0; i < _n; i++)
   {
-    double weight = Parent1::_mwcsGraph.getScore(_invNode[i]);
-    if (weight < 0)
+    double weight_i = weight[_invNode[i]];
+    if (weight_i < 0)
     {
       _model.add(_y[i] == 0);
     }
@@ -222,7 +209,7 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
   // BIG FAT WARNING: not true for xHeinz!!!
   for (NodeIt i(g); i != lemon::INVALID; ++i)
   {
-    if (Parent1::_mwcsGraph.getScore(i) <= 0)
+    if (weight[i] <= 0)
     {
       expr.clear();
       for (IncEdgeIt e(g, i); e != lemon::INVALID; ++e)
@@ -240,7 +227,7 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
       for (int id_j = 0; id_j < id_i; ++id_j)
       {
         Node j = _invNode[id_j];
-        if (_mwcsGraph.getScore(j) < 0) continue;
+        if (weight[j] < 0) continue;
         _model.add(_y[id_i] <= 1 - _x[id_j]);
       }
     }
@@ -248,10 +235,10 @@ inline void CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 }
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline bool CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::solveCplex()
+inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 {
-  const Graph& g = Parent1::_mwcsGraph.getGraph();
-  const WeightNodeMap& weight = Parent1::_mwcsGraph.getScores();
+  const Graph& g = _pMwcsGraph->getGraph();
+  const WeightNodeMap& weight = _pMwcsGraph->getScores();
 
   IloFastMutex* pMutex = NULL;
   if (_options._multiThreading > 1)
@@ -365,4 +352,4 @@ inline bool CutSolverUnrooted<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 } // namespace mwcs
 } // namespace nina
 
-#endif // CUTSOLVERUNROOTED_H
+#endif // CUTSOLVERUNROOTEDIMPL_H

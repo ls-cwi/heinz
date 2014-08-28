@@ -1,15 +1,15 @@
 /*
- * cutsolverrooted.h
+ * cutsolverrootedimpl.h
  *
  *  Created on: 22-aug-2014
  *      Author: M. El-Kebir
  */
 
-#ifndef CUTSOLVERROOTED_H
-#define CUTSOLVERROOTED_H
+#ifndef CUTSOLVERROOTEDIMPL_H
+#define CUTSOLVERROOTEDIMPL_H
 
-#include "solverrooted.h"
-#include "cplexsolver.h"
+#include "solverrootedimpl.h"
+#include "cplexsolverimpl.h"
 #include "cplex_cut/nodecutrooted.h"
 #include "cplex_heuristic/heuristicrooted.h"
 
@@ -22,8 +22,8 @@ template<typename GR,
          typename NWGHT = typename GR::template NodeMap<double>,
          typename NLBL = typename GR::template NodeMap<std::string>,
          typename EWGHT = typename GR::template EdgeMap<double> >
-class CutSolverRooted : public SolverRooted<GR, NWGHT, NLBL, EWGHT>,
-                        public CplexSolver<GR, NWGHT, NLBL, EWGHT>
+class CutSolverRootedImpl : public SolverRootedImpl<GR, NWGHT, NLBL, EWGHT>,
+                            public CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>
 {
 public:
   typedef GR Graph;
@@ -31,16 +31,15 @@ public:
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
   
-  typedef Solver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> GrandParent;
-  typedef SolverRooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent1;
-  typedef CplexSolver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent2;
+  typedef SolverRootedImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent1;
+  typedef CplexSolverImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent2;
 
   typedef typename Parent1::MwcsGraphType MwcsGraphType;
   typedef typename Parent1::NodeSet NodeSet;
   typedef typename Parent1::NodeSetIt NodeSetIt;
-  typedef typename Parent1::NodeVector NodeVector;
-  typedef typename Parent1::NodeVectorIt NodeVectorIt;
   
+  typedef typename Parent2::NodeVector NodeVector;
+  typedef typename Parent2::NodeVectorIt NodeVectorIt;
   typedef typename Parent2::MwcsAnalyzeType MwcsAnalyzeType;
   typedef typename Parent2::InvNodeIntMap InvNodeIntMap;
   typedef typename Parent2::InvArcIntMap InvArcIntMap;
@@ -52,17 +51,8 @@ public:
   
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   
-  using Parent1::_mwcsGraph;
-  using Parent1::_score;
-  using Parent1::_solutionMap;
-  using Parent1::_solutionSet;
+  using Parent1::_pMwcsGraph;
   using Parent1::_rootNodes;
-  using Parent1::printSolution;
-  using Parent1::getSolutionWeight;
-  using Parent1::getSolutionNodeMap;
-  using Parent1::getSolutionModule;
-  using Parent1::isNodeInSolution;
-
   using Parent2::_options;
   using Parent2::_n;
   using Parent2::_m;
@@ -72,40 +62,46 @@ public:
   using Parent2::_model;
   using Parent2::_cplex;
   using Parent2::_x;
-  using Parent2::init;
   using Parent2::initVariables;
   using Parent2::initConstraints;
   using Parent2::clean;
   using Parent2::solveCplex;
   
 public:
-  CutSolverRooted(const MwcsGraphType& mwcsGraph,
-                  const NodeSet& rootNodes,
-                  const Options& options,
-                  const MwcsAnalyzeType& analysis)
-    : GrandParent(mwcsGraph)
-    , Parent1(mwcsGraph, rootNodes)
-    , Parent2(mwcsGraph, options, analysis)
+  CutSolverRootedImpl(const Options& options)
+    : Parent1()
+    , Parent2(options)
   {
   }
   
-  virtual ~CutSolverRooted()
+  virtual ~CutSolverRootedImpl()
   {
   }
   
-  bool solveCplex();
+  void init(const MwcsGraphType& mwcsGraph, const NodeSet& rootNodes)
+  {
+    Parent1::init(mwcsGraph, rootNodes);
+    initVariables(mwcsGraph);
+    initConstraints(mwcsGraph);
+  }
+  
+  bool solve(double& score, BoolNodeMap& solutionMap, NodeSet& solutionSet)
+  {
+    return Parent2::solveCplex(*_pMwcsGraph, score, solutionMap, solutionSet);
+  }
   
 protected:
-  virtual void initConstraints();
+  virtual void initConstraints(const MwcsGraphType& mwcsGraph);
+  bool solveModel();
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
+inline void CutSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsGraphType& mwcsGraph)
 {
-  Parent2::initConstraints();
+  Parent2::initConstraints(mwcsGraph);
 
-  const Graph& g = _mwcsGraph.getGraph();
-  const WeightNodeMap& weight = _mwcsGraph.getScores();
+  const Graph& g = mwcsGraph.getGraph();
+  const WeightNodeMap& weight = mwcsGraph.getScores();
   
   IloExpr expr(_env);
   char buf[1024];
@@ -126,7 +122,7 @@ inline void CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
   // of its direct neighbors must be part of the solution as well
   for (NodeIt i(g); i != lemon::INVALID; ++i)
   {
-    if (i == _rootNodes.find(i) != _rootNodes.end())
+    if (_rootNodes.find(i) != _rootNodes.end())
       continue;
     
     expr.clear();
@@ -146,10 +142,10 @@ inline void CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
   for (NodeSetIt rootIt = _rootNodes.begin(); rootIt != _rootNodes.end(); ++rootIt)
   {
     // nodes i that are not in the same component as the root get x_i = 0
-    const int rootComp = _mwcsGraph.getComponent(*rootIt);
+    const int rootComp = mwcsGraph.getComponent(*rootIt);
     for (NodeIt i(g); i != lemon::INVALID; ++i)
     {
-      if (_mwcsGraph.getComponent(i) != rootComp)
+      if (mwcsGraph.getComponent(i) != rootComp)
       {
         _model.add(_x[(*_pNode)[i]] == 0);
       }
@@ -158,10 +154,10 @@ inline void CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::initConstraints()
 }
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline bool CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::solveCplex()
+inline bool CutSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 {
-  const Graph& g = _mwcsGraph.getGraph();
-  const WeightNodeMap& weight = _mwcsGraph.getScores();
+  const Graph& g = _pMwcsGraph->getGraph();
+  const WeightNodeMap& weight = _pMwcsGraph->getScores();
 
   IloFastMutex* pMutex = NULL;
   if (_options._multiThreading > 1)
@@ -272,4 +268,4 @@ inline bool CutSolverRooted<GR, NWGHT, NLBL, EWGHT>::solveCplex()
 } // namespace mwcs
 } // namespace nina
 
-#endif // CUTSOLVERROOTED_H
+#endif // CUTSOLVERROOTEDIMPL_H

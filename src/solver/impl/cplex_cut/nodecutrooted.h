@@ -68,19 +68,19 @@ public:
                               IloBoolVarArray x,
                               const Graph& g,
                               const WeightNodeMap& weight,
-                              Node root,
+                              NodeSet rootNodes,
                               const IntNodeMap& nodeMap,
                               int n,
                               int maxNumberOfCuts,
                               IloFastMutex* pMutex)
     : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
-    , _root(root)
+    , _rootNodes(rootNodes)
   {
   }
 
   NodeCutRootedLazyConstraint(const NodeCutRootedLazyConstraint& other)
     : Parent(other)
-    , _root(other._root)
+    , _rootNodes(other._rootNodes)
   {
   }
 
@@ -89,7 +89,7 @@ public:
   }
   
 protected:
-  Node _root;
+  NodeSet _rootNodes;
 
 protected:
   virtual void main()
@@ -113,7 +113,15 @@ protected:
     int nCuts = 0;
     for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
     {
-      separateRootedConnectedComponent(*it, _root, x_values, *this, nCuts);
+      const NodeSet& nonZeroComponent = *it;
+      for (NodeSetIt rootIt = _rootNodes.begin(); rootIt != _rootNodes.end(); ++rootIt)
+      {
+        Node root = *rootIt;
+        if (nonZeroComponent.find(root) == nonZeroComponent.end())
+        {
+          separateRootedConnectedComponent(*it, *rootIt, x_values, *this, nCuts);
+        }
+      }
     }
     
     x_values.end();
@@ -156,6 +164,7 @@ protected:
   typedef typename Parent::NodeQueue NodeQueue;
   typedef typename Parent::DiNodeQueue DiNodeQueue;
   typedef typename Parent::DiNodeSet DiNodeSet;
+  typedef typename Parent::DiNodeSetIt DiNodeSetIt;
   typedef typename Parent::DiNodeList DiNodeList;
   typedef typename Parent::DiNodeListIt DiNodeListIt;
   typedef typename Parent::BkAlg BkAlg;
@@ -179,7 +188,7 @@ protected:
   using Parent::_pG2h2;
   using Parent::_pG2hRootArc;
   using Parent::_h2g;
-  using Parent::_diRoot;
+  using Parent::_diRootSet;
   using Parent::_pBK;
   using Parent::_marked;
   using Parent::_cutCount;
@@ -207,14 +216,14 @@ public:
                        IloBoolVarArray x,
                        const Graph& g,
                        const WeightNodeMap& weight,
-                       Node root,
+                       NodeSet rootNodes,
                        const IntNodeMap& nodeMap,
                        int n,
                        int maxNumberOfCuts,
                        IloFastMutex* pMutex,
                        BackOff backOff)
     : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, maxNumberOfCuts, pMutex, backOff)
-    , _root(root)
+    , _rootNodes(rootNodes)
   {
     init();
     _pBK = new BkAlg(_h, _cap);
@@ -222,7 +231,7 @@ public:
 
   NodeCutRootedUserCut(const NodeCutRootedUserCut& other)
     : Parent(other)
-    , _root(other._root)
+    , _rootNodes(other._rootNodes)
   {
     typename Digraph::template NodeMap<DiNode> nodeMap(other._h);
     typename Digraph::template ArcMap<DiArc> arcMap(other._h);
@@ -249,7 +258,11 @@ public:
         _pG2h2->set(v, nodeMap[v2]);
     }
     
-    _diRoot = nodeMap[other._diRoot];
+    for (DiNodeSetIt diRootIt = other._diRootSet.begin();
+         diRootIt != other._diRootSet.end(); ++diRootIt)
+    {
+      _diRootSet.insert(nodeMap[*diRootIt]);
+    }
     _pBK = new BkAlg(_h, _cap);
   }
 
@@ -258,7 +271,7 @@ public:
   }
 
 protected:
-  Node _root;
+  NodeSet _rootNodes;
 
 protected:
   virtual IloCplex::CallbackI* duplicateCallback() const
@@ -267,13 +280,16 @@ protected:
   }
   
   void separateMinCut(const NodeSet& nonZeroComponent,
+                      const Node root,
                       const IloNumArray& x_values,
                       int& nCuts, int& nBackCuts, int& nNestedCuts)
   {
     IloExpr rhs(getEnv());
     
-    _pBK->setSource(_diRoot);
-    _pNodeBoolMap->set(_root, false);
+    DiNode diRoot = (*_pG2h1)[root];
+    
+    _pBK->setSource(diRoot);
+    _pNodeBoolMap->set(root, false);
     for (NodeSetIt it = nonZeroComponent.begin(); it != nonZeroComponent.end(); ++it)
     {
       Node i = *it;
@@ -305,7 +321,7 @@ protected:
         {
           // determine N (forward)
           NodeSet fwdDS;
-          determineFwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, fwdDS);
+          determineFwdCutSet(_h, *_pBK, diRoot, _h2g, _marked, fwdDS);
           
           // numerical instability may cause minCutValue < x_i_value
           // even though there is nothing to cut
@@ -313,7 +329,7 @@ protected:
           
           // determine N (backward)
           NodeSet bwdDS;
-          determineBwdCutSet(_h, *_pBK, _diRoot, _h2g, _marked, bwdDS);
+          determineBwdCutSet(_h, *_pBK, diRoot, _h2g, _marked, bwdDS);
           
           bool backCuts = fwdDS.size() != bwdDS.size() || fwdDS != bwdDS;
           
@@ -345,59 +361,61 @@ protected:
       }
     }
     
+    _pNodeBoolMap->set(root, true);
+    
     rhs.end();
   }
   
-  void separateConnectedComponents(const IloNumArray& x_values,
-                                   const int nComp,
-                                   int& nCuts)
-  {
-    typedef std::vector<NodeSet> NodeSetVector;
-    typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
-    
-    NodeSetVector compMatrix(nComp, NodeSet());
-    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
-    {
-      int compIdx = (*_pComp)[i];
-      compMatrix[compIdx].insert(i);
-    }
-    
-    IloExpr rhs(getEnv());
-    for (int compIdx = 0; compIdx < nComp; compIdx++)
-    {
-      const NodeSet& S = compMatrix[compIdx];
-      if (S.find(_root) != S.end())
-      {
-        continue;
-      }
-      
-      // determine dS
-      NodeSet dS;
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-      {
-        const Node i = *it;
-        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
-        {
-          const Node j = _g.target(a);
-          if (S.find(j) == S.end())
-          {
-            dS.insert(j);
-          }
-        }
-      }
-      
-      constructRHS(rhs, dS);
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-      {
-        IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
-        add(constraint, IloCplex::UseCutPurge);
-        constraint.end();
-        
-        ++nCuts;
-      }
-    }
-    rhs.end();
-  }
+//  void separateConnectedComponents(const IloNumArray& x_values,
+//                                   const int nComp,
+//                                   int& nCuts)
+//  {
+//    typedef std::vector<NodeSet> NodeSetVector;
+//    typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
+//    
+//    NodeSetVector compMatrix(nComp, NodeSet());
+//    for (SubNodeIt i(*_pSubG); i != lemon::INVALID; ++i)
+//    {
+//      int compIdx = (*_pComp)[i];
+//      compMatrix[compIdx].insert(i);
+//    }
+//    
+//    IloExpr rhs(getEnv());
+//    for (int compIdx = 0; compIdx < nComp; compIdx++)
+//    {
+//      const NodeSet& S = compMatrix[compIdx];
+//      if (S.find(_root) != S.end())
+//      {
+//        continue;
+//      }
+//      
+//      // determine dS
+//      NodeSet dS;
+//      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+//      {
+//        const Node i = *it;
+//        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+//        {
+//          const Node j = _g.target(a);
+//          if (S.find(j) == S.end())
+//          {
+//            dS.insert(j);
+//          }
+//        }
+//      }
+//      
+//      constructRHS(rhs, dS);
+//      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+//      {
+//        IloConstraint constraint = _x[_nodeMap[*it]] <= rhs;
+//        add(constraint, IloCplex::UseCutPurge);
+//        constraint.end();
+//        
+//        ++nCuts;
+//      }
+//    }
+//    rhs.end();
+//  }
 
   void separate()
   {
@@ -412,27 +430,31 @@ protected:
     int nBackCuts = 0;
     int nNestedCuts = 0;
     
-    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
+    for (NodeSetIt rootIt = _rootNodes.begin(); rootIt != _rootNodes.end(); ++rootIt)
     {
-      const NodeSet& nonZeroComponent = *it;
-      if (_nodeNumber == 0 || nonZeroComponent.find(_root) != nonZeroComponent.end())
+      Node root = *rootIt;
+      for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
       {
-        // todo give separateMinCut nonZeroComponent
-        separateMinCut(nonZeroComponent, x_values, nCuts, nBackCuts, nNestedCuts);
+        const NodeSet& nonZeroComponent = *it;
+        if (_nodeNumber == 0 || nonZeroComponent.find(root) != nonZeroComponent.end())
+        {
+          // todo give separateMinCut nonZeroComponent
+          separateMinCut(nonZeroComponent, root, x_values, nCuts, nBackCuts, nNestedCuts);
+        }
+        else
+        {
+          separateRootedConnectedComponent(nonZeroComponent, root, x_values, *this, nCuts);
+        }
       }
-      else
-      {
-        separateRootedConnectedComponent(nonZeroComponent, _root, x_values, *this, nCuts);
-      }
-    }
     
-    std::cerr << "[";
-    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
-    {
-      std::cerr << " " << it->size();
-      if (it->find(_root) != it->end()) std::cerr << "*";
+      std::cerr << "[";
+      for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
+      {
+        std::cerr << " " << it->size();
+        if (it->find(root) != it->end()) std::cerr << "*";
+      }
+      std::cerr << " ]" << std::endl;
     }
-    std::cerr << " ]" << std::endl;
     
     std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
               << ": generated " << nCuts
@@ -468,7 +490,7 @@ protected:
       }
       else
       {
-        assert(v == _root);
+        assert(_rootNodes.find(v) != _rootNodes.end());
       }
     }
   }
@@ -543,11 +565,21 @@ protected:
     // - for every edge (i,j) there are two arcs
     //   in h: (i2,j1) and (j2,i1) with capacties 1
     _h.clear();
-    _diRoot = _h.addNode();
+    
+    for (NodeSetIt rootIt = _rootNodes.begin(); rootIt != _rootNodes.end(); ++rootIt)
+    {
+      Node root = *rootIt;
+      DiNode diRoot = _h.addNode();
+      _diRootSet.insert(diRoot);
+      
+      _pG2h1->set(root, diRoot);
+      _pG2h2->set(root, diRoot);
+      _h2g[diRoot] = root;
+    }
     
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
-      if (i != _root)
+      if (_rootNodes.find(i) == _rootNodes.end())
       {
         DiNode i1 = _h.addNode();
         DiNode i2 = _h.addNode();
@@ -558,12 +590,6 @@ protected:
         
         DiArc i1i2 = _h.addArc(i1, i2);
         _cap[i1i2] = 0;
-      }
-      else
-      {
-        _pG2h1->set(i, _diRoot);
-        _pG2h2->set(i, _diRoot);
-        _h2g[_diRoot] = _root;
       }
     }
     
@@ -576,20 +602,23 @@ protected:
       DiNode j1 = (*_pG2h1)[j];
       DiNode j2 = (*_pG2h2)[j];
       
-      if (i != _root && j != _root)
+      bool root_i = _rootNodes.find(i) != _rootNodes.end();
+      bool root_j = _rootNodes.find(j) != _rootNodes.end();
+      
+      if (!root_i && !root_j)
       {
         DiArc i2j1 = _h.addArc(i2, j1);
         DiArc j2i1 = _h.addArc(j2, i1);
         _cap[i2j1] = _cap[j2i1] = 1;
       }
-      else if (i == _root)
+      else if (root_i)
       {
-        DiArc ij1 = _h.addArc(_diRoot, j1);
+        DiArc ij1 = _h.addArc((*_pG2h1)[i], j1);
         _cap[ij1] = 1;
       }
-      else if (j == _root)
+      else if (root_j)
       {
-        DiArc ji1 = _h.addArc(_diRoot, i1);
+        DiArc ji1 = _h.addArc((*_pG2h1)[j], i1);
         _cap[ji1] = 1;
       }
     }

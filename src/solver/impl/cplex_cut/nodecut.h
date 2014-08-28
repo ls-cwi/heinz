@@ -157,40 +157,46 @@ protected:
   
   template<typename CBK>
   void separateConnectedComponent(const NodeSet& S,
-                                  const Node root,
+                                  const NodeSet rootNodes,
                                   const IloNumArray& x_values,
+                                  const IloNumArray& y_values,
                                   CBK& cbk,
                                   int& nCuts)
   {
-    if (S.find(root) == S.end())
+#ifdef DEBUG
+    NodeSet intersection;
+    std::set_intersection(rootNodes.begin(), rootNodes.end(),
+                          S.begin(), S.end(),
+                          std::inserter(intersection, intersection.begin()));
+    assert(intersection.size() == 0);
+#endif
+
+    IloExpr rhs(cbk.getEnv());
+    
+    // determine dS
+    NodeSet dS;
+    for (NodeSetIt it = S.begin(); it != S.end(); ++it)
     {
-      IloExpr rhs(cbk.getEnv());
-      
-      // determine dS
-      NodeSet dS;
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      const Node i = *it;
+      for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
       {
-        const Node i = *it;
-        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        const Node j = _g.target(a);
+        if (S.find(j) == S.end())
         {
-          const Node j = _g.target(a);
-          if (S.find(j) == S.end())
-          {
-            dS.insert(j);
-          }
+          dS.insert(j);
         }
       }
-      
-      constructRHS(rhs, dS, S);
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-      {
-        assert(isValid(*it, dS, S));
-        cbk.add(_x[_nodeMap[*it]] <= rhs, IloCplex::UseCutPurge).end();
-        ++nCuts;
-      }
-
-      rhs.end();
     }
+    
+    constructRHS(rhs, dS, S);
+    for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+    {
+      assert(isValid(*it, dS, S));
+      cbk.add(_x[_nodeMap[*it]] <= rhs, IloCplex::UseCutPurge).end();
+      ++nCuts;
+    }
+
+    rhs.end();
   }
   
   template<typename CBK>
@@ -200,35 +206,34 @@ protected:
                                         CBK& cbk,
                                         int& nCuts)
   {
-    if (S.find(root) == S.end())
+    assert(S.find(root) == S.end());
+
+    IloExpr rhs(cbk.getEnv());
+    
+    // determine dS
+    NodeSet dS;
+    for (NodeSetIt it = S.begin(); it != S.end(); ++it)
     {
-      IloExpr rhs(cbk.getEnv());
-      
-      // determine dS
-      NodeSet dS;
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+      const Node i = *it;
+      for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
       {
-        const Node i = *it;
-        for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+        const Node j = _g.target(a);
+        if (S.find(j) == S.end())
         {
-          const Node j = _g.target(a);
-          if (S.find(j) == S.end())
-          {
-            dS.insert(j);
-          }
+          dS.insert(j);
         }
       }
-      
-      constructRHS(rhs, dS);
-      for (NodeSetIt it = S.begin(); it != S.end(); ++it)
-      {
-        assert(isValid(*it, dS, S));
-        cbk.add(_x[_nodeMap[*it]] <= rhs, IloCplex::UseCutPurge).end();
-        ++nCuts;
-      }
-      
-      rhs.end();
     }
+    
+    constructRHS(rhs, dS);
+    for (NodeSetIt it = S.begin(); it != S.end(); ++it)
+    {
+      assert(isValid(*it, dS, S));
+      cbk.add(_x[_nodeMap[*it]] <= rhs, IloCplex::UseCutPurge).end();
+      ++nCuts;
+    }
+    
+    rhs.end();
   }
 
   void printNonZeroVars(IloCplex::ControlCallbackI& cbk,

@@ -79,6 +79,7 @@ protected:
 
   typedef std::queue<DiNode> DiNodeQueue;
   typedef std::set<DiNode> DiNodeSet;
+  typedef typename DiNodeSet::const_iterator DiNodeSetIt;
   typedef std::list<DiNode> DiNodeList;
   typedef DiNodeList::const_iterator DiNodeListIt;
   
@@ -92,7 +93,7 @@ protected:
   NodeDiNodeMap* _pG2h2;
   NodeDiArcMap* _pG2hRootArc;
   DiNodeNodeMap _h2g;
-  DiNode _diRoot;
+  DiNodeSet _diRootSet;
   BkAlg* _pBK;
   DiBoolNodeMap _marked;
   
@@ -124,7 +125,7 @@ public:
     , _pG2h2(NULL)
     , _pG2hRootArc(NULL)
     , _h2g(_h)
-    , _diRoot(lemon::INVALID)
+    , _diRootSet()
     , _pBK(NULL)
     , _marked(_h, false)
     , _cutCount(0)
@@ -148,7 +149,7 @@ public:
     , _pG2h2(NULL)
     , _pG2hRootArc(NULL)
     , _h2g(_h)
-    , _diRoot(lemon::INVALID)
+    , _diRootSet()
     , _pBK(NULL)
     , _marked(_h, false)
     , _cutCount(0)
@@ -239,7 +240,7 @@ protected:
       }
     }
     
-    assert(_marked[_diRoot] != _marked[bk.getTarget()]);
+    assert(_marked[diRoot] != _marked[bk.getTarget()]);
   }
   
   void determineBwdCutSet(const Digraph& h,

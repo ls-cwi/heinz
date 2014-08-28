@@ -15,7 +15,7 @@
 #include <lemon/bfs.h>
 #include <lemon/kruskal.h>
 #include <set>
-#include "solver/treesolverrooted.h"
+#include "solver/impl/treesolverrootedimpl.h"
 
 namespace nina {
 namespace mwcs {
@@ -36,7 +36,8 @@ protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   typedef lemon::FilterEdges<const Graph, const BoolEdgeMap> SubGraphType;
   typedef MwcsGraph<const SubGraphType, const WeightNodeMap, LabelNodeMap, DoubleEdgeMap> MwcsSubGraphType;
-  typedef TreeSolverRooted<const SubGraphType, const WeightNodeMap, LabelNodeMap, DoubleEdgeMap> MwcsSubTreeSolver;
+  typedef TreeSolverRootedImpl<const SubGraphType, const WeightNodeMap, LabelNodeMap, DoubleEdgeMap> TreeSolverRootedImplType;
+  typedef typename MwcsSubGraphType::BoolNodeMap SubBoolNodeMap;
   typedef typename std::set<Node> NodeSet;
   typedef typename NodeSet::const_iterator NodeSetIt;
   
@@ -46,7 +47,7 @@ public:
 //                  IloBoolVarArray z,
                   const Graph& g,
                   const WeightNodeMap& weight,
-                  Node root,
+                  NodeSet rootNodes,
                   const IntNodeMap& nodeMap,
 //                  const IntEdgeMap& edgeMap,
                   int n,
@@ -57,7 +58,7 @@ public:
 //    , _z(z)
     , _g(g)
     , _weight(weight)
-    , _root(root)
+    , _rootNodes(rootNodes)
     , _nodeMap(nodeMap)
 //    , _edgeMap(edgeMap)
     , _n(n)
@@ -65,6 +66,7 @@ public:
     , _pEdgeCost(NULL)
     , _pEdgeFilterMap(NULL)
     , _pSubG(NULL)
+    , _pSubSolutionMap(NULL)
     , _pMwcsSubGraph(NULL)
     , _pMwcsSubTreeSolver(NULL)
     , _pMutex(pMutex)
@@ -73,9 +75,10 @@ public:
     _pEdgeCost = new DoubleEdgeMap(_g);
     _pEdgeFilterMap = new BoolEdgeMap(_g, false);
     _pSubG = new SubGraphType(_g, *_pEdgeFilterMap);
+    _pSubSolutionMap = new SubBoolNodeMap(*_pSubG, false);
     _pMwcsSubGraph = new MwcsSubGraphType();
     _pMwcsSubGraph->init(_pSubG, NULL, &_weight, NULL);
-    _pMwcsSubTreeSolver = new MwcsSubTreeSolver(*_pMwcsSubGraph);
+    _pMwcsSubTreeSolver = new TreeSolverRootedImplType();
     unlock();
   }
   
@@ -85,7 +88,7 @@ public:
 //    , _z(other._z)
     , _g(other._g)
     , _weight(other._weight)
-    , _root(other._root)
+    , _rootNodes(other._rootNodes)
     , _nodeMap(other._nodeMap)
 //    , _edgeMap(other._edgeMap)
     , _n(other._n)
@@ -93,6 +96,7 @@ public:
     , _pEdgeCost(NULL)
     , _pEdgeFilterMap(NULL)
     , _pSubG(NULL)
+    , _pSubSolutionMap(NULL)
     , _pMwcsSubGraph(NULL)
     , _pMwcsSubTreeSolver(NULL)
     , _pMutex(other._pMutex)
@@ -101,9 +105,10 @@ public:
     _pEdgeCost = new DoubleEdgeMap(_g);
     _pEdgeFilterMap = new BoolEdgeMap(_g, false);
     _pSubG = new SubGraphType(_g, *_pEdgeFilterMap);
+    _pSubSolutionMap = new SubBoolNodeMap(*_pSubG, false);
     _pMwcsSubGraph = new MwcsSubGraphType();
     _pMwcsSubGraph->init(_pSubG, NULL, &_weight, NULL);
-    _pMwcsSubTreeSolver = new MwcsSubTreeSolver(*_pMwcsSubGraph);
+    _pMwcsSubTreeSolver = new TreeSolverRootedImplType();
     unlock();
   }
   
@@ -114,6 +119,7 @@ public:
     delete _pMwcsSubGraph;
     delete _pEdgeCost;
     delete _pEdgeFilterMap;
+    delete _pSubSolutionMap;
     delete _pSubG;
     unlock();
   }
@@ -189,20 +195,23 @@ protected:
                                         IloNumArray& solution,
                                         double& solutionWeight)
   {
-    _pMwcsSubTreeSolver->init(_root);
-    _pMwcsSubTreeSolver->solve();
+    _pMwcsSubTreeSolver->init(*_pMwcsSubGraph, _rootNodes);
     
-    if (_pMwcsSubTreeSolver->getSolutionWeight() > solutionWeight)
+    NodeSet solutionSet;
+    double score;
+    
+    _pMwcsSubTreeSolver->solve(score, *_pSubSolutionMap, solutionSet);
+    
+    if (score > solutionWeight)
     {
-      solutionWeight = _pMwcsSubTreeSolver->getSolutionWeight();
+      solutionWeight = score;
       solutionVar.add(_x);
       solution.add(_x.getSize(), 0);
 
 //      solutionVar.add(_z);
 //      solution.add(_z.getSize(), 0);
       
-      const NodeSet& module = _pMwcsSubTreeSolver->getSolutionModule();
-      for (NodeSetIt it = module.begin(); it != module.end(); ++it)
+      for (NodeSetIt it = solutionSet.begin(); it != solutionSet.end(); ++it)
       {
         solution[_nodeMap[*it]] = 1;
       }
@@ -226,7 +235,7 @@ protected:
 //  IloBoolVarArray _z;
   const Graph& _g;
   const WeightNodeMap& _weight;
-  Node _root;
+  NodeSet _rootNodes;
   const IntNodeMap& _nodeMap;
 //  const IntEdgeMap& _edgeMap;
   const int _n;
@@ -234,8 +243,9 @@ protected:
   DoubleEdgeMap* _pEdgeCost;
   BoolEdgeMap* _pEdgeFilterMap;
   const SubGraphType* _pSubG;
+  SubBoolNodeMap* _pSubSolutionMap;
   MwcsSubGraphType* _pMwcsSubGraph;
-  MwcsSubTreeSolver* _pMwcsSubTreeSolver;
+  TreeSolverRootedImplType* _pMwcsSubTreeSolver;
   IloFastMutex* _pMutex;
 };
   

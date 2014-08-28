@@ -38,7 +38,7 @@ public:
 //  using Parent::_z;
   using Parent::_g;
   using Parent::_weight;
-  using Parent::_root;
+  using Parent::_rootNodes;
   using Parent::_nodeMap;
 //  using Parent::_edgeMap;
   using Parent::_n;
@@ -57,7 +57,7 @@ protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   typedef typename Parent::SubGraphType SubGraphType;
   typedef typename Parent::MwcsSubGraphType MwcsSubGraphType;
-  typedef typename Parent::MwcsSubTreeSolver MwcsSubTreeSolver;
+  typedef typename Parent::TreeSolverRootedImplType TreeSolverRootedImplType;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
   
@@ -74,7 +74,7 @@ public:
                     int m,
                     IloFastMutex* pMutex)
 //    : Parent(env, x, z, g, weight, lemon::INVALID, nodeMap, edgeMap, n, m, pMutex)
-    : Parent(env, x, g, weight, lemon::INVALID, nodeMap, n, m, pMutex)
+    : Parent(env, x, g, weight, NodeSet(), nodeMap, n, m, pMutex)
     , _y(y)
     , _tol(_epsilon)
   {
@@ -90,7 +90,7 @@ public:
   ~HeuristicUnrooted()
   {
   }
-    
+
 protected:
   virtual void main()
   {
@@ -107,11 +107,17 @@ protected:
       solutionVar.add(_y);
       solution.add(_y.getSize(), 0);
 //      solution[_x.getSize() + _z.getSize() + _nodeMap[_root]] = 1;
-      solution[_x.getSize() + _nodeMap[_root]] = 1;
       
-      std::cout << "Root: " << _y[_nodeMap[_root]].getName()
-                << " = " << getValue(_y[_nodeMap[_root]])
-                << " and found solution with weight: " << solutionWeight << std::endl;
+      std::cout << "Root:";
+      for (NodeSetIt rootIt = _rootNodes.begin(); rootIt != _rootNodes.end(); ++rootIt)
+      {
+        Node root = *rootIt;
+        solution[_x.getSize() + _nodeMap[root]] = 1;
+        
+        std::cout << " " << _y[_nodeMap[root]].getName()
+                  << " = " << getValue(_y[_nodeMap[root]]);
+      }
+      std::cout << " and found solution with weight: " << solutionWeight << std::endl;
       setCplexSolution(solutionVar, solution, solutionWeight);
     }
     
@@ -126,6 +132,8 @@ protected:
   
   void determineRootNode()
   {
+    _rootNodes.clear();
+    
     IloNumArray y_values(_env, _n);
     getValues(y_values, _y);
     
@@ -133,8 +141,7 @@ protected:
     {
       if (_tol.nonZero(y_values[_nodeMap[i]]))
       {
-        _root = i;
-        break;
+        _rootNodes.insert(i);
       }
     }
     

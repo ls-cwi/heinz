@@ -42,19 +42,19 @@ set( Heinz_Hdr
   src/solver/impl/treesolverimpl.h
   src/solver/impl/treesolverunrootedimpl.h
   src/solver/impl/treesolverrootedimpl.h
-  src/solver/cplex_cut/backoff.h
-  src/solver/cplex_cut/nodecut.h
-  src/solver/cplex_cut/nodecutuser.h
-  src/solver/cplex_cut/nodecutlazy.h
-  src/solver/cplex_cut/nodecutrooted.h
-  src/solver/cplex_cut/nodecutunrooted.h
-  src/solver/cplex_cut/bk_alg.h
-  src/solver/cplexsolver.h
-  src/solver/cutsolverrooted.h
-  src/solver/cutsolverunrooted.h
-  src/solver/cplex_heuristic/heuristicrooted.h
-  src/solver/cplex_heuristic/heuristicunrooted.h
-  src/solver/cplex_branch/branch.h
+  src/solver/impl/cplex_cut/backoff.h
+  src/solver/impl/cplex_cut/nodecut.h
+  src/solver/impl/cplex_cut/nodecutuser.h
+  src/solver/impl/cplex_cut/nodecutlazy.h
+  src/solver/impl/cplex_cut/nodecutrooted.h
+  src/solver/impl/cplex_cut/nodecutunrooted.h
+  src/solver/impl/cplex_cut/bk_alg.h
+  src/solver/impl/cplexsolverimpl.h
+  src/solver/impl/cutsolverrootedimpl.h
+  src/solver/impl/cutsolverunrootedimpl.h
+  src/solver/impl/cplex_heuristic/heuristicrooted.h
+  src/solver/impl/cplex_heuristic/heuristicunrooted.h
+  src/solver/impl/cplex_branch/branch.h
   src/mwcsgraph.h
   src/mwcspreprocessedgraph.h
   src/utils.h
@@ -169,8 +169,8 @@ set( CommonLibs
 	OGDF
 )
 
-#add_executable( heinz ${Heinz_Src} ${Heinz_Hdr} ${CommonObjs} )
-#target_link_libraries( heinz ${CommonLibs} )
+add_executable( heinz ${Heinz_Src} ${Heinz_Hdr} ${CommonObjs} )
+target_link_libraries( heinz ${CommonLibs} )
 
 add_executable( heinz-mc ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( heinz-mc emon OGDF pthread )

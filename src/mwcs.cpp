@@ -31,11 +31,15 @@
 #include "preprocessing/posdiamond.h"
 #include "preprocessing/negbicomponent.h"
 #include "preprocessing/negtricomponent.h"
+
 #include "solver/solver.h"
-#include "solver/cplexsolver.h"
-#include "solver/cutsolverrooted.h"
-#include "solver/cutsolverunrooted.h"
-#include "solver/cplex_cut/backoff.h"
+#include "solver/solverrooted.h"
+#include "solver/solverunrooted.h"
+#include "solver/impl/cplexsolverimpl.h"
+#include "solver/impl/cutsolverrootedimpl.h"
+#include "solver/impl/cutsolverunrootedimpl.h"
+#include "solver/impl/cplex_cut/backoff.h"
+
 //#include "solver/enumsolverunrooted.h"
 #include "mwcs.h"
 #include "utils.h"
@@ -63,11 +67,13 @@ typedef NegBiComponent<Graph> NegBiComponentType;
 typedef NegTriComponent<Graph> NegTriComponentType;
 
 typedef Solver<Graph> SolverType;
-typedef CplexSolver<Graph> CplexSolverType;
-typedef typename CplexSolverType::Options OptionsType;
-typedef CutSolverRooted<Graph> CutSolverRootedType;
-typedef CutSolverUnrooted<Graph> CutSolverUnrootedType;
-typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
+typedef SolverRooted<Graph> SolverRootedType;
+typedef SolverUnrooted<Graph> SolverUnrootedType;
+typedef CplexSolverImpl<Graph> CplexSolverImplType;
+typedef typename CplexSolverImplType::Options Options;
+typedef CutSolverRootedImpl<Graph> CutSolverRootedImplType;
+typedef CutSolverUnrootedImpl<Graph> CutSolverUnrootedImplType;
+typedef typename SolverType::NodeSet NodeSet;
 
 BackOff createBackOff(int function, int period)
 {
@@ -220,20 +226,36 @@ int main(int argc, char** argv)
   // Solve
   lemon::Timer t;
   const Node rootNode = pMwcs->getNodeByLabel(root);
+  SolverType* pSolver = NULL;
+  
+  Options options(createBackOff(backOffFunction, backOffPeriod),
+                  true,
+                  maxNumberOfCuts,
+                  timeLimit,
+                  multiThreading);
+  
+  if (rootNode != lemon::INVALID)
+  {
+    NodeSet rootNodes;
+    rootNodes.insert(rootNode);
+    
+    SolverRootedType* pSolverRooted = new SolverRootedType(new CutSolverRootedImplType(options));
+    pSolverRooted->solve(*pMwcs, rootNodes);
+    pSolver = pSolverRooted;
+  }
+  else
+  {
+    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new CutSolverUnrootedImplType(options));
+    pSolverUnrooted->solve(*pMwcs);
+    pSolver = pSolverUnrooted;
+  }
+  
   if (rootNode == lemon::INVALID && !root.empty())
   {
     std::cerr << "No node with label '" << root
-    << "' present. Defaulting to unrooted formulation." << std::endl;
+              << "' present. Defaulting to unrooted formulation." << std::endl;
   }
   
-  MwcsAnalyzeType analysis(*pMwcs);
-  analysis.analyze();
-  CutSolverUnrootedType* pSolver = new CutSolverUnrootedType(*pMwcs,
-                                                             OptionsType(createBackOff(backOffFunction, backOffPeriod),
-                                                                         maxNumberOfCuts, timeLimit, multiThreading),
-                                                             analysis);
-  pSolver->init();
-  pSolver->solve();
   if (outputFile != "-" && !outputFile.empty())
   {
     std::ofstream outFile(outputFile.c_str());
