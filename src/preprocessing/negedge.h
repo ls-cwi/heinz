@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "unrootedrule.h"
+#include "rule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class NegEdge : public UnrootedRule<GR, WGHT>
+class NegEdge : public Rule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef UnrootedRule<GR, WGHT> Parent;
+  typedef Rule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -42,15 +42,18 @@ public:
   NegEdge();
   virtual ~NegEdge() {}
   virtual int apply(Graph& g,
+                    const NodeSet& rootNodes,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    NodeMap& mapToPre,
+                    IntNodeMap& comp,
+                    NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
+                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -66,15 +69,18 @@ inline NegEdge<GR, WGHT>::NegEdge()
 
 template<typename GR, typename WGHT>
 inline int NegEdge<GR, WGHT>::apply(Graph& g,
+                                    const NodeSet& rootNodes,
                                     const ArcLookUpType& arcLookUp,
                                     LabelNodeMap& label,
                                     WeightNodeMap& score,
-                                    NodeMap& mapToPre,
+                                    IntNodeMap& comp,
+                                    NodeSetMap& mapToPre,
                                     NodeSetMap& preOrigNodes,
                                     NodeSetMap& neighbors,
                                     int& nNodes,
                                     int& nArcs,
                                     int& nEdges,
+                                    int& nComponents,
                                     DegreeNodeMap& degree,
                                     DegreeNodeSetVector& degreeVector,
                                     double& LB)
@@ -88,11 +94,15 @@ inline int NegEdge<GR, WGHT>::apply(Graph& g,
 
     if (score[u] <= 0 && score[v] <= 0 && degree[u] == 2 && degree[v] == 2)
     {
-      res++;
-      merge(g, arcLookUp, label, score,
-            mapToPre, preOrigNodes, neighbors,
-            nNodes, nArcs, nEdges,
-            degree, degreeVector, u, v, LB);
+      // only merge if neither u nor v is a root node
+      if (rootNodes.find(u) == rootNodes.end() && rootNodes.find(v) == rootNodes.end())
+      {
+        res++;
+        merge(g, arcLookUp, label, score,
+              mapToPre, preOrigNodes, neighbors,
+              nNodes, nArcs, nEdges,
+              degree, degreeVector, u, v, LB);
+      }
     }
   }
 

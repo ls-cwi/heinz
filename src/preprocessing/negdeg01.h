@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "unrootedrule.h"
+#include "rule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class NegDeg01 : public UnrootedRule<GR, WGHT>
+class NegDeg01 : public Rule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef UnrootedRule<GR, WGHT> Parent;
+  typedef Rule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -41,15 +41,18 @@ public:
   NegDeg01();
   virtual ~NegDeg01() {}
   virtual int apply(Graph& g,
+                    const NodeSet& rootNodes,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    NodeMap& mapToPre,
+                    IntNodeMap& comp,
+                    NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
+                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -58,15 +61,18 @@ public:
 
 protected:
   int apply(Graph& g,
+            const NodeSet& rootNodes,
             const ArcLookUpType& arcLookUp,
             LabelNodeMap& label,
             WeightNodeMap& score,
-            NodeMap& mapToPre,
+            IntNodeMap& comp,
+            NodeSetMap& mapToPre,
             NodeSetMap& preOrigNodes,
             NodeSetMap& neighbors,
             int& nNodes,
             int& nArcs,
             int& nEdges,
+            int& nComponents,
             DegreeNodeMap& degree,
             DegreeNodeSetVector& degreeVector,
             int d);
@@ -80,34 +86,48 @@ inline NegDeg01<GR, WGHT>::NegDeg01()
 
 template<typename GR, typename WGHT>
 inline int NegDeg01<GR, WGHT>::apply(Graph& g,
+                                     const NodeSet& rootNodes,
                                      const ArcLookUpType& arcLookUp,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
-                                     NodeMap& mapToPre,
+                                     IntNodeMap& comp,
+                                     NodeSetMap& mapToPre,
                                      NodeSetMap& preOrigNodes,
                                      NodeSetMap& neighbors,
                                      int& nNodes,
                                      int& nArcs,
                                      int& nEdges,
+                                     int& nComponents,
                                      DegreeNodeMap& degree,
                                      DegreeNodeSetVector& degreeVector,
                                      double& LB)
 {
-  return apply(g, arcLookUp, label, score, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector, 0)
-      + apply(g, arcLookUp, label, score, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector, 1);
+  return apply(g, rootNodes, arcLookUp,
+               label, score, comp,
+               mapToPre, preOrigNodes, neighbors,
+               nNodes, nArcs, nEdges, nComponents,
+               degree, degreeVector, 0)
+      + apply(g, rootNodes, arcLookUp,
+              label, score, comp,
+              mapToPre, preOrigNodes, neighbors,
+              nNodes, nArcs, nEdges, nComponents,
+              degree, degreeVector, 1);
 }
 
 template<typename GR, typename WGHT>
 inline int NegDeg01<GR, WGHT>::apply(Graph& g,
+                                     const NodeSet& rootNodes,
                                      const ArcLookUpType& arcLookUp,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
-                                     NodeMap& mapToPre,
+                                     IntNodeMap& comp,
+                                     NodeSetMap& mapToPre,
                                      NodeSetMap& preOrigNodes,
                                      NodeSetMap& neighbors,
                                      int& nNodes,
                                      int& nArcs,
                                      int& nEdges,
+                                     int& nComponents,
                                      DegreeNodeMap& degree,
                                      DegreeNodeSetVector& degreeVector,
                                      int d)
@@ -121,13 +141,14 @@ inline int NegDeg01<GR, WGHT>::apply(Graph& g,
   {
     NodeSetIt nextNodeIt = nodeIt;
     nextNodeIt++;
-
-    // remove if negative
-    if (score[*nodeIt] < 0)
+    
+    Node v = *nodeIt;
+    // remove if negative and not the root node
+    if (score[v] < 0 && rootNodes.find(v) == rootNodes.end())
     {
-      remove(g, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges,
-             degree, degreeVector, *nodeIt);
+      remove(g, comp, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges, nComponents,
+             degree, degreeVector, v);
       return 1;
     }
 

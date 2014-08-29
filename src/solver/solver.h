@@ -48,6 +48,7 @@ public:
   
   virtual ~Solver()
   {
+    delete _pSolutionMap;
   }
   
 protected:

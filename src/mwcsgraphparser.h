@@ -56,6 +56,7 @@ public:
   using Parent::getOrgArcLookUp;
   using Parent::getOrgComponent;
   using Parent::getOrgComponentCount;
+  using Parent::getOrgComponentMap;
   using Parent::getOrgEdgeCount;
   using Parent::getOrgGraph;
   using Parent::getOrgLabel;

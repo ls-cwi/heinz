@@ -5,8 +5,6 @@
  *      Authors: C.I. Bucur and M. El-Kebir
  */
 
-// TODO: determine which preprocessing rules are invalid for rooted formulation!
-
 #include <iostream>
 #include <lemon/arg_parser.h>
 #include <lemon/time_measure.h>
@@ -20,10 +18,10 @@
 #include "mwcsgraph.h"
 #include "mwcsgraphparser.h"
 #include "mwcspreprocessedgraph.h"
+
 #include "preprocessing/negdeg01.h"
 #include "preprocessing/posedge.h"
 #include "preprocessing/negedge.h"
-#include "preprocessing/rootedposdeg01.h"
 #include "preprocessing/negcircuit.h"
 #include "preprocessing/negdiamond.h"
 #include "preprocessing/negmirroredhubs.h"
@@ -35,6 +33,7 @@
 #include "solver/solver.h"
 #include "solver/solverrooted.h"
 #include "solver/solverunrooted.h"
+#include "solver/enumsolverunrooted.h"
 #include "solver/impl/cplexsolverimpl.h"
 #include "solver/impl/cutsolverrootedimpl.h"
 #include "solver/impl/cutsolverunrootedimpl.h"
@@ -57,7 +56,6 @@ typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 typedef NegDeg01<Graph> NegDeg01Type;
 typedef PosEdge<Graph> PosEdgeType;
 typedef NegEdge<Graph> NegEdgeType;
-typedef RootedPosDeg01<Graph> RootedPosDeg01Type;
 typedef NegCircuit<Graph> NegCircuitType;
 typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
@@ -69,6 +67,7 @@ typedef NegTriComponent<Graph> NegTriComponentType;
 typedef Solver<Graph> SolverType;
 typedef SolverRooted<Graph> SolverRootedType;
 typedef SolverUnrooted<Graph> SolverUnrootedType;
+typedef EnumSolverUnrooted<Graph> EnumSolverUnrootedType;
 typedef CplexSolverImpl<Graph> CplexSolverImplType;
 typedef typename CplexSolverImplType::Options Options;
 typedef CutSolverRootedImpl<Graph> CutSolverRootedImplType;
@@ -90,7 +89,6 @@ BackOff createBackOff(int function, int period)
 int main(int argc, char** argv)
 {
   // parse command line arguments
-  int formulation = 5;
   int verbosityLevel = 2;
   int maxNumberOfCuts = 3;
   int timeLimit = -1;
@@ -181,27 +179,12 @@ int main(int argc, char** argv)
 
   // Parse the input graph file and preprocess
   MwcsGraphType* pMwcs;
+  MwcsPreprocessedGraphType* pPreprocessedMwcs = NULL;
   if (!noPreprocess)
   {
-    MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
-    pMwcs = pPreprocessedMwcs;
-    pPreprocessedMwcs->addPreprocessRule(1, new NegDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(1, new PosEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(1, new NegEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(1, new NegCircuitType());
-    pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
+    pMwcs = pPreprocessedMwcs = new MwcsPreprocessedGraphType();
 //    pPreprocessedMwcs->addPreprocessRule(3, new NegBiComponentType());
 //    pPreprocessedMwcs->addPreprocessRule(4, new NegTriComponentType());
-    if (root.empty())
-    {
-      pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
-    }
-    else
-    {
-      pPreprocessedMwcs->addPreprocessRootRule(1, new RootedPosDeg01Type());
-    }
   }
   else
   {
@@ -225,8 +208,15 @@ int main(int argc, char** argv)
 
   // Solve
   lemon::Timer t;
-  const Node rootNode = pMwcs->getNodeByLabel(root);
-  SolverType* pSolver = NULL;
+  const NodeSet rootNodeSet = pMwcs->getNodeByLabel(root);
+  assert(rootNodeSet.size() == 0 || rootNodeSet.size() == 1);
+  
+  if (pPreprocessedMwcs)
+  {
+    pPreprocessedMwcs->preprocess(rootNodeSet);
+  }
+  
+//  SolverType* pSolver = NULL;
   
   Options options(createBackOff(backOffFunction, backOffPeriod),
                   true,
@@ -234,27 +224,29 @@ int main(int argc, char** argv)
                   timeLimit,
                   multiThreading);
   
-  if (rootNode != lemon::INVALID)
-  {
-    NodeSet rootNodes;
-    rootNodes.insert(rootNode);
-    
-    SolverRootedType* pSolverRooted = new SolverRootedType(new CutSolverRootedImplType(options));
-    pSolverRooted->solve(*pMwcs, rootNodes);
-    pSolver = pSolverRooted;
-  }
-  else
-  {
-    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new CutSolverUnrootedImplType(options));
-    pSolverUnrooted->solve(*pMwcs);
-    pSolver = pSolverUnrooted;
-  }
-  
-  if (rootNode == lemon::INVALID && !root.empty())
+  if (rootNodeSet.size() == 0 && !root.empty())
   {
     std::cerr << "No node with label '" << root
               << "' present. Defaulting to unrooted formulation." << std::endl;
   }
+  
+//  if (rootNodeSet.size() == 1)
+//  {
+//    SolverRootedType* pSolverRooted = new SolverRootedType(new CutSolverRootedImplType(options));
+//    pSolverRooted->solve(*pMwcs, rootNodeSet);
+//    pSolver = pSolverRooted;
+//  }
+//  else
+//  {
+//    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new CutSolverUnrootedImplType(options));
+//    pSolverUnrooted->solve(*pMwcs);
+//    pSolver = pSolverUnrooted;
+//  }
+  
+  SolverUnrootedType* pSolver = new EnumSolverUnrootedType(new CutSolverUnrootedImplType(options),
+                                                           new CutSolverRootedImplType(options),
+                                                           !noPreprocess);
+  pSolver->solve(*pMwcs);
   
   if (outputFile != "-" && !outputFile.empty())
   {

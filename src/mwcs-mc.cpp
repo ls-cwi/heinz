@@ -16,7 +16,6 @@
 #include "preprocessing/negdeg01.h"
 #include "preprocessing/posedge.h"
 #include "preprocessing/negedge.h"
-#include "preprocessing/rootedposdeg01.h"
 #include "preprocessing/negcircuit.h"
 #include "preprocessing/negdiamond.h"
 #include "preprocessing/negmirroredhubs.h"
@@ -41,7 +40,6 @@ typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 typedef NegDeg01<Graph> NegDeg01Type;
 typedef PosEdge<Graph> PosEdgeType;
 typedef NegEdge<Graph> NegEdgeType;
-typedef RootedPosDeg01<Graph> RootedPosDeg01Type;
 typedef NegCircuit<Graph> NegCircuitType;
 typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
@@ -137,14 +135,13 @@ int main (int argc, char** argv)
 
   // Parse the input graph file and preprocess
   MwcsGraphType* pMwcs;
+  MwcsPreprocessedGraphType* pPreprocessedMwcs = NULL;
   if (!noPreprocess)
   {
-    MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
-    pMwcs = pPreprocessedMwcs;
+    pMwcs = pPreprocessedMwcs = new MwcsPreprocessedGraphType();
     pPreprocessedMwcs->addPreprocessRule(1, new NegDeg01Type());
     pPreprocessedMwcs->addPreprocessRule(1, new PosEdgeType());
     pPreprocessedMwcs->addPreprocessRule(1, new NegEdgeType());
-    pPreprocessedMwcs->addPreprocessRootRule(1, new RootedPosDeg01Type());
     pPreprocessedMwcs->addPreprocessRule(1, new NegCircuitType());
     pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
     pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
@@ -165,21 +162,28 @@ int main (int argc, char** argv)
   // compute scores
   if (pval)
   {
-    pMwcs->computeScores(lambda, a, fdr);
+    if (ap.given("a") && ap.given("lambda"))
+      pMwcs->computeScores(lambda, a, fdr);
+    else
+      pMwcs->computeScores(fdr);
   }
 
   // Solve
   lemon::Timer t;
 
-  const Node rootNode = pMwcs->getNodeByLabel(root);
-  SolverType* pSolver = NULL;
-  if (rootNode != lemon::INVALID)
+  const NodeSet rootNodeSet = pMwcs->getNodeByLabel(root);
+  assert(rootNodeSet.size() == 0 || rootNodeSet.size() == 1);
+  
+  if (pPreprocessedMwcs)
   {
-    NodeSet rootNodes;
-    rootNodes.insert(rootNode);
-    
+    pPreprocessedMwcs->preprocess(rootNodeSet);
+  }
+  
+  SolverType* pSolver = NULL;
+  if (rootNodeSet.size() == 1)
+  {
     SolverRootedType* pSolverRooted = new SolverRootedType(new TreeHeuristicSolverRootedImplType(options));
-    pSolverRooted->solve(*pMwcs, rootNodes);
+    pSolverRooted->solve(*pMwcs, rootNodeSet);
     pSolver = pSolverRooted;
   }
   else

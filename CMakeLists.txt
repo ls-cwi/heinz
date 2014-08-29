@@ -12,12 +12,9 @@ set( Heinz_Hdr
   src/parser/mwcsparser.h
   src/parser/stpparser.h
   src/parser/identityparser.h
-  src/preprocessing/base.h
-  src/preprocessing/rootedrule.h
-  src/preprocessing/unrootedrule.h
+  src/preprocessing/rule.h
   src/preprocessing/negdeg01.h
   src/preprocessing/negedge.h
-  src/preprocessing/rootedposdeg01.h
   src/preprocessing/posedge.h
   src/preprocessing/negcircuit.h
   src/preprocessing/negdiamond.h

@@ -212,7 +212,7 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
   IloExpr expr(_env);
   for (int i = 0; i < _n ; i++)
   {
-    expr += _x[i] * mwcsGraph.getScore(_invNode[i]);
+    expr += _x[i] * weight[_invNode[i]];
   }
   _model.add(IloObjective(_env, expr, IloObjective::Maximize));
 
@@ -222,11 +222,11 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
     int nAnalyzeConstraints = 0;
     for (NodeIt i(g); i != lemon::INVALID; ++i)
     {
-      if (mwcsGraph.getScore(i) > 0)
+      if (weight[i] > 0)
       {
         for (NodeIt j(g); j != lemon::INVALID; ++j)
         {
-          if (mwcsGraph.getScore(j) > 0 && _pAnalysis->ok(i, j))
+          if (weight[j] > 0 && _pAnalysis->ok(i, j))
           {
             _model.add(_x[(*_pNode)[i]] <= _x[(*_pNode)[j]]);
             nAnalyzeConstraints++;

@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "unrootedrule.h"
+#include "rule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class PosEdge : public UnrootedRule<GR, WGHT>
+class PosEdge : public Rule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef UnrootedRule<GR, WGHT> Parent;
+  typedef Rule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -42,15 +42,18 @@ public:
   PosEdge();
   virtual ~PosEdge() {}
   virtual int apply(Graph& g,
+                    const NodeSet& rootNodes,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    NodeMap& mapToPre,
+                    IntNodeMap& comp,
+                    NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
+                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -66,15 +69,18 @@ inline PosEdge<GR, WGHT>::PosEdge()
 
 template<typename GR, typename WGHT>
 inline int PosEdge<GR, WGHT>::apply(Graph& g,
+                                    const NodeSet& rootNodes,
                                     const ArcLookUpType& arcLookUp,
                                     LabelNodeMap& label,
                                     WeightNodeMap& score,
-                                    NodeMap& mapToPre,
+                                    IntNodeMap& comp,
+                                    NodeSetMap& mapToPre,
                                     NodeSetMap& preOrigNodes,
                                     NodeSetMap& neighbors,
                                     int& nNodes,
                                     int& nArcs,
                                     int& nEdges,
+                                    int& nComponents,
                                     DegreeNodeMap& degree,
                                     DegreeNodeSetVector& degreeVector,
                                     double& LB)

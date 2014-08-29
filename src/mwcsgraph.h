@@ -70,11 +70,7 @@ public:
                     LabelNodeMap* pLabel,
                     WeightNodeMap* pScore,
                     WeightNodeMap* pPval);
-  virtual Node init(Node root) { return root; }
-  virtual bool deinit() { return false; }
   void resetCounts();
-
-
 
 private:
   Graph* _pG;
@@ -193,9 +189,17 @@ public:
     return getOrgScore(n);
   }
 
-  virtual Node getNodeByLabel(const std::string& label) const
+  virtual NodeSet getNodeByLabel(const std::string& label) const
   {
-    return getOrgNodeByLabel(label);
+    NodeSet res;
+    
+    Node node = getOrgNodeByLabel(label);
+    if (node != lemon::INVALID)
+    {
+      res.insert(node);
+    }
+    
+    return res;
   }
 
   void writeLGF(std::ostream& out) const
@@ -272,6 +276,11 @@ public:
     assert(n != lemon::INVALID);
     return (*_pComp)[n];
   }
+  
+  const IntNodeMap& getOrgComponentMap() const
+  {
+    return *_pComp;
+  }
 
   std::string getOrgLabel(Node n) const
   {
@@ -293,9 +302,9 @@ public:
     return (*_pPVal)[n];
   }
 
-  virtual Node getPreNode(Node orgNode) const
+  virtual NodeSet getPreNodes(Node orgNode) const
   {
-    return orgNode;
+    return NodeSet();
   }
 
   Node getOrgNodeByLabel(const std::string& label) const
@@ -610,8 +619,13 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printHeinz(const NodeSet& module,
   double score = 0;
   for (NodeIt v(g); v != lemon::INVALID; ++v)
   {
-    Node pre_v = this->getPreNode(v);
-    bool inSolution = (module.find(pre_v) != module.end());
+    NodeSet preNodes = this->getPreNodes(v);
+    bool inSolution = false;
+    for (NodeSetIt preNodeIt = preNodes.begin(); preNodeIt != preNodes.end(); ++preNodeIt)
+    {
+      inSolution |= module.find(*preNodeIt) != module.end();
+    }
+    
     if (inSolution)
     {
       score += getOrgScore(v);

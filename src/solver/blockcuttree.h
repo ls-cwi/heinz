@@ -9,7 +9,7 @@
 #define BLOCKTREE_H
 
 #include <lemon/core.h>
-#include <lemon/smart_graph.h>
+#include <lemon/list_graph.h>
 #include <lemon/connectivity.h>
 #include <set>
 #include <vector>
@@ -23,17 +23,31 @@ class BlockCutTree
 {
 public:
   typedef GR Graph;
-  typedef lemon::SmartBpGraph Tree;
+  typedef lemon::ListBpGraph Tree;
   
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   
   typedef std::vector<Edge> EdgeVector;
   typedef typename EdgeVector::const_iterator EdgeVectorIt;
   
-  typedef typename Graph::template EdgeMap<Tree::BlueNode> ToBlockNodeMap;
+  typedef std::set<Node> NodeSet;
+  typedef typename NodeSet::const_iterator NodeSetIt;
+  
+  typedef Tree::BlueNode BlockNode;
+  typedef Tree::BlueNodeIt BlockNodeIt;
+  typedef Tree::RedNode CutNode;
+  typedef Tree::RedNodeIt CutNodeIt;
+  
+  typedef typename Graph::template EdgeMap<BlockNode> ToBlockNodeMap;
   typedef Tree::template RedNodeMap<Node> ArticulationMap;
   typedef Tree::template BlueNodeMap<EdgeVector> RealEdgesMap;
   typedef Tree::template NodeMap<int> IntTreeNodeMap;
+  typedef Tree::template BlueNodeMap<bool> BoolTreeBlockNodeMap;
+  
+  typedef std::set<BlockNode> BlockNodeSet;
+  typedef typename BlockNodeSet::const_iterator BlockNodeSetIt;
+  typedef std::vector<BlockNodeSet> BlockNodeSetVector;
+  typedef typename BlockNodeSetVector::const_iterator BlockNodeSetVectorIt;
   
   BlockCutTree(const Graph& g)
     : _G(g)
@@ -42,25 +56,61 @@ public:
     , _articulationPoint(_T)
     , _realEdges(_T)
     , _deg(_T)
-    , _numTreeNodes(0)
+    , _numBlockNodes(0)
+    , _blockNodesByDegree()
   {
   }
   
   bool run();
+  
+  bool removeBlockNode(Tree::BlueNode n)
+  {
+    if (getDegree(n) != 1)
+    {
+      return false;
+    }
+    
+    CutNode cut = _T.redNode(Tree::IncEdgeIt(_T, n));
+    
+    _blockNodesByDegree[_deg[n]].erase(n);
+    _T.erase(n);
+    --_numBlockNodes;
+    
+    // remove cut node if its degree becomes 1
+    if (--_deg[cut] == 1)
+    {
+      BlockNode b2 = _T.blueNode(Tree::IncEdgeIt(_T, cut));
+      _blockNodesByDegree[_deg[b2]--].erase(b2);
+      _blockNodesByDegree[_deg[b2]].insert(b2);
+      _T.erase(cut);
+    }
+    
+    return true;
+  }
   
   const Tree& getBlockCutTree() const
   {
     return _T;
   }
   
-  const Node getArticulationPoint(Tree::RedNode n) const
+  const Node getArticulationPoint(CutNode n) const
   {
     return _articulationPoint[n];
   }
   
-  const EdgeVector& getRealEdges(Tree::BlueNode n) const
+  const EdgeVector& getRealEdges(BlockNode n) const
   {
     return _realEdges[n];
+  }
+  
+  void getRealNodes(BlockNode n, NodeSet& nodeSet) const
+  {
+    const EdgeVector& realEdges = getRealEdges(n);
+    for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
+    {
+      nodeSet.insert(_G.u(*edgeIt));
+      nodeSet.insert(_G.v(*edgeIt));
+    }
   }
   
   Tree::Node toBlockNode(Edge e) const
@@ -70,12 +120,18 @@ public:
   
   int getNumBlockTreeNodes() const
   {
-    return _numTreeNodes;
+    return _numBlockNodes;
   }
   
   int getDegree(Tree::Node n) const
   {
     return _deg[n];
+  }
+  
+  const BlockNodeSet& getBlockNodeSetByDegree(int deg) const
+  {
+    assert(0 <= deg && static_cast<size_t>(deg) < _blockNodesByDegree.size());
+    return _blockNodesByDegree[deg];
   }
   
   void printNodes(std::ostream& out) const
@@ -109,7 +165,8 @@ private:
   ArticulationMap _articulationPoint;
   RealEdgesMap _realEdges;
   IntTreeNodeMap _deg;
-  int _numTreeNodes;
+  int _numBlockNodes;
+  BlockNodeSetVector _blockNodesByDegree;
 };
 
 template<typename GR>
@@ -117,14 +174,14 @@ inline bool BlockCutTree<GR>::run()
 {
   IntEdgeMap biCompMap(_G, -1);
   
-  _numTreeNodes = lemon::biNodeConnectedComponents(_G, biCompMap);
+  _numBlockNodes = lemon::biNodeConnectedComponents(_G, biCompMap);
   _T.clear();
-  _T.reserveNode(2 * _numTreeNodes);
+  _T.reserveNode(2 * _numBlockNodes);
   
   // construct mapping from int to Tree::Node
-  std::vector<Tree::BlueNode> blockNodes;
-  blockNodes.reserve(_numTreeNodes);
-  for (int i = 0; i < _numTreeNodes; ++i)
+  std::vector<BlockNode> blockNodes;
+  blockNodes.reserve(_numBlockNodes);
+  for (int i = 0; i < _numBlockNodes; ++i)
   {
     blockNodes.push_back(_T.addBlueNode());
     _deg[blockNodes.back()] = 0;
@@ -133,12 +190,12 @@ inline bool BlockCutTree<GR>::run()
   typedef std::set<int> IntSet;
   typedef std::set<Node> NodeSet;
   typedef Tree::template NodeMap<NodeSet> NodeSetTreeMap;
-  typedef typename Graph::template NodeMap<Tree::RedNode> RevArticulationMap;
+  typedef typename Graph::template NodeMap<CutNode> RevArticulationMap;
   
   NodeSetTreeMap articulationPoints(_T);
   RevArticulationMap revArticulationMap(_G, lemon::INVALID);
   
-  // construct _toTreeNode mapping: from edge to Tree::BlueNode
+  // construct _toTreeNode mapping: from edge to BlockNode
   // and identify articulation nodes
   for (NodeIt v(_G); v != lemon::INVALID; ++v)
   {
@@ -148,12 +205,11 @@ inline bool BlockCutTree<GR>::run()
       int biCompMap_e = biCompMap[e];
       biCompIndices.insert(biCompMap_e);
       _toBlockNode[e] = blockNodes[biCompMap_e];
-      _realEdges[blockNodes[biCompMap_e]].push_back(e);
     }
     
     if (biCompIndices.size() > 1)
     {
-      typename Tree::RedNode cut_v = revArticulationMap[v];
+      CutNode cut_v = revArticulationMap[v];
       if (cut_v == lemon::INVALID)
       {
         cut_v = revArticulationMap[v] = _T.addRedNode();
@@ -168,6 +224,26 @@ inline bool BlockCutTree<GR>::run()
         ++_deg[blockNodes[*it]];
       }
     }
+  }
+  
+  for (EdgeIt e(_G); e != lemon::INVALID; ++e)
+  {
+    int biCompMap_e = biCompMap[e];
+    _realEdges[blockNodes[biCompMap_e]].push_back(e);
+  }
+  
+  // determine maxBlockDegree
+  int maxBlockDegree = -1;
+  for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
+  {
+    maxBlockDegree = std::max(_deg[b], maxBlockDegree);
+  }
+  
+  // construct _blockNodeByDegree
+  _blockNodesByDegree = BlockNodeSetVector(maxBlockDegree + 1);
+  for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
+  {
+    _blockNodesByDegree[_deg[b]].insert(b);
   }
   
   return true;

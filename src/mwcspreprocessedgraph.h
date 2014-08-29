@@ -9,12 +9,22 @@
 #define MWCSPREPROCESSEDGRAPH_H
 
 #include "mwcsgraphparser.h"
-#include "preprocessing/unrootedrule.h"
-#include "preprocessing/rootedrule.h"
+#include "preprocessing/rule.h"
 #include <set>
 #include <vector>
 #include <algorithm>
 #include <lemon/core.h>
+
+#include "preprocessing/negdeg01.h"
+#include "preprocessing/posedge.h"
+#include "preprocessing/negedge.h"
+#include "preprocessing/negcircuit.h"
+#include "preprocessing/negdiamond.h"
+#include "preprocessing/negmirroredhubs.h"
+#include "preprocessing/posdeg01.h"
+#include "preprocessing/posdiamond.h"
+#include "preprocessing/negbicomponent.h"
+#include "preprocessing/negtricomponent.h"
 
 namespace nina {
 namespace mwcs {
@@ -32,17 +42,21 @@ public:
   typedef EWGHT WeightEdgeMap;
 
   typedef MwcsGraphParser<GR, NWGHT, NLBL, EWGHT> Parent;
-  typedef UnrootedRule<GR, NWGHT> UnrootedRuleType;
-  typedef RootedRule<GR, NWGHT> RootedRuleType;
+  typedef Rule<GR, NWGHT> RuleType;
   typedef typename Parent::ParserType ParserType;
   typedef typename Parent::InvLabelNodeMap InvLabelNodeMap;
   typedef typename Parent::InvLabelNodeMapIt InvLabelNodeMapIt;
-  typedef typename UnrootedRuleType::DegreeNodeMap DegreeNodeMap;
-  typedef typename UnrootedRuleType::DegreeNodeSetVector DegreeNodeSetVector;
-  typedef typename UnrootedRuleType::NodeMap NodeMap;
-  typedef typename UnrootedRuleType::NodeSet NodeSet;
-  typedef typename UnrootedRuleType::NodeSetIt NodeSetIt;
-  typedef typename UnrootedRuleType::NodeSetMap NodeSetMap;
+  typedef typename RuleType::DegreeNodeMap DegreeNodeMap;
+  typedef typename RuleType::DegreeNodeSetVector DegreeNodeSetVector;
+  typedef typename RuleType::NodeMap NodeMap;
+  typedef typename RuleType::NodeSet NodeSet;
+  typedef typename RuleType::NodeSetIt NodeSetIt;
+  typedef typename RuleType::NodeSetMap NodeSetMap;
+  
+  TEMPLATE_GRAPH_TYPEDEFS(Graph);
+  
+  typedef std::set<Edge> EdgeSet;
+  typedef typename EdgeSet::const_iterator EdgeSetIt;
 
   using Parent::getGraph;
   using Parent::getScores;
@@ -50,6 +64,7 @@ public:
   using Parent::getOrgArcLookUp;
   using Parent::getOrgComponent;
   using Parent::getOrgComponentCount;
+  using Parent::getOrgComponentMap;
   using Parent::getOrgEdgeCount;
   using Parent::getOrgGraph;
   using Parent::getOrgLabel;
@@ -61,27 +76,30 @@ public:
   using Parent::_parserInit;
 
 private:
-  TEMPLATE_GRAPH_TYPEDEFS(Graph);
+  typedef std::vector<RuleType*> RuleVector;
+  typedef typename RuleVector::const_iterator RuleVectorIt;
+  typedef typename RuleVector::iterator RuleVectorNonConstIt;
+  typedef std::vector<RuleVector> RuleMatrix;
 
-  typedef typename Graph::Snapshot Snapshot;
-  typedef std::vector<UnrootedRuleType*> UnrootedRuleVector;
-  typedef typename UnrootedRuleVector::const_iterator UnrootedRuleVectorIt;
-  typedef typename UnrootedRuleVector::iterator UnrootedRuleVectorNonConstIt;
-  typedef std::vector<UnrootedRuleVector> UnrootedRuleMatrix;
-
-  typedef std::vector<RootedRuleType*> RootedRuleVector;
-  typedef typename RootedRuleVector::const_iterator RootedRuleVectorIt;
-  typedef typename RootedRuleVector::iterator RootedRuleVectorNonConstIt;
-  typedef std::vector<RootedRuleVector> RootedRuleMatrix;
 public:
   MwcsPreprocessedGraph();
   virtual ~MwcsPreprocessedGraph();
   virtual bool init(ParserType* pParser, bool pval);
-  virtual Node init(Node root);
-  virtual bool deinit();
+  void preprocess(const NodeSet& rootNodes);
 
 protected:
   typedef typename Parent::ArcLookUpType ArcLookUpType;
+  
+  typedef NegDeg01<Graph> NegDeg01Type;
+  typedef PosEdge<Graph> PosEdgeType;
+  typedef NegEdge<Graph> NegEdgeType;
+  typedef NegCircuit<Graph> NegCircuitType;
+  typedef NegDiamond<Graph> NegDiamondType;
+  typedef NegMirroredHubs<Graph> NegMirroredHubsType;
+  typedef PosDeg01<Graph> PosDeg01Type;
+  typedef PosDiamond<Graph> PosDiamondType;
+  typedef NegBiComponent<Graph> NegBiComponentType;
+  typedef NegTriComponent<Graph> NegTriComponentType;
 
 private:
   typedef struct GraphStruct
@@ -91,6 +109,7 @@ private:
     WeightNodeMap* _pScore;
     IntNodeMap* _pComp;
     NodeSetMap* _pPreOrigNodes;
+    NodeSetMap* _pMapToPre;
     int _nNodes;
     int _nEdges;
     int _nArcs;
@@ -98,12 +117,13 @@ private:
     ArcLookUpType* _pArcLookUp;
 
     // constructor
-    GraphStruct()
+    GraphStruct(const Graph& orgG)
       : _pG(new Graph())
       , _pLabel(new LabelNodeMap(*_pG))
       , _pScore(new WeightNodeMap(*_pG))
       , _pComp(new IntNodeMap(*_pG))
       , _pPreOrigNodes(new NodeSetMap(*_pG))
+      , _pMapToPre(new NodeSetMap(orgG))
       , _nNodes(0)
       , _nEdges(0)
       , _nArcs(0)
@@ -117,6 +137,7 @@ private:
     {
       delete _pArcLookUp;
       delete _pPreOrigNodes;
+      delete _pMapToPre;
       delete _pComp;
       delete _pScore;
       delete _pLabel;
@@ -127,9 +148,7 @@ private:
 private:
   GraphStruct* _pGraph;
   GraphStruct* _pBackupGraph;
-  NodeMap* _pMapToPre;
-  UnrootedRuleMatrix _rules;
-  RootedRuleMatrix _rootRules;
+  RuleMatrix _rules;
 
 protected:
   virtual void initParserMembers(Graph*& pG,
@@ -138,33 +157,8 @@ protected:
                                  WeightNodeMap*& pPVal)
   {
     Parent::initParserMembers(pG, pLabel, pScore, pPVal);
-    _pMapToPre = new NodeMap(*pG);
+    _pGraph = new GraphStruct(*pG);
   }
-
-  void clear()
-  {
-    delete _pMapToPre;
-    _pMapToPre = new NodeMap(getOrgGraph());
-
-    _pGraph->_nNodes = getOrgNodeCount();
-    _pGraph->_nEdges = getOrgEdgeCount();
-    _pGraph->_nArcs = getOrgArcCount();
-
-    lemon::graphCopy(getOrgGraph(), *_pGraph->_pG)
-        .nodeMap(getOrgScores(), *_pGraph->_pScore)
-        .nodeMap(getOrgLabels(), *_pGraph->_pLabel)
-        .nodeRef(*_pMapToPre)
-        .run();
-
-    for (NodeIt n(getOrgGraph()); n != lemon::INVALID; ++n)
-    {
-      Node preNode = (*_pMapToPre)[n];
-      (*_pGraph->_pPreOrigNodes)[preNode].clear();
-      (*_pGraph->_pPreOrigNodes)[preNode].insert(n);
-    }
-  }
-
-  void preprocess();
 
   virtual const ArcLookUpType& getArcLookUp() const { return *_pGraph->_pArcLookUp; }
 
@@ -254,28 +248,21 @@ public:
     return (*_pGraph->_pScore)[n];
   }
 
-  virtual Node getNodeByLabel(const std::string& label) const
+  virtual NodeSet getNodeByLabel(const std::string& label) const
   {
-    Node node = Parent::getNodeByLabel(label);
-
-    if (node == lemon::INVALID)
-      return node;
-    else
-      return (*_pMapToPre)[node];
-  }
-
-  void addPreprocessRootRule(int phase, RootedRuleType* pRule)
-  {
-    while (static_cast<int>(_rootRules.size()) < phase)
-      _rootRules.push_back(RootedRuleVector());
+    Node orgNode = getOrgNodeByLabel(label);
+    if (orgNode != lemon::INVALID)
+    {
+      return (*_pGraph->_pMapToPre)[orgNode];
+    }
     
-    _rootRules[phase - 1].push_back(pRule);
+    return NodeSet();
   }
 
-  void addPreprocessRule(int phase, UnrootedRuleType* pRule)
+  void addPreprocessRule(int phase, RuleType* pRule)
   {
     while (static_cast<int>(_rules.size()) < phase)
-      _rules.push_back(UnrootedRuleVector());
+      _rules.push_back(RuleVector());
     
     _rules[phase - 1].push_back(pRule);
   }
@@ -295,29 +282,211 @@ public:
 
   virtual void computeScores(double tau);
 
-  virtual Node getPreNode(Node orgNode) const
+  virtual NodeSet getPreNodes(Node orgNode) const
   {
-    assert(_pMapToPre);
-    return (*_pMapToPre)[orgNode];
+    assert(_pGraph->_pMapToPre);
+    return (*_pGraph->_pMapToPre)[orgNode];
+  }
+  
+  void clear()
+  {
+    if (!_pGraph)
+    {
+      _pGraph = new GraphStruct(getOrgGraph());
+    }
+    
+    _pGraph->_nNodes = getOrgNodeCount();
+    _pGraph->_nEdges = getOrgEdgeCount();
+    _pGraph->_nArcs = getOrgArcCount();
+    _pGraph->_nComponents = getOrgComponentCount();
+    
+    NodeMap nodeRef(getOrgGraph());
+
+    lemon::graphCopy(getOrgGraph(), *_pGraph->_pG)
+        .nodeMap(getOrgScores(), *_pGraph->_pScore)
+        .nodeMap(getOrgLabels(), *_pGraph->_pLabel)
+        .nodeMap(getOrgComponentMap(), *_pGraph->_pComp)
+        .nodeRef(nodeRef)
+        .run();
+
+    for (NodeIt n(getOrgGraph()); n != lemon::INVALID; ++n)
+    {
+      Node preNode = nodeRef[n];
+      (*_pGraph->_pPreOrigNodes)[preNode].clear();
+      (*_pGraph->_pPreOrigNodes)[preNode].insert(n);
+      (*_pGraph->_pMapToPre)[n].clear();
+      (*_pGraph->_pMapToPre)[n].insert(preNode);
+    }
+  }
+  
+  void remove(Node node)
+  {
+    Graph& g = *_pGraph->_pG;
+    
+    // update edge and arc counts
+    bool isolated = true;
+    for (IncEdgeIt e(g, node); e != lemon::INVALID; ++e)
+    {
+      _pGraph->_nEdges--;
+      _pGraph->_nArcs -= 2;
+      isolated = false;
+    }
+    
+    // update mapToPre
+    const NodeSet& nodes = (*_pGraph->_pPreOrigNodes)[node];
+    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); nodeIt++)
+    {
+      // unmap
+      (*_pGraph->_pMapToPre)[*nodeIt].erase(node);
+    }
+    
+    // remove the node from the graph
+    if (isolated)
+    {
+      --_pGraph->_nComponents;
+    }
+    
+    g.erase(node);
+    --_pGraph->_nNodes;
+  }
+  
+  void remove(const NodeSet& nodes)
+  {
+    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
+    {
+      remove(*nodeIt);
+    }
+  }
+  
+  Node merge(Edge e)
+  {
+    Graph& g = *_pGraph->_pG;
+    
+    Node u = g.u(e);
+    Node v = g.v(e);
+    
+    // rewire the edges incident to u to v
+    for (IncEdgeIt ee(g, u); ee != lemon::INVALID;)
+    {
+      Node node = g.oppositeNode(u, ee);
+
+      if (node != v)
+      {
+        if ((*_pGraph->_pArcLookUp)(v, node) == lemon::INVALID)
+        {
+          // introduce new edge between v and node
+          g.addEdge(v, node);
+        }
+        else
+        {
+          --_pGraph->_nEdges;
+          _pGraph->_nArcs -= 2;
+        }
+        
+        // remove edge between minNode and node
+        Edge toDelete = ee;
+        ++ee;
+        g.erase(toDelete);
+      }
+      else
+      {
+        ++ee;
+      }
+    }
+    
+    // update score of v
+    (*_pGraph->_pScore)[v] += (*_pGraph->_pScore)[u];
+    
+    // update set of original nodes corresponding to v
+    const NodeSet& uOrgNodeSet = (*_pGraph->_pPreOrigNodes)[u];
+    for (NodeSetIt nodeIt = uOrgNodeSet.begin(); nodeIt != uOrgNodeSet.end(); nodeIt++)
+    {
+      (*_pGraph->_pPreOrigNodes)[v].insert(*nodeIt);
+      (*_pGraph->_pMapToPre)[*nodeIt].erase(*nodeIt);
+      (*_pGraph->_pMapToPre)[*nodeIt].insert(v);
+    }
+    
+    // merge the labels
+    (*_pGraph->_pLabel)[v] += "\t" + (*_pGraph->_pLabel)[u];
+    
+    // erase minNode
+    g.erase(u);
+    --_pGraph->_nNodes;
+    --_pGraph->_nEdges;
+    _pGraph->_nArcs -= 2;
+    
+    return v;
+  }
+  
+  Node merge(NodeSet nodes)
+  {
+    const Graph& g = *_pGraph->_pG;
+    
+    // determine edge set
+    EdgeSet edges;
+    for (EdgeIt e(g); e != lemon::INVALID; ++e)
+    {
+      if (nodes.find(g.u(e)) != nodes.end() && nodes.find(g.v(e)) != nodes.end())
+      {
+        edges.insert(e);
+      }
+    }
+    
+    Node res;
+    for (EdgeSetIt edgeIt = edges.begin(); edgeIt != edges.end(); ++edgeIt)
+    {
+      res = merge(*edgeIt);
+    }
+    
+    return res;
+  }
+  
+  Node extract(NodeSet nodes)
+  {
+    Graph& g = *_pGraph->_pG;
+    Node res = g.addNode();
+    
+    (*_pGraph->_pScore)[res] = 0;
+    
+    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
+    {
+      Node v = *nodeIt;
+      const NodeSet& orgNodes = (*_pGraph->_pPreOrigNodes)[v];
+      
+      (*_pGraph->_pScore)[res] += (*_pGraph->_pScore)[v];
+      (*_pGraph->_pLabel)[res] += "\t" + (*_pGraph->_pLabel)[v];
+      (*_pGraph->_pPreOrigNodes)[res].insert(orgNodes.begin(), orgNodes.end());
+      
+      for (NodeSetIt orgNodeIt = orgNodes.begin(); orgNodeIt != orgNodes.end(); ++orgNodeIt)
+      {
+        (*_pGraph->_pMapToPre)[*orgNodeIt].insert(res);
+      }
+    }
+    
+    return res;
   }
 
 protected:
   void constructDegreeMap(DegreeNodeMap& degree,
                           DegreeNodeSetVector& degreeVector) const;
   void constructNeighborMap(NodeSetMap& neighbors) const;
-  void backup();
-  void restore();
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::MwcsPreprocessedGraph()
   : Parent()
-  , _pGraph(new GraphStruct())
+  , _pGraph(NULL)
   , _pBackupGraph(NULL)
-  , _pMapToPre(NULL)
   , _rules()
-  , _rootRules()
 {
+  addPreprocessRule(1, new NegDeg01Type());
+  addPreprocessRule(1, new PosEdgeType());
+  addPreprocessRule(1, new NegEdgeType());
+  addPreprocessRule(1, new NegCircuitType());
+  addPreprocessRule(1, new NegDiamondType());
+  addPreprocessRule(1, new PosDeg01Type());
+  addPreprocessRule(1, new PosDiamondType());
+  addPreprocessRule(2, new NegMirroredHubsType());
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -325,79 +494,18 @@ inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::~MwcsPreprocessedGraph()
 {
   for (size_t i = 0; i < _rules.size(); ++i)
   {
-    for (UnrootedRuleVectorNonConstIt it = _rules[i].begin(); it != _rules[i].end(); it++)
-    {
-      delete *it;
-    }
-  }
-
-  for (size_t i = 0; i < _rootRules.size(); ++i)
-  {
-    for (RootedRuleVectorNonConstIt it = _rootRules[i].begin(); it != _rootRules[i].end(); it++)
+    for (RuleVectorNonConstIt it = _rules[i].begin(); it != _rules[i].end(); it++)
     {
       delete *it;
     }
   }
   
-  delete _pMapToPre;
   delete _pGraph;
   delete _pBackupGraph;
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::backup()
-{
-  delete _pBackupGraph;
-  _pBackupGraph = new GraphStruct();
-
-  lemon::graphCopy(*_pGraph->_pG, *_pBackupGraph->_pG)
-      .nodeMap(*_pGraph->_pLabel, *_pBackupGraph->_pLabel)
-      .nodeMap(*_pGraph->_pScore, *_pBackupGraph->_pScore)
-      .nodeMap(*_pGraph->_pComp, *_pBackupGraph->_pComp)
-      .nodeMap(*_pGraph->_pPreOrigNodes, *_pBackupGraph->_pPreOrigNodes)
-      .run();
-
-  _pBackupGraph->_nNodes = _pGraph->_nNodes;
-  _pBackupGraph->_nEdges = _pGraph->_nEdges;
-  _pBackupGraph->_nArcs = _pGraph->_nArcs;
-  _pBackupGraph->_nComponents = _pGraph->_nComponents;
-
-  for (NodeIt preNode(*_pGraph->_pG); preNode != lemon::INVALID; ++preNode)
-  {
-    const NodeSet& orgNodes = (*_pGraph->_pPreOrigNodes)[preNode];
-
-    for (NodeSetIt orgNodeIt = orgNodes.begin();
-         orgNodeIt != orgNodes.end(); orgNodeIt++)
-    {
-      (*_pMapToPre)[*orgNodeIt] = preNode;
-    }
-  }
-}
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::restore()
-{
-  delete _pGraph;
-  _pGraph = _pBackupGraph;
-  _pBackupGraph = NULL;
-
-  // recompute _pMapToPre
-  assert(_pMapToPre);
-
-  for (NodeIt preNode(*_pGraph->_pG); preNode != lemon::INVALID; ++preNode)
-  {
-    const NodeSet& orgNodes = (*_pGraph->_pPreOrigNodes)[preNode];
-
-    for (NodeSetIt orgNodeIt = orgNodes.begin();
-         orgNodeIt != orgNodes.end(); orgNodeIt++)
-    {
-      (*_pMapToPre)[*orgNodeIt] = preNode;
-    }
-  }
-}
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
+inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess(const NodeSet& rootNodes)
 {
   DegreeNodeMap degree(*_pGraph->_pG);
   DegreeNodeSetVector degreeVector;
@@ -423,13 +531,15 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
       do
       {
         totRemovedNodes = 0;
-        for (UnrootedRuleVectorIt ruleIt = _rules[phase].begin(); ruleIt != _rules[phase].end(); ruleIt++)
+        for (RuleVectorIt ruleIt = _rules[phase].begin(); ruleIt != _rules[phase].end(); ruleIt++)
         {
-          int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(), *_pGraph->_pLabel,
-                                              *_pGraph->_pScore, (*_pMapToPre),
+          int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, rootNodes,
+                                              getArcLookUp(), *_pGraph->_pLabel,
+                                              *_pGraph->_pScore, *_pGraph->_pComp, *_pGraph->_pMapToPre,
                                               *_pGraph->_pPreOrigNodes, neighbors,
                                               _pGraph->_nNodes, _pGraph->_nArcs,
-                                              _pGraph->_nEdges, degree, degreeVector, LB);
+                                              _pGraph->_nEdges, _pGraph->_nComponents,
+                                              degree, degreeVector, LB);
           totRemovedNodes += removedNodes;
 
           if (g_verbosity >= VERBOSE_DEBUG && removedNodes > 0)
@@ -455,7 +565,7 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess()
 
   if (g_verbosity >= VERBOSE_ESSENTIAL)
   {
-    std::cout << "// Preprocessing successfully applied (stage 1)"
+    std::cout << "// Preprocessing successfully applied"
               << ": " << _pGraph->_nNodes << " nodes, "
               << _pGraph->_nEdges << " edges and "
               << _pGraph->_nComponents << " component(s) remaining" << std::endl;
@@ -470,9 +580,6 @@ inline bool MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(ParserType* pPar
 
   // start by making a copy of the graph
   clear();
-
-  if (!pval)
-    preprocess();
 
   return true;
 }
@@ -489,91 +596,7 @@ inline bool MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(Graph* pG,
   // start by making a copy of the graph
   clear();
 
-  preprocess();
-
   return true;
-}
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline bool MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::deinit()
-{
-  restore();
-  return true;
-}
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline typename MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::Node
-MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::init(Node root)
-{
-  backup();
-
-  DegreeNodeMap degree(*_pGraph->_pG);
-  DegreeNodeSetVector degreeVector;
-  NodeSetMap neighbors(*_pGraph->_pG);
-
-  constructDegreeMap(degree, degreeVector);
-  constructNeighborMap(neighbors);
-
-  // now let's preprocess the graph
-  int totRemovedNodes;
-  do
-  {
-    totRemovedNodes = 0;
-    for (size_t phase = 0; phase < _rules.size(); ++phase)
-    {
-      for (UnrootedRuleVectorIt ruleIt = _rules[phase].begin();
-           ruleIt != _rules[phase].end(); ruleIt++)
-      {
-        int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, getArcLookUp(),
-                                            *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
-                                            *_pGraph->_pPreOrigNodes, neighbors,
-                                            _pGraph->_nNodes, _pGraph->_nArcs,
-                                            _pGraph->_nEdges, degree, degreeVector, (*_pGraph->_pScore)[root]);
-        totRemovedNodes += removedNodes;
-
-        if (g_verbosity >= VERBOSE_ESSENTIAL && removedNodes > 0)
-        {
-          std::cout << "// Applied rule '" << (*ruleIt)->name()
-                    << "' and removed " << removedNodes
-                    << " node(s)" << std::endl;
-        }
-      }
-    }
-
-    for (size_t phase = 0; phase < _rootRules.size(); ++phase)
-    {
-      for (RootedRuleVectorIt ruleIt = _rootRules[phase].begin();
-           ruleIt != _rootRules[phase].end(); ruleIt++)
-      {
-        int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, root, getArcLookUp(),
-                                            *_pGraph->_pLabel, *_pGraph->_pScore, *_pMapToPre,
-                                            *_pGraph->_pPreOrigNodes, neighbors,
-                                            _pGraph->_nNodes, _pGraph->_nArcs,
-                                            _pGraph->_nEdges, degree, degreeVector);
-        totRemovedNodes += removedNodes;
-
-        if (g_verbosity >= VERBOSE_ESSENTIAL && removedNodes > 0)
-        {
-          std::cout << "// Applied rule '" << (*ruleIt)->name()
-                    << "' and removed " << removedNodes
-                    << " node(s)" << std::endl;
-        }
-      }
-    }
-  } while (totRemovedNodes > 0);
-
-  // determine the connected components
-  _pGraph->_nComponents = lemon::connectedComponents(*_pGraph->_pG, *_pGraph->_pComp);
-
-  if (g_verbosity >= VERBOSE_ESSENTIAL)
-  {
-    std::cout << "// Succesfully preprocessed (stage 2)"
-              << ": contains " << _pGraph->_nNodes << " nodes, "
-              << _pGraph->_nEdges << " edges and "
-              << _pGraph->_nComponents << " component(s)" << std::endl;
-  }
-
-  return (*_pMapToPre)[root];
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -621,7 +644,6 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::computeScores(double 
 {
   Parent::computeScores(lambda, a, FDR);
   clear();
-  preprocess();
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -629,7 +651,6 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::computeScores(double 
 {
   Parent::computeScores(tau);
   clear();
-  preprocess();
 }
 
 } // namespace mwcs

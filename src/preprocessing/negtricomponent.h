@@ -17,7 +17,7 @@
 #include <list>
 #include <set>
 #include <limits>
-#include "unrootedrule.h"
+#include "rule.h"
 #include "solver/blockcuttree.h"
 #include "solver/spqrtree.h"
 
@@ -26,12 +26,12 @@ namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class NegTriComponent : public UnrootedRule<GR, WGHT>
+class NegTriComponent : public Rule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef UnrootedRule<GR, WGHT> Parent;
+  typedef Rule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -49,10 +49,11 @@ public:
   NegTriComponent();
   virtual ~NegTriComponent() {}
   virtual int apply(Graph& g,
+                    const NodeSet& rootNodes,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    NodeMap& mapToPre,
+                    NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
@@ -349,10 +350,11 @@ inline void NegTriComponent<GR, WGHT>::root(const Graph& g,
   
 template<typename GR, typename WGHT>
 inline int NegTriComponent<GR, WGHT>::apply(Graph& g,
+                                            const NodeSet& rootNodes,
                                             const ArcLookUpType& arcLookUp,
                                             LabelNodeMap& label,
                                             WeightNodeMap& score,
-                                            NodeMap& mapToPre,
+                                            NodeSetMap& mapToPre,
                                             NodeSetMap& preOrigNodes,
                                             NodeSetMap& neighbors,
                                             int& nNodes,

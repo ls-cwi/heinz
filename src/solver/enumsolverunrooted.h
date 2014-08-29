@@ -8,29 +8,29 @@
 #ifndef ENUMSOLVERUNROOTED_H
 #define ENUMSOLVERUNROOTED_H
 
+#include <algorithm>
 #include <set>
+#include <vector>
 #include <assert.h>
 #include <ostream>
+
 #include "mwcs.h"
 #include "mwcsgraph.h"
 #include "mwcspreprocessedgraph.h"
 
-#include "solver/solver.h"
-#include "solver/solverrooted.h"
 #include "solver/solverunrooted.h"
-#include "solver/cutsolverrooted.h"
-#include "solver/cutsolverunrooted.h"
-#include "solver/cplex_cut/backoff.h"
+#include "solver/impl/solverrootedimpl.h"
 
-#include "preprocessing/negdeg01.h"
-#include "preprocessing/posedge.h"
-#include "preprocessing/negedge.h"
-#include "preprocessing/rootedposdeg01.h"
-#include "preprocessing/negcircuit.h"
-#include "preprocessing/negdiamond.h"
-#include "preprocessing/negmirroredhubs.h"
-#include "preprocessing/posdeg01.h"
-#include "preprocessing/posdiamond.h"
+//#include "preprocessing/negdeg01.h"
+//#include "preprocessing/posedge.h"
+//#include "preprocessing/negedge.h"
+//#include "preprocessing/negcircuit.h"
+//#include "preprocessing/negdiamond.h"
+//#include "preprocessing/negmirroredhubs.h"
+//#include "preprocessing/posdeg01.h"
+//#include "preprocessing/posdiamond.h"
+
+#include "blockcuttree.h"
 
 namespace nina {
 namespace mwcs {
@@ -48,310 +48,420 @@ public:
   typedef EWGHT WeightEdgeMap;
   
   typedef SolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent;
+  typedef typename Parent::SolverUnrootedImplType SolverUnrootedImplType;
   typedef typename Parent::MwcsGraphType MwcsGraphType;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
-  
-  typedef MwcsPreprocessedGraph<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsPreGraphType;
-  typedef Solver<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> SolverType;
-  typedef CutSolverRooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> CutSolverRootedType;
-  typedef CutSolverUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> CutSolverUnrootedType;
-  typedef typename CutSolverRooted::Options Options;
-  typedef typename CutSolverRooted::MwcsAnalyzeType MwcsAnalyzeType;
+  typedef typename Parent::NodeVector NodeVector;
+  typedef typename Parent::NodeVectorIt NodeVectorIt;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
+  
+  typedef SolverRootedImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> SolverRootedImplType;
 
-  typedef typename std::vector<NodeSet> NodeSetVector;
-  typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
-
-  typedef lemon::FilterNodes<Graph, BoolNodeMap> SubGraph;
-  typedef typename SubGraph::NodeIt SubNodeIt;
-
-  // pre processing
-  typedef NegDeg01<Graph, WeightNodeMap> NegDeg01Type;
-  typedef PosEdge<Graph, WeightNodeMap> PosEdgeType;
-  typedef NegEdge<Graph, WeightNodeMap> NegEdgeType;
-  typedef RootedPosDeg01<Graph, WeightNodeMap> RootedPosDeg01Type;
-  typedef NegCircuit<Graph, WeightNodeMap> NegCircuitType;
-  typedef NegDiamond<Graph, WeightNodeMap> NegDiamondType;
-  typedef NegMirroredHubs<Graph, WeightNodeMap> NegMirroredHubsType;
-  typedef PosDeg01<Graph, WeightNodeMap> PosDeg01Type;
-  typedef PosDiamond<Graph, WeightNodeMap> PosDiamondType;
+//  // preprocessing rules
+//  typedef NegDeg01<Graph, WeightNodeMap> NegDeg01Type;
+//  typedef PosEdge<Graph, WeightNodeMap> PosEdgeType;
+//  typedef NegEdge<Graph, WeightNodeMap> NegEdgeType;
+//  typedef NegCircuit<Graph, WeightNodeMap> NegCircuitType;
+//  typedef NegDiamond<Graph, WeightNodeMap> NegDiamondType;
+//  typedef NegMirroredHubs<Graph, WeightNodeMap> NegMirroredHubsType;
+//  typedef PosDeg01<Graph, WeightNodeMap> PosDeg01Type;
+//  typedef PosDiamond<Graph, WeightNodeMap> PosDiamondType;
+  
+  using Parent::_score;
+  using Parent::_pSolutionMap;
+  using Parent::_solutionSet;
+  using Parent::_pImpl;
 
 public:
-  EnumSolverUnrooted(MwcsGraphType& mwcsGraph,
-                     const Options& options,
-                     const MwcsAnalyzeType& analysis)
-    : Parent(mwcsGraph)
-    , _options(options)
-    , _analysis(analysis)
+  EnumSolverUnrooted(SolverUnrootedImplType* pUnrootedImpl,
+                     SolverRootedImplType* pRootedImpl,
+                     bool preprocess)
+    : Parent(pUnrootedImpl)
+    , _pRootedImpl(pRootedImpl)
+    , _preprocess(preprocess)
   {
   }
   
-  virtual ~EnumSolverUnrooted()
+  ~EnumSolverUnrooted()
   {
+    delete _pRootedImpl;
   }
   
-  virtual void init();
-  virtual void solve();
-  
-  void printOutput(std::ostream& out) const;
-
-  const NodeSetVector& getModules() const
-  {
-    return _modules;
-  }
-
-  const NodeSet& getModule(int idx) const
-  {
-    assert(0 <= idx && idx < static_cast<int>(_modules.size()));
-    return _modules[idx];
-  }
-
-  int getModuleIndex(Node node) const
-  {
-    assert(node != lemon::INVALID);
-    return _moduleIdx[node];
-  }
-
-  double getModuleWeight(Node node) const
-  {
-    assert(node != lemon::INVALID);
-    return _moduleWeight[node];
-  }
+  bool solve(const MwcsGraphType& mwcsGraph);
 
 protected:
-  const Options& _options;
-  const MwcsAnalyzeType& _analysis;
-
-  ModuleVector _modules;
-  IntNodeMap _moduleIdx;
-  WeightNodeMap _moduleWeight;
-
+  typedef MwcsPreprocessedGraph<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsPreGraphType;
+  typedef lemon::FilterNodes<const Graph, BoolNodeMap> SubGraph;
+  typedef typename SubGraph::NodeIt SubNodeIt;
   typedef typename Graph::template NodeMap<Node> NodeMap;
+  
+  typedef std::vector<Edge> EdgeVector;
+  typedef typename EdgeVector::const_iterator EdgeVectorIt;
+  
+  typedef BlockCutTree<Graph> BlockCutTreeType;
+  typedef typename BlockCutTreeType::Tree BcTree;
+  typedef typename BlockCutTreeType::BoolTreeBlockNodeMap BcTreeBoolBlockNodeMap;
+  typedef typename BlockCutTreeType::BlockNode BcTreeBlockNode;
+  typedef typename BlockCutTreeType::BlockNodeIt BcTreeBlockNodeIt;
+  typedef typename BlockCutTreeType::CutNode BcTreeCutNode;
+  typedef typename BlockCutTreeType::CutNodeIt BcTreeCutNodeIt;
+  typedef typename BlockCutTreeType::BlockNodeSet BcTreeBlockNodeSet;
+  typedef typename BlockCutTreeType::BlockNodeSetIt BcTreeBlockNodeSetIt;
+  
+private:
+  SolverRootedImplType* _pRootedImpl;
+  bool _preprocess;
+  
+  bool solveComponent(MwcsPreGraphType& mwcsGraph,
+                      NodeSet& solutionSet,
+                      double& solutionScore);
+  
+  bool solveBlock(MwcsPreGraphType& mwcsGraph,
+                  BlockCutTreeType& bcTree,
+                  const BcTreeBoolBlockNodeMap& bcTreeNeg,
+                  BcTreeBlockNode b,
+                  int blockIndex,
+                  int nBlocks);
+  
+  bool solveBlockUnrooted(MwcsPreGraphType& mwcsGraph,
+                          NodeSet& solutionSet,
+                          double& solutionScore);
 
-  void processModule(const Module& module, double moduleWeight)
+  void map(const MwcsGraphType& mwcsGraph,
+           const NodeMap& m,
+           const NodeSet& source,
+           NodeSet& target) const
   {
-    int idx = static_cast<int>(_modules.size());
-
-    _modules.push_back(NodeSet());
-
-    for (ModuleIt nodeIt = module.begin(); nodeIt != module.end(); nodeIt++)
+    for (NodeSetIt nodeIt = source.begin(); nodeIt != source.end(); nodeIt++)
     {
-      NodeSet orgNodes = _mwcsGraph.getOrgNodes(*nodeIt);
-      _modules.back().insert(orgNodes.begin(), orgNodes.end());
-
-      assert(orgNodes.size() != 0);
-      assert(_moduleWeight[*orgNodes.begin()] < moduleWeight);
-
+      const NodeSet& orgNodes = mwcsGraph.getOrgNodes(*nodeIt);
       for (NodeSetIt orgNodeIt = orgNodes.begin(); orgNodeIt != orgNodes.end(); orgNodeIt++)
       {
-        _moduleIdx[*orgNodeIt] = idx;
-        _moduleWeight[*orgNodeIt] = moduleWeight;
+        target.insert(m[*orgNodeIt]);
       }
     }
   }
-
-  MwcsSolverType* createSolver(MwcsGraphType* pMwcsSubGraph,
-                               MwcsSolverEnum solver)
+  
+  void initLocalGraph(const Graph& g,
+                      const WeightNodeMap& scoreG,
+                      const LabelNodeMap& labelG,
+                      BoolNodeMap& filterG,
+                      Graph& subG,
+                      DoubleNodeMap& weightSubG,
+                      LabelNodeMap& labelSubG,
+                      NodeMap& mapToG,
+                      MwcsPreGraphType& mwcsSubGraph)
   {
-    MwcsSolverType* pResult = NULL;
-
-    switch (solver)
-    {
-      case MwcsSolverCutNodeSeparatorBk:
-        pResult = new MwcsCutSolverType(*pMwcsSubGraph,
-                                        _backOff,
-                                        _maxNumberOfCuts,
-                                        _timeLimit,
-                                        _multiThreading);
-        break;
-      case MwcsSolverTreeDP:
-        pResult = new MwcsTreeSolverType(*pMwcsSubGraph);
-        break;
-      case MwcsSizeSolverTreeDP:
-        pResult = new MwcsSizeTreeSolverType(*pMwcsSubGraph, _moduleSize);
-        break;
-      case MwcsSizeSolverCutNodeSeparatorBk:
-        pResult = new MwcsSizeCutSolverType(*pMwcsSubGraph,
-                                            _moduleSize,
-                                            _maxNumberOfCuts,
-                                            _timeLimit,
-                                            _multiThreading);
-        break;
-    }
-
-    return pResult;
+    SubGraph subTmpSameCompG(g, filterG);
+    lemon::graphCopy(subTmpSameCompG, subG)
+      .nodeMap(scoreG, weightSubG)
+      .nodeMap(labelG, labelSubG)
+      .nodeCrossRef(mapToG)
+      .run();
+    
+    mwcsSubGraph.init(&subG, &labelSubG, &weightSubG, NULL);
   }
-
-  MwcsGraphType* createMwcsGraph(bool preprocess)
+  
+  void initLocalGraph(const Graph& g,
+                      const WeightNodeMap& scoreG,
+                      const LabelNodeMap& labelG,
+                      BoolNodeMap& filterG,
+                      Graph& subG,
+                      DoubleNodeMap& weightSubG,
+                      LabelNodeMap& labelSubG,
+                      NodeMap& mapToG,
+                      NodeMap& mapToSubG,
+                      MwcsPreGraphType& mwcsSubGraph)
   {
-    if (preprocess)
-    {
-      MwcsPreprocessedGraphType* pPreprocessedMwcs = new MwcsPreprocessedGraphType();
-      pPreprocessedMwcs->addPreprocessRule(1, new NegDeg01Type());
-      pPreprocessedMwcs->addPreprocessRule(1, new PosEdgeType());
-      pPreprocessedMwcs->addPreprocessRule(1, new NegEdgeType());
-      pPreprocessedMwcs->addPreprocessRootRule(1, new RootedPosDeg01Type());
-      pPreprocessedMwcs->addPreprocessRule(1, new NegCircuitType());
-      pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
-      pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
-      pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
-      pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
-
-      return pPreprocessedMwcs;
-    }
-    else
-    {
-      return new MwcsGraphType();
-    }
-  }
-
-  Module mapModule(const Module& module, const NodeMap& mapToG) const
-  {
-    Module result;
-    for (ModuleIt nodeIt = module.begin(); nodeIt != module.end(); nodeIt++)
-    {
-      result.insert(mapToG[*nodeIt]);
-    }
-    return result;
-  }
-
-  virtual bool solveMWCS(MwcsGraphType* pMwcsSubGraph,
-                         const NodeMap& mapToG,
-                         MwcsSolverEnum solver,
-                         NodeSet& pickedNodes)
-  {
-    bool result;
-
-    MwcsSolverType* pSolver = createSolver(pMwcsSubGraph, solver);
-    pSolver->init();
-
-    if (pSolver->solve() && (pSolver->getSolutionWeight() > 0 || _moduleSize > 0))
-    {
-      Module mappedModule =
-          mapModule(pMwcsSubGraph->getOrgNodes(pSolver->getSolutionModule()), mapToG);
-
-      pickedNodes.insert(mappedModule.begin(), mappedModule.end());
-
-      processModule(mappedModule, pSolver->getSolutionWeight());
-
-      if (g_verbosity >= VERBOSE_ESSENTIAL)
-      {
-        std::cout << "// Solution with weight " << pSolver->getSolutionWeight()
-                  << " and " << mappedModule.size() << " nodes found" << std::endl;
-      }
-
-      result = true;
-    }
-    else
-    {
-      if (g_verbosity >= VERBOSE_ESSENTIAL)
-      {
-        std::cout << "// No feasible solution found" << std::endl;
-      }
-
-      // add the empty module
-      Module mappedModule;
-      processModule(mappedModule, 0);
-
-      result = false;
-    }
-
-    delete pSolver;
-    return result;
+    SubGraph subTmpSameCompG(g, filterG);
+    lemon::graphCopy(subTmpSameCompG, subG)
+      .nodeMap(scoreG, weightSubG)
+      .nodeMap(labelG, labelSubG)
+      .nodeCrossRef(mapToG)
+      .nodeRef(mapToSubG)
+      .run();
+    
+    mwcsSubGraph.init(&subG, &labelSubG, &weightSubG, NULL);
   }
 };
 
-template<typename GR, typename WGHT>
-inline MwcsEnumerate<GR, WGHT>::MwcsEnumerate(MwcsGraphType& mwcsGraph)
-  : _mwcsGraph(mwcsGraph)
-  , _modules()
-  , _moduleIdx(_mwcsGraph.getOrgGraph(), -1)
-  , _moduleWeight(_mwcsGraph.getOrgGraph(), 0)
-  , _timeLimit(-1)
-  , _multiThreading(1)
-  , _moduleSize(-1)
-  , _backOff(1)
+template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solve(const MwcsGraphType& mwcsGraph)
 {
-}
-
-template<typename GR, typename WGHT>
-inline void MwcsEnumerate<GR, WGHT>::printOutput(std::ostream& out) const
-{
-  for (NodeIt node(_mwcsGraph.getOrgGraph()); node != lemon::INVALID; ++node)
+  const Graph& g = mwcsGraph.getGraph();
+  BoolNodeMap allowedNodesSameComp(g);
+  
+  // 1. iterate over the components
+  int nComponents = mwcsGraph.getComponentCount();
+  const IntNodeMap& comp = mwcsGraph.getComponentMap();
+  
+  for (int compIdx = 0; compIdx < nComponents; ++compIdx)
   {
-    out << _mwcsGraph.getOrgLabel(node) << "\t"
-        << _moduleIdx[node] << "\t"
-        << _moduleWeight[node] << std::endl;
-  }
-}
-
-template<typename GR, typename WGHT>
-inline void MwcsEnumerate<GR, WGHT>::enumerate(MwcsSolverEnum solver, bool preprocess)
-{
-  Graph subG;
-  DoubleNodeMap weightSubG(subG);
-  LabelNodeMap labelSubG(subG);
-  NodeMap mapToG(subG);
-  
-  MwcsGraphType* pMwcsSubGraph = createMwcsGraph(preprocess);
-  
-  // contains the set of picked nodes (not necessarily in the original graph)
-  NodeSet pickedNodes;
-  
-  // 1. construct the subgraph
-  Graph& g = _mwcsGraph.getGraph();
-  
-  // 1a. determine allowed nodes
-  BoolNodeMap allowedNodes(g, true);
-  for (NodeSetIt nodeIt = pickedNodes.begin(); nodeIt != pickedNodes.end(); nodeIt++)
-  {
-    allowedNodes[*nodeIt] = false;
-  }
-  
-  // 1b. construct subgraph
-  SubGraph subTmpG(g, allowedNodes);
-  
-  // 1c. determine connected components in subG
-  IntNodeMap comp(g, -1);
-  int nComponents = lemon::connectedComponents(subTmpG, comp);
-  
-  for (int compIdx = 0; compIdx < nComponents; compIdx++)
-  {
-    // 2a. determine nodes in same component
-    int nNodesComp = 0;
-    BoolNodeMap allowedNodesSameComp(g, false);
-    for (SubNodeIt node(subTmpG); node != lemon::INVALID; ++node)
+    lemon::mapFill(g, allowedNodesSameComp, false);
+    for (NodeIt node(g); node != lemon::INVALID; ++node)
     {
-      if (comp[node] == compIdx)
-      {
-        allowedNodesSameComp[node] = true;
-        nNodesComp++;
-      }
+      allowedNodesSameComp[node] = comp[node] == compIdx;
     }
     
+    Graph subG;
+    DoubleNodeMap weightSubG(subG);
+    LabelNodeMap labelSubG(subG);
+    NodeMap mapToG(subG);
+    MwcsPreGraphType mwcsSubGraph;
+    
     // 2b. create and preprocess subgraph
-    SubGraph subTmpSameCompG(g, allowedNodesSameComp);
-    lemon::graphCopy(subTmpSameCompG, subG)
-    .nodeMap(_mwcsGraph.getScores(), weightSubG)
-    .nodeMap(_mwcsGraph.getLabels(), labelSubG)
-    .nodeCrossRef(mapToG)
-    .run();
+    initLocalGraph(g,
+                   mwcsGraph.getScores(),
+                   mwcsGraph.getLabels(),
+                   allowedNodesSameComp,
+                   subG,
+                   weightSubG,
+                   labelSubG,
+                   mapToG,
+                   mwcsSubGraph);
     
     if (g_verbosity >= VERBOSE_ESSENTIAL)
     {
       std::cout << std::endl;
       std::cout << "// Considering component " << compIdx + 1 << "/" << nComponents
-      << ": contains " << nNodesComp << " nodes" << std::endl;
+                << ": contains " << mwcsSubGraph.getNodeCount() << " nodes and "
+                << mwcsSubGraph.getEdgeCount() << " edges" << std::endl;
     }
-    pMwcsSubGraph->init(&subG, &labelSubG, &weightSubG, NULL);
     
     // 3. solve
-    solveMWCS(pMwcsSubGraph, mapToG, solver, pickedNodes);
+    double solutionScore;
+    NodeSet solutionSet;
+    if (!solveComponent(mwcsSubGraph, solutionSet, solutionScore))
+    {
+      return false;
+    }
+    
+    if (solutionScore > _score)
+    {
+      _score = solutionScore;
+      _solutionSet.clear();
+      map(mwcsSubGraph, mapToG, solutionSet, _solutionSet);
+    }
   }
   
-  delete pMwcsSubGraph;
+  _pSolutionMap = new BoolNodeMap(g, false);
+  if (_solutionSet.size() > 0)
+  {
+    for (NodeSetIt nodeIt = _solutionSet.begin();
+         nodeIt != _solutionSet.end(); ++nodeIt)
+    {
+      _pSolutionMap->set(*nodeIt, true);
+    }
+  }
+
+  return _solutionSet.size() > 0;
+}
+  
+template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGraphType& mwcsGraph,
+                                                                      NodeSet& solutionSet,
+                                                                      double& solutionScore)
+{
+  const Graph& g = mwcsGraph.getGraph();
+  const WeightNodeMap& score = mwcsGraph.getScores();
+  
+  if (_preprocess)
+  {
+    // preprocess the graph
+    mwcsGraph.preprocess(NodeSet());
+  }
+  
+  // generate block-cut vertex tree
+  BlockCutTreeType bcTree(g);
+  bcTree.run();
+  
+  // determine block negativity
+  const BcTree& T = bcTree.getBlockCutTree();
+  BcTreeBoolBlockNodeMap treeNeg(T, true);
+  for (BcTreeBlockNodeIt v(T); v != lemon::INVALID; ++v)
+  {
+    const EdgeVector& realEdges = bcTree.getRealEdges(v);
+    for (EdgeVectorIt edgeIt = realEdges.begin();
+         edgeIt != realEdges.end(); ++edgeIt)
+    {
+      treeNeg[v] = treeNeg[v] && (score[g.u(*edgeIt)] <= 0 && score[g.v(*edgeIt)] <= 0);
+    }
+  }
+  
+  bcTree.printNodes(std::cout);
+  bcTree.printEdges(std::cout);
+  
+  int nBlocks = bcTree.getNumBlockTreeNodes();
+  int blockIndex = 0;
+  
+  for (int blockDegree = 1; blockDegree >= 0; --blockDegree)
+  {
+    const BcTreeBlockNodeSet& leaves = bcTree.getBlockNodeSetByDegree(blockDegree);
+    while (!leaves.empty())
+    {
+      BcTreeBlockNode b = *leaves.begin();
+      if (!solveBlock(mwcsGraph,
+                      bcTree, treeNeg, b,
+                      blockIndex, nBlocks))
+      {
+        return false;
+      }
+      ++blockIndex;
+    }
+  }
+  
+  // solve
+//  BoolNodeMap solutionMap(g, false);
+//  _pImpl->init(mwcsGraph);
+//  return _pImpl->solve(solutionScore, solutionMap, solutionSet);
+  return false;
+}
+  
+template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphType& mwcsGraph,
+                                                                  BlockCutTreeType& bcTree,
+                                                                  const BcTreeBoolBlockNodeMap& bcTreeNeg,
+                                                                  BcTreeBlockNode b,
+                                                                  int blockIndex,
+                                                                  int nBlocks)
+{
+  const Graph& g = mwcsGraph.getGraph();
+  const BcTree& T = bcTree.getBlockCutTree();
+  
+  typename BcTree::Edge e(typename BcTree::IncEdgeIt(T, b));
+  BcTreeCutNode c = e != lemon::INVALID ? T.redNode(e) : lemon::INVALID;
+  Node orgC = c != lemon::INVALID ? bcTree.getArticulationPoint(c) : lemon::INVALID;
+  
+  NodeSet nodesB;
+  bcTree.getRealNodes(b, nodesB);
+  
+  if (g_verbosity >= VERBOSE_ESSENTIAL)
+  {
+    std::cout << std::endl;
+    std::cout << "// Considering block " << blockIndex + 1 << "/" << nBlocks
+              << ": contains " << nodesB.size() << " nodes and "
+              << bcTree.getRealEdges(b).size() << " edges" << std::endl;
+  }
+
+  if (bcTreeNeg[b])
+  {
+    if (g_verbosity >= VERBOSE_ESSENTIAL)
+    {
+      std::cout << "// Removed block, as it consists of only negatively weighted nodes"
+      << std::endl;
+    }
+    
+    // don't remove cut node if it connects to other blocks
+    if (c != lemon::INVALID && bcTree.getDegree(c) > 1)
+    {
+      nodesB.erase(orgC);
+    }
+    else if (g_verbosity >= VERBOSE_ESSENTIAL)
+    {
+      std::cout << "// Removed corresponding cut vertex, as there are no other blocks"
+      << std::endl;
+    }
+    
+    // remove block from graph
+    mwcsGraph.remove(nodesB);
+    
+    // update block-cut vertex tree
+    bcTree.removeBlockNode(b);
+  }
+  else
+  {
+    // create a new graph containing only block b
+    Graph subG;
+    DoubleNodeMap weightSubG(subG);
+    LabelNodeMap labelSubG(subG);
+    NodeMap mapToG(subG);
+    NodeMap mapToSubG(g);
+    MwcsPreGraphType mwcsSubGraph;
+    
+    BoolNodeMap sameBlock(g, false);
+    for (NodeSetIt nodeIt = nodesB.begin(); nodeIt != nodesB.end(); ++nodeIt)
+    {
+      sameBlock[*nodeIt] = true;
+    }
+    
+    initLocalGraph(g,
+                   mwcsGraph.getScores(),
+                   mwcsGraph.getLabels(),
+                   sameBlock,
+                   subG,
+                   weightSubG,
+                   labelSubG,
+                   mapToG,
+                   mapToSubG,
+                   mwcsSubGraph);
+    
+    // solve the unrooted formulation first
+    NodeSet subSolutionSet;
+    double subSolutionScore;
+    if (!solveBlockUnrooted(mwcsSubGraph, subSolutionSet, subSolutionScore))
+    {
+      return false;
+    }
+   
+    // let's map the solution back to our node space
+    NodeSet solutionSet, solutionComplementSet;
+    map(mwcsSubGraph, mapToG, subSolutionSet, solutionSet);
+    
+    std::set_difference(nodesB.begin(), nodesB.end(),
+                        solutionSet.begin(), solutionSet.end(),
+                        std::inserter(solutionComplementSet, solutionComplementSet.begin()));
+    
+    // now check if the cut node is in the solution
+    if (solutionSet.find(orgC) != solutionSet.end())
+    {
+      // no need to solve the rooted formulation!
+      // just merge the solution nodes
+      mwcsGraph.merge(solutionSet);
+      
+      // and remove the other nodes
+      mwcsGraph.remove(solutionComplementSet);
+    }
+    else
+    {
+      // extract into an isolated node
+      mwcsGraph.extract(solutionSet);
+      
+      // solve rooted formulation
+      if (_preprocess)
+      {
+        mwcsSubGraph.clear();
+        NodeSet rootNodes;
+        rootNodes.insert(orgC);
+        mwcsSubGraph.preprocess(rootNodes);
+      }
+      
+      // if rooted solution is negative then discard
+      // otherwise merge the solution (collapse into orgC)
+      // and remove the nodes that are not in the solution
+    }
+  }
+  
+  return true;
+}
+  
+template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlockUnrooted(MwcsPreGraphType& mwcsGraph,
+                                                                          NodeSet& solutionSet,
+                                                                          double& solutionScore)
+{
+  const Graph& g = mwcsGraph.getGraph();
+  BoolNodeMap solutionMap(g, false);
+  
+  if (_preprocess)
+  {
+    // preprocess the graph
+    mwcsGraph.preprocess(NodeSet());
+  }
+  
+  _pImpl->init(mwcsGraph);
+  return _pImpl->solve(solutionScore, solutionMap, solutionSet);
 }
 
 } // namespace mwcs

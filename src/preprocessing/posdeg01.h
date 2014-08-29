@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "unrootedrule.h"
+#include "rule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class PosDeg01 : public UnrootedRule<GR, WGHT>
+class PosDeg01 : public Rule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef UnrootedRule<GR, WGHT> Parent;
+  typedef Rule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -38,24 +38,28 @@ public:
 
   using Parent::remove;
   using Parent::merge;
+  using Parent::extract;
 
   PosDeg01();
   virtual ~PosDeg01() {}
   virtual int apply(Graph& g,
+                    const NodeSet& rootNodes,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    NodeMap& mapToPre,
+                    IntNodeMap& comp,
+                    NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
+                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
 
-  virtual std::string name() const { return "Unrooted - PosDeg01"; }
+  virtual std::string name() const { return "PosDeg01"; }
 };
 
 template<typename GR, typename WGHT>
@@ -66,28 +70,38 @@ inline PosDeg01<GR, WGHT>::PosDeg01()
 
 template<typename GR, typename WGHT>
 inline int PosDeg01<GR, WGHT>::apply(Graph& g,
+                                     const NodeSet& rootNodes,
                                      const ArcLookUpType& arcLookUp,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
-                                     NodeMap& mapToPre,
+                                     IntNodeMap& comp,
+                                     NodeSetMap& mapToPre,
                                      NodeSetMap& preOrigNodes,
                                      NodeSetMap& neighbors,
                                      int& nNodes,
                                      int& nArcs,
                                      int& nEdges,
+                                     int& nComponents,
                                      DegreeNodeMap& degree,
                                      DegreeNodeSetVector& degreeVector,
                                      double& LB)
 {
+  if (degreeVector.size() == 0)
+  {
+    // nothing to remove, there are no degree 0 nodes
+    return 0;
+  }
+  
   // positive deg 0 nodes smaller than LB are to be removed
   const NodeSet& nodes0 = degreeVector[0];
   for (NodeSetIt nodeIt = nodes0.begin(); nodeIt != nodes0.end(); ++nodeIt)
   {
-    if (0 <= score[*nodeIt] && score[*nodeIt] < LB)
+    Node v = *nodeIt;
+    if (0 <= score[v] && score[v] < LB && rootNodes.find(v) == rootNodes.end())
     {
-      remove(g, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges,
-             degree, degreeVector, *nodeIt);
+      remove(g, comp, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges, nComponents,
+             degree, degreeVector, v);
       return 1;
     }
   }
@@ -102,15 +116,24 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
   for (NodeSetIt nodeIt = nodes1.begin(); nodeIt != nodes1.end(); ++nodeIt)
   {
     Node v = *nodeIt;
-    if (0 <= score[v] && score[v] < LB)
+    
+    if (score[v] >= 0 && rootNodes.find(v) == rootNodes.end())
     {
+      if (score[v] > LB)
+      {
+        extract(g, label, score, comp,
+                mapToPre, preOrigNodes,
+                nNodes, nArcs, nEdges, nComponents,
+                degree, degreeVector, v);
+      }
+        
       Node u = g.oppositeNode(v, IncEdgeIt(g, v));
       
       merge(g, arcLookUp, label, score,
             mapToPre, preOrigNodes, neighbors,
             nNodes, nArcs, nEdges,
             degree, degreeVector, u, v, LB);
-      
+
       return 1;
     }
   }

@@ -12,19 +12,19 @@
 #include <string>
 #include <vector>
 #include <set>
-#include "unrootedrule.h"
+#include "rule.h"
 
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class PosDiamond : public UnrootedRule<GR, WGHT>
+class PosDiamond : public Rule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef UnrootedRule<GR, WGHT> Parent;
+  typedef Rule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -42,15 +42,18 @@ public:
   PosDiamond();
   virtual ~PosDiamond() {}
   virtual int apply(Graph& g,
+                    const NodeSet& rootNodes,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    NodeMap& mapToPre,
+                    IntNodeMap& comp,
+                    NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
+                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -66,15 +69,18 @@ inline PosDiamond<GR, WGHT>::PosDiamond()
 
 template<typename GR, typename WGHT>
 inline int PosDiamond<GR, WGHT>::apply(Graph& g,
+                                       const NodeSet& rootNodes,
                                        const ArcLookUpType& arcLookUp,
                                        LabelNodeMap& label,
                                        WeightNodeMap& score,
-                                       NodeMap& mapToPre,
+                                       IntNodeMap& comp,
+                                       NodeSetMap& mapToPre,
                                        NodeSetMap& preOrigNodes,
                                        NodeSetMap& neighbors,
                                        int& nNodes,
                                        int& nArcs,
                                        int& nEdges,
+                                       int& nComponents,
                                        DegreeNodeMap& degree,
                                        DegreeNodeSetVector& degreeVector,
                                        double& LB)
@@ -126,33 +132,35 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
     Node w = it->first.first;
     
     int set_size = static_cast<int>(set.size());
-    if (degree[u] == set_size && degree[w] != set_size)
+    if (degree[u] == set_size && degree[w] != set_size
+        && rootNodes.find(u) == rootNodes.end())
     {
-      remove(g, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges,
+      remove(g, comp, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges, nComponents,
              degree, degreeVector, u);
       ++res;
     }
-    else if (degree[u] != set_size && degree[w] == set_size)
+    else if (degree[u] != set_size && degree[w] == set_size
+             && rootNodes.find(w) == rootNodes.end())
     {
-      remove(g, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges,
+      remove(g, comp, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges, nComponents,
              degree, degreeVector, w);
       ++res;
     }
     else if (degree[u] == set_size && degree[w] == set_size)
     {
-      if (score[u] < score[w])
+      if (score[u] < score[w] && rootNodes.find(u) == rootNodes.end())
       {
-        remove(g, mapToPre, preOrigNodes, neighbors,
-               nNodes, nArcs, nEdges,
+        remove(g, comp, mapToPre, preOrigNodes, neighbors,
+               nNodes, nArcs, nEdges, nComponents,
                degree, degreeVector, u);
         ++res;
       }
-      else
+      else if (rootNodes.find(w) == rootNodes.end())
       {
-        remove(g, mapToPre, preOrigNodes, neighbors,
-               nNodes, nArcs, nEdges,
+        remove(g, comp, mapToPre, preOrigNodes, neighbors,
+               nNodes, nArcs, nEdges, nComponents,
                degree, degreeVector, w);
         ++res;
       }

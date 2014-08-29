@@ -8,17 +8,19 @@
 #ifndef NEGMIRROREDHUBS_H
 #define NEGMIRROREDHUBS_H
 
+#include "rule.h"
+
 namespace nina {
 namespace mwcs {
 
 template<typename GR,
          typename WGHT = typename GR::template NodeMap<double> >
-class NegMirroredHubs : public UnrootedRule<GR, WGHT>
+class NegMirroredHubs : public Rule<GR, WGHT>
 {
 public:
   typedef GR Graph;
   typedef WGHT WeightNodeMap;
-  typedef UnrootedRule<GR, WGHT> Parent;
+  typedef Rule<GR, WGHT> Parent;
   typedef typename Parent::NodeMap NodeMap;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
@@ -36,15 +38,18 @@ public:
   NegMirroredHubs();
   virtual ~NegMirroredHubs() {}
   virtual int apply(Graph& g,
+                    const NodeSet& rootNodes,
                     const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    NodeMap& mapToPre,
+                    IntNodeMap& comp,
+                    NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
+                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -60,15 +65,18 @@ inline NegMirroredHubs<GR, WGHT>::NegMirroredHubs()
 
 template<typename GR, typename WGHT>
 inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
+                                            const NodeSet& rootNodes,
                                             const ArcLookUpType& arcLookUp,
                                             LabelNodeMap& label,
                                             WeightNodeMap& score,
-                                            NodeMap& mapToPre,
+                                            IntNodeMap& comp,
+                                            NodeSetMap& mapToPre,
                                             NodeSetMap& preOrigNodes,
                                             NodeSetMap& neighbors,
                                             int& nNodes,
                                             int& nArcs,
                                             int& nEdges,
+                                            int& nComponents,
                                             DegreeNodeMap& degree,
                                             DegreeNodeSetVector& degreeVector,
                                             double& LB)
@@ -113,9 +121,15 @@ inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
   for (NodeSetIt nodeIt = negHubsToRemove.begin();
        nodeIt != negHubsToRemove.end(); ++nodeIt)
   {
-    remove(g, mapToPre, preOrigNodes, neighbors,
-           nNodes, nArcs, nEdges,
-           degree, degreeVector, *nodeIt);
+    Node v = *nodeIt;
+    
+    // only remove if v is not a root node
+    if (rootNodes.find(v) == rootNodes.end())
+    {
+      remove(g, comp, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges, nComponents,
+             degree, degreeVector, *nodeIt);
+    }
   }
   
   return static_cast<int>(negHubsToRemove.size());
