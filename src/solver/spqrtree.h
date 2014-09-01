@@ -117,6 +117,9 @@ public:
         return 'P';
       case SPQR_R:
         return 'R';
+      default:
+        assert(false);
+        return '\0';
     }
   }
   

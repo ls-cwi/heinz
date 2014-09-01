@@ -73,11 +73,23 @@ public:
       _realNodes[b].clear();
     }
     
+    std::cout << "#edges in _G: " << lemon::countEdges(_G) << std::endl;
     // construct _realEdges
     for (EdgeIt e(_G); e != lemon::INVALID; ++e)
     {
-      _realEdges[_toBlockNode[e]].push_back(e);
+      std::cout << _G.id(e) << " " << _G.valid(e) << std::endl;
+      if (_toBlockNode[e] != lemon::INVALID)
+      {
+        assert(_T.valid(_toBlockNode[e]));
+        std::cout << _T.valid(_toBlockNode[e]) << std::endl;
+        std::cout << _T.id(_toBlockNode[e]) << std::endl;
+        //std::cout << "size: " << _realEdges[_toBlockNode[e]].size() << std::endl;
+        //_realEdges[_toBlockNode[e]].push_back(e);
+        std::cout << "succeeded" << std::endl;
+      }
     }
+
+    std::cout << "real nodes" << std::endl;
     
     // construct _realNodes
     for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
@@ -116,6 +128,16 @@ public:
   
   bool removeBlockNode(BlockNode n)
   {
+    // update _toBlockNode
+    if (getDegree(n) == 0 || getDegree(n) == 1)
+    {
+      const EdgeVector& realEdges = _realEdges[n];
+      for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
+      {
+        _toBlockNode[*edgeIt] = lemon::INVALID;
+      }
+    }
+
     if (getDegree(n) == 0)
     {
       _blockNodesByDegree[0].erase(n);
