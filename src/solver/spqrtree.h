@@ -11,7 +11,7 @@
 #include <vector>
 #include <algorithm>
 #include <lemon/core.h>
-#include <lemon/smart_graph.h>
+#include <lemon/list_graph.h>
 #include <ogdf/basic/Graph.h>
 #include <ogdf/basic/NodeArray.h>
 #include <ogdf/basic/EdgeArray.h>
@@ -25,7 +25,7 @@ class SpqrTree
 {
 public:
   typedef GR Graph;
-  typedef lemon::SmartGraph Tree;
+  typedef lemon::ListGraph Tree;
   
   typedef enum { SPQR_S, SPQR_P, SPQR_R } SpqrNodeType;
   

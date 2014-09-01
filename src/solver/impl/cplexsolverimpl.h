@@ -144,6 +144,23 @@ private:
       return _deg[u] > _deg[v];
     }
   };
+  
+  struct NodesWeightComp
+  {
+  private:
+    const DoubleNodeMap& _weight;
+    
+  public:
+    NodesWeightComp(const DoubleNodeMap& weight)
+    : _weight(weight)
+    {
+    }
+    
+    bool operator ()(Node u, Node v)
+    {
+      return _weight[u] > _weight[v];
+    }
+  };
 };
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
@@ -183,6 +200,7 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initVariables(const MwcsGra
   }
 
   NodesDegComp comp(deg);
+//  NodesWeightComp comp(mwcsGraph.getScores());
   std::sort(_invNode.begin(), _invNode.end(), comp);
 
   char buf[1024];

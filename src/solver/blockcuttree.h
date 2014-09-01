@@ -41,6 +41,7 @@ public:
   typedef typename Graph::template EdgeMap<BlockNode> ToBlockNodeMap;
   typedef Tree::template RedNodeMap<Node> ArticulationMap;
   typedef Tree::template BlueNodeMap<EdgeVector> RealEdgesMap;
+  typedef Tree::template BlueNodeMap<NodeSet> RealNodesMap;
   typedef Tree::template NodeMap<int> IntTreeNodeMap;
   typedef Tree::template BlueNodeMap<bool> BoolTreeBlockNodeMap;
   
@@ -55,6 +56,7 @@ public:
     , _T()
     , _articulationPoint(_T)
     , _realEdges(_T)
+    , _realNodes(_T)
     , _deg(_T)
     , _numBlockNodes(0)
     , _blockNodesByDegree()
@@ -63,7 +65,56 @@ public:
   
   bool run();
   
-  bool removeBlockNode(Tree::BlueNode n)
+  void recomputeRealNodesAndEdges()
+  {
+    for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
+    {
+      _realEdges[b].clear();
+      _realNodes[b].clear();
+    }
+    
+    // construct _realEdges
+    for (EdgeIt e(_G); e != lemon::INVALID; ++e)
+    {
+      _realEdges[_toBlockNode[e]].push_back(e);
+    }
+    
+    // construct _realNodes
+    for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
+    {
+      const EdgeVector& realEdges = getRealEdges(b);
+      NodeSet& realNodes = _realNodes[b];
+      for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
+      {
+        realNodes.insert(_G.u(*edgeIt));
+        realNodes.insert(_G.v(*edgeIt));
+      }
+    }
+  }
+  
+  void removeFromBlockNode(BlockNode b,
+                           const NodeSet& nodesToRemove)
+  {
+    EdgeVector newRealEdges;
+    EdgeVector& realEdges = _realEdges[b];
+    for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
+    {
+      Edge e = *edgeIt;
+      
+      Node u = _G.u(e);
+      Node v = _G.v(e);
+      
+      if (nodesToRemove.find(u) == nodesToRemove.end() &&
+          nodesToRemove.find(v) == nodesToRemove.end())
+      {
+        newRealEdges.push_back(e);
+      }
+    }
+    
+    realEdges = newRealEdges;
+  }
+  
+  bool removeBlockNode(BlockNode n)
   {
     if (getDegree(n) == 0)
     {
@@ -113,14 +164,9 @@ public:
     return _realEdges[n];
   }
   
-  void getRealNodes(BlockNode n, NodeSet& nodeSet) const
+  const NodeSet& getRealNodes(BlockNode n) const
   {
-    const EdgeVector& realEdges = getRealEdges(n);
-    for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
-    {
-      nodeSet.insert(_G.u(*edgeIt));
-      nodeSet.insert(_G.v(*edgeIt));
-    }
+    return _realNodes[n];
   }
   
   Tree::Node toBlockNode(Edge e) const
@@ -174,6 +220,7 @@ private:
   Tree _T;
   ArticulationMap _articulationPoint;
   RealEdgesMap _realEdges;
+  RealNodesMap _realNodes;
   IntTreeNodeMap _deg;
   int _numBlockNodes;
   BlockNodeSetVector _blockNodesByDegree;
@@ -249,11 +296,19 @@ inline bool BlockCutTree<GR>::run()
     maxBlockDegree = std::max(_deg[b], maxBlockDegree);
   }
   
-  // construct _blockNodeByDegree
+  // construct _blockNodeByDegree and _realNodes
   _blockNodesByDegree = BlockNodeSetVector(maxBlockDegree + 1);
   for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
   {
     _blockNodesByDegree[_deg[b]].insert(b);
+    
+    const EdgeVector& realEdges = getRealEdges(b);
+    NodeSet& realNodes = _realNodes[b];
+    for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
+    {
+      realNodes.insert(_G.u(*edgeIt));
+      realNodes.insert(_G.v(*edgeIt));
+    }
   }
   
   return true;
