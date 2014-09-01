@@ -65,27 +65,37 @@ public:
   
   bool removeBlockNode(Tree::BlueNode n)
   {
-    if (getDegree(n) != 1)
+    if (getDegree(n) == 0)
+    {
+      _blockNodesByDegree[0].erase(n);
+      _T.erase(n);
+      --_numBlockNodes;
+      
+      return true;
+    }
+    else if (getDegree(n) == 1)
+    {
+      CutNode cut = _T.redNode(Tree::IncEdgeIt(_T, n));
+      
+      _blockNodesByDegree[1].erase(n);
+      _T.erase(n);
+      --_numBlockNodes;
+      
+      // remove cut node if its degree becomes 1
+      if (--_deg[cut] == 1)
+      {
+        BlockNode b2 = _T.blueNode(Tree::IncEdgeIt(_T, cut));
+        _blockNodesByDegree[_deg[b2]--].erase(b2);
+        _blockNodesByDegree[_deg[b2]].insert(b2);
+        _T.erase(cut);
+      }
+      
+      return true;
+    }
+    else
     {
       return false;
     }
-    
-    CutNode cut = _T.redNode(Tree::IncEdgeIt(_T, n));
-    
-    _blockNodesByDegree[_deg[n]].erase(n);
-    _T.erase(n);
-    --_numBlockNodes;
-    
-    // remove cut node if its degree becomes 1
-    if (--_deg[cut] == 1)
-    {
-      BlockNode b2 = _T.blueNode(Tree::IncEdgeIt(_T, cut));
-      _blockNodesByDegree[_deg[b2]--].erase(b2);
-      _blockNodesByDegree[_deg[b2]].insert(b2);
-      _T.erase(cut);
-    }
-    
-    return true;
   }
   
   const Tree& getBlockCutTree() const

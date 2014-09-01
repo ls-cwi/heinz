@@ -245,7 +245,7 @@ protected:
     for (NodeSetIt nodeIt = minOrgNodeSet.begin(); nodeIt != minOrgNodeSet.end(); nodeIt++)
     {
       preOrigNodes[maxNode].insert(*nodeIt);
-      mapToPre[*nodeIt].erase(*nodeIt);
+      mapToPre[*nodeIt].erase(minNode);
       mapToPre[*nodeIt].insert(maxNode);
     }
     

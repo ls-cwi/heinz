@@ -333,11 +333,12 @@ public:
     }
     
     // update mapToPre
-    const NodeSet& nodes = (*_pGraph->_pPreOrigNodes)[node];
-    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); nodeIt++)
+    const NodeSet& orgNodes = (*_pGraph->_pPreOrigNodes)[node];
+    for (NodeSetIt orgNodeIt = orgNodes.begin(); orgNodeIt != orgNodes.end(); ++orgNodeIt)
     {
       // unmap
-      (*_pGraph->_pMapToPre)[*nodeIt].erase(node);
+      Node orgNode = *orgNodeIt;
+      (*_pGraph->_pMapToPre)[orgNode].erase(node);
     }
     
     // remove the node from the graph
@@ -358,12 +359,9 @@ public:
     }
   }
   
-  Node merge(Edge e)
+  Node merge(Node u, Node v)
   {
     Graph& g = *_pGraph->_pG;
-    
-    Node u = g.u(e);
-    Node v = g.v(e);
     
     // rewire the edges incident to u to v
     for (IncEdgeIt ee(g, u); ee != lemon::INVALID;)
@@ -399,10 +397,10 @@ public:
     
     // update set of original nodes corresponding to v
     const NodeSet& uOrgNodeSet = (*_pGraph->_pPreOrigNodes)[u];
-    for (NodeSetIt nodeIt = uOrgNodeSet.begin(); nodeIt != uOrgNodeSet.end(); nodeIt++)
+    for (NodeSetIt nodeIt = uOrgNodeSet.begin(); nodeIt != uOrgNodeSet.end(); ++nodeIt)
     {
       (*_pGraph->_pPreOrigNodes)[v].insert(*nodeIt);
-      (*_pGraph->_pMapToPre)[*nodeIt].erase(*nodeIt);
+      (*_pGraph->_pMapToPre)[*nodeIt].erase(u);
       (*_pGraph->_pMapToPre)[*nodeIt].insert(v);
     }
     
@@ -420,31 +418,37 @@ public:
   
   Node merge(NodeSet nodes)
   {
-    const Graph& g = *_pGraph->_pG;
-    
-    // determine edge set
-    EdgeSet edges;
-    for (EdgeIt e(g); e != lemon::INVALID; ++e)
+    NodeSetIt nodeIt = nodes.begin();
+    Node res = *nodeIt;
+    for (++nodeIt; nodeIt != nodes.end(); ++nodeIt)
     {
-      if (nodes.find(g.u(e)) != nodes.end() && nodes.find(g.v(e)) != nodes.end())
-      {
-        edges.insert(e);
-      }
-    }
-    
-    Node res;
-    for (EdgeSetIt edgeIt = edges.begin(); edgeIt != edges.end(); ++edgeIt)
-    {
-      res = merge(*edgeIt);
+      res = merge(res, *nodeIt);
     }
     
     return res;
+  }
+  
+  Node merge(Node nodeToKeep, NodeSet nodes)
+  {
+    assert(nodes.find(nodeToKeep) != nodes.end());
+    
+    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
+    {
+      if (*nodeIt != nodeToKeep)
+      {
+        Node res = merge(*nodeIt, nodeToKeep);
+        assert(res == nodeToKeep);
+      }
+    }
+    
+    return nodeToKeep;
   }
   
   Node extract(NodeSet nodes)
   {
     Graph& g = *_pGraph->_pG;
     Node res = g.addNode();
+    ++_pGraph->_nNodes;
     
     (*_pGraph->_pScore)[res] = 0;
     

@@ -93,6 +93,7 @@ int main(int argc, char** argv)
   int maxNumberOfCuts = 3;
   int timeLimit = -1;
   bool noPreprocess = false;
+  bool noEnum = false;
   int multiThreading = 1;
   int backOffFunction = 1;
   int backOffPeriod = 1;
@@ -120,6 +121,7 @@ int main(int argc, char** argv)
                         "     3 - Exponential waiting\n"
                         "     4 - Infinite waiting", backOffFunction, false)
     .refOption("p", "Disable preprocessing", noPreprocess, false)
+    .refOption("no-enum", "Disable enumerator", noEnum, false)
     .refOption("s", "STP node file", stpNodeFile, false)
     .refOption("v", "Specifies the verbosity level:\n"
                     "     0 - No output\n"
@@ -216,7 +218,7 @@ int main(int argc, char** argv)
     pPreprocessedMwcs->preprocess(rootNodeSet);
   }
   
-//  SolverType* pSolver = NULL;
+  SolverType* pSolver = NULL;
   
   Options options(createBackOff(backOffFunction, backOffPeriod),
                   true,
@@ -230,23 +232,26 @@ int main(int argc, char** argv)
               << "' present. Defaulting to unrooted formulation." << std::endl;
   }
   
-//  if (rootNodeSet.size() == 1)
-//  {
-//    SolverRootedType* pSolverRooted = new SolverRootedType(new CutSolverRootedImplType(options));
-//    pSolverRooted->solve(*pMwcs, rootNodeSet);
-//    pSolver = pSolverRooted;
-//  }
-//  else
-//  {
-//    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new CutSolverUnrootedImplType(options));
-//    pSolverUnrooted->solve(*pMwcs);
-//    pSolver = pSolverUnrooted;
-//  }
-  
-  SolverUnrootedType* pSolver = new EnumSolverUnrootedType(new CutSolverUnrootedImplType(options),
-                                                           new CutSolverRootedImplType(options),
-                                                           !noPreprocess);
-  pSolver->solve(*pMwcs);
+  if (rootNodeSet.size() == 1)
+  {
+    SolverRootedType* pSolverRooted = new SolverRootedType(new CutSolverRootedImplType(options));
+    pSolverRooted->solve(*pMwcs, rootNodeSet);
+    pSolver = pSolverRooted;
+  }
+  else if (noEnum)
+  {
+    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new CutSolverUnrootedImplType(options));
+    pSolverUnrooted->solve(*pMwcs);
+    pSolver = pSolverUnrooted;
+  }
+  else
+  {
+    SolverUnrootedType* pSolverUnrooted = new EnumSolverUnrootedType(new CutSolverUnrootedImplType(options),
+                                                                     new CutSolverRootedImplType(options),
+                                                                     !noPreprocess);
+    pSolverUnrooted->solve(*pMwcs);
+    pSolver = pSolverUnrooted;
+  }
   
   if (outputFile != "-" && !outputFile.empty())
   {
