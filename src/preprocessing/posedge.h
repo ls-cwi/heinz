@@ -90,7 +90,9 @@ inline int PosEdge<GR, WGHT>::apply(Graph& g,
     Node u = g.u(e);
     Node v = g.v(e);
 
-    if (score[u] >= 0 && score[v] >= 0)
+    if (score[u] >= 0 && score[v] >= 0
+        && rootNodes.find(u) == rootNodes.end()
+        && rootNodes.find(v) == rootNodes.end())
     {
       merge(g, arcLookUp, label, score,
             mapToPre, preOrigNodes, neighbors,

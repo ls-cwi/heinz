@@ -104,7 +104,8 @@ inline int NegCircuit<GR, WGHT>::apply(Graph& g,
 
       Node u = g.oppositeNode(v, e1);
       Node w = g.oppositeNode(v, e2);
-      if (arcLookUp(u, w) != lemon::INVALID)
+      if (neighbors[u].find(w) != neighbors[u].end())
+//      if (arcLookUp(u, w) != lemon::INVALID)
       {
         remove(g, comp,
                mapToPre, preOrigNodes, neighbors,

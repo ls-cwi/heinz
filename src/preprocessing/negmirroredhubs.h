@@ -118,18 +118,21 @@ inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
     }
   }
   
+  for (NodeSetIt nodeIt = rootNodes.begin(); nodeIt != rootNodes.end(); ++nodeIt)
+  {
+    // only remove if v is not a root node
+    negHubsToRemove.erase(*nodeIt);
+  }
+  
   for (NodeSetIt nodeIt = negHubsToRemove.begin();
        nodeIt != negHubsToRemove.end(); ++nodeIt)
   {
     Node v = *nodeIt;
     
-    // only remove if v is not a root node
-    if (rootNodes.find(v) == rootNodes.end())
-    {
-      remove(g, comp, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges, nComponents,
-             degree, degreeVector, *nodeIt);
-    }
+    assert(rootNodes.find(v) == rootNodes.end());
+    remove(g, comp, mapToPre, preOrigNodes, neighbors,
+           nNodes, nArcs, nEdges, nComponents,
+           degree, degreeVector, v);
   }
   
   return static_cast<int>(negHubsToRemove.size());

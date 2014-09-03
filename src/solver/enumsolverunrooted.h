@@ -125,10 +125,19 @@ private:
                       NodeSet& solutionSet,
                       double& solutionScore);
   
-  bool processBlock(MwcsPreGraphType& mwcsGraph,
-                    BlockCutTreeType& bcTree,
-                    BcTreeBlockNode b,
-                    BoolNodeMap& sameBlock);
+  bool processBlock1(MwcsPreGraphType& mwcsGraph,
+                     BlockCutTreeType& bcTree,
+                     BcTreeBlockNode b,
+                     BcTreeCutNode c,
+                     Node orgC,
+                     BoolNodeMap& sameBlock);
+
+  bool processBlock2(MwcsPreGraphType& mwcsGraph,
+                     BlockCutTreeType& bcTree,
+                     BcTreeBlockNode b,
+                     BcTreeCutNode c,
+                     Node orgC,
+                     BoolNodeMap& sameBlock);
   
   bool solveBlock(MwcsPreGraphType& mwcsGraph,
                   BlockCutTreeType& bcTree,
@@ -137,14 +146,21 @@ private:
                   int blockIndex,
                   int nBlocks);
   
-  bool solveBlockUnrooted(MwcsPreGraphType& mwcsGraph,
-                          NodeSet& solutionSet,
-                          double& solutionScore);
+  
+  bool solveTriComp(MwcsPreGraphType& mwcsGraph,
+                    const NodePair& cutPair,
+                    const NodeSet& nodesTriComp,
+                    BlockCutTreeType& bcTree,
+                    BcTreeBlockNode b);
+  
+  bool solveUnrooted(MwcsPreGraphType& mwcsGraph,
+                     NodeSet& solutionSet,
+                     double& solutionScore);
 
-  bool solveBlockRooted(MwcsPreGraphType& mwcsGraph,
-                        Node rootNode,
-                        NodeSet& solutionSet,
-                        double& solutionScore);
+  bool solveRooted(MwcsPreGraphType& mwcsGraph,
+                   const NodeSet& rootNodes,
+                   NodeSet& solutionSet,
+                   double& solutionScore);
   
   void map(const MwcsGraphType& mwcsGraph,
            const NodeMap& m,
@@ -359,7 +375,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
   int nBlocks = bcTree.getNumBlockTreeNodes();
   int blockIndex = 0;
   
-  for (int blockDegree = 1; blockDegree >= 0; --blockDegree)
+  for (int blockDegree = nBlocks > 1 ? 1 : 0; blockDegree >= 0; --blockDegree)
   {
     const BcTreeBlockNodeSet& leaves = bcTree.getBlockNodeSetByDegree(blockDegree);
     while (!leaves.empty())
@@ -379,7 +395,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
   }
   
   // solve
-  mwcsGraph.print(std::cout);
+//  mwcsGraph.print(std::cout);
 
   BoolNodeMap solutionMap(g, false);
   _pImpl->init(mwcsGraph);
@@ -441,6 +457,8 @@ inline double EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::shortCircuit(const Grap
   lemon::Dijkstra<SubGraph, DoubleArcMap> dijkstra(subG, arcCost);
   dijkstra.run(cutPair.first);
   
+  assert(dijkstra.reached(cutPair.second));
+  
   SubNode u = cutPair.second;
   while (dijkstra.predArc(u) != lemon::INVALID)
   {
@@ -456,12 +474,532 @@ inline double EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::shortCircuit(const Grap
   return pathLength;
 }
 
+template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock2(MwcsPreGraphType& mwcsGraph,
+                                                                     BlockCutTreeType& bcTree,
+                                                                     BcTreeBlockNode b,
+                                                                     BcTreeCutNode c,
+                                                                     Node orgC,
+                                                                     BoolNodeMap& sameBlock)
+{
+  bool result = false;
+  
+  const WeightNodeMap& score = mwcsGraph.getScores();
+  const Graph& g = mwcsGraph.getGraph();
+  
+  SubGraph subG(g, sameBlock);
+  
+  if (lemon::countEdges(subG) <= 2)
+  {
+    return false;
+  }
+  
+  SpqrType spqr(subG);
+  bool spqrRes = spqr.run();
+  assert(spqrRes);
+  
+  const SpqrTree& T = spqr.getSpqrTree();
+  
+  // determine root node (max deg node) and negative nodes
+  SpqrTreeBoolNodeMap negative(T, true);
+  SpqrTreeNode rootNode = lemon::INVALID;
+  for (SpqrTreeNodeIt v(T); v != lemon::INVALID; ++v)
+  {
+    const EdgeVector& realSpqrEdges = spqr.getRealEdges(v);
+    for (EdgeVectorIt edgeIt = realSpqrEdges.begin(); edgeIt != realSpqrEdges.end(); ++edgeIt)
+    {
+      negative[v] = negative[v] && (score[subG.u(*edgeIt)] <= 0 && score[subG.v(*edgeIt)] <= 0);
+    }
+    
+    if (rootNode == lemon::INVALID || spqr.getDegree(v) > spqr.getDegree(rootNode))
+    {
+      rootNode = v;
+    }
+  }
+  
+  // root and determine depth
+  SpqrTreeIntNodeMap depth(T, -1), size(T, 1), realEdgesSize(T, 0);
+  SpqrTreeBoolNodeMap negativeSubTree(T, false);
+  SpqrTreeBoolEdgeMap dir(T, true);
+  RootedSpqrTree rootedT(T, dir);
+  SpqrTreeNodeSetNodeMap orgNodesInSubTree(T), orgPosNodesInSubTree(T);
+  
+  rootSpqrTree(subG, score, spqr, negative,
+               lemon::INVALID, lemon::INVALID,
+               rootNode, rootedT, dir, depth, size,
+               realEdgesSize, negativeSubTree,
+               orgNodesInSubTree, orgPosNodesInSubTree);
+  
+  // Next, look for subtrees with more than 4 nodes
+  typedef std::pair<int, SpqrTreeNode> IntSpqrTreeNodePair;
+  typedef std::vector<IntSpqrTreeNodePair> IntSpqrTreeNodePairVector;
+  typedef typename IntSpqrTreeNodePairVector::const_iterator IntSpqrTreeNodePairVectorIt;
+  
+  IntSpqrTreeNodePairVector triComponents;
+  for (RootedSpqrTreeOutArcIt a(rootedT, rootNode); a != lemon::INVALID; ++a)
+  {
+    const SpqrTreeNode child = T.v(a);
+    if (child != rootNode && orgNodesInSubTree[child].size() > 3)
+    {
+      assert(!negativeSubTree[child]);
+      
+//      const NodePair& cutPair = spqr.getCutPair(a);
+//      std::cout << T.id(child) << " " << g.id(cutPair.first) << " " << g.id(cutPair.second)
+//                << " " << orgNodesInSubTree[child].size() << std::endl;
+      triComponents.push_back(std::make_pair(static_cast<int>(orgNodesInSubTree[child].size()), child));
+    }
+  }
+  
+  std::sort(triComponents.begin(), triComponents.end());
+  int triCompIdx = 0;
+  for (IntSpqrTreeNodePairVectorIt triCompIt = triComponents.begin();
+       triCompIt != triComponents.end(); ++triCompIt, ++triCompIdx)
+  {
+    if (g_verbosity >= VERBOSE_ESSENTIAL)
+    {
+      std::cout << std::endl;
+      std::cout << "// Considering triconnected component " << triCompIdx + 1 << "/" << triComponents.size()
+                << ": contains " << orgNodesInSubTree[triCompIt->second].size() << " nodes and "
+                << triCompIt->first << " edges" << std::endl;
+    }
+    
+    const NodePair& cutPair = spqr.getCutPair(RootedSpqrTreeInArcIt(rootedT, triCompIt->second));
+    result |= solveTriComp(mwcsGraph, cutPair, orgNodesInSubTree[triCompIt->second], bcTree, b);
+  }
+  
+  NodeSet cutNodeSet;
+  if (orgC != lemon::INVALID)
+  {
+    cutNodeSet.insert(orgC);
+  }
+  
+  mwcsGraph.preprocess(cutNodeSet);
+  bcTree.recomputeRealNodesAndEdges();
+  
+//  std::cout << T.id(triComponents.begin()->second) << " " << triComponents.begin()->first << std::endl;
+  
+//  {
+//    std::ofstream eOut("spqr.edges.txt");
+//    // let's print the spqr tree
+//    for (SpqrTreeEdgeIt e(T); e != lemon::INVALID; ++e)
+//    {
+//      eOut << T.id(T.u(e)) << " (pp) " << T.id(T.v(e))
+//           << "\t" << subG.id(spqr.getCutPair(e).first)
+//           << "\t" << subG.id(spqr.getCutPair(e).second)
+//           << std::endl;
+//    }
+//    eOut.close();
+//  
+//    std::ofstream nOut("spqr.nodes.txt");
+//    // let's print the spqr tree
+//    for (SpqrTreeNodeIt v(T); v != lemon::INVALID; ++v)
+//    {
+//      nOut << T.id(v) << "\t" << spqr.toChar(spqr.getSpqrNodeType(v))
+//           << "\t" << negative[v] << "\t"
+//           << realEdgesSize[v] << "\t"
+//           << orgNodesInSubTree[v].size() << "\t"
+//           << orgPosNodesInSubTree[v].size() << std::endl;
+//    }
+//    nOut.close();
+//
+//    std::ofstream nnOut("nodes.txt");
+//    mwcsGraph.printNodeList(nnOut, false);
+//    nnOut.close();
+//    
+//    std::ofstream eeOut("edges.txt");
+//    mwcsGraph.printEdgeList(eeOut, false);
+//    eeOut.close();
+//  }
+  
+  return result;
+}
+  
+template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraphType& mwcsGraph,
+                                                                    const NodePair& cutPair,
+                                                                    const NodeSet& nodesTriComp,
+                                                                    BlockCutTreeType& bcTree,
+                                                                    BcTreeBlockNode b)
+{
+  const Graph& g = mwcsGraph.getGraph();
+  const DoubleNodeMap& score = mwcsGraph.getScores();
+  
+  // create a new graph induced by nodesTriComp
+  Graph subG;
+  DoubleNodeMap weightSubG(subG);
+  LabelNodeMap labelSubG(subG);
+  NodeMap mapToG(subG);
+  NodeMap mapToSubG(g);
+  MwcsPreGraphType mwcsSubGraph;
+  
+  BoolNodeMap sameTriComp(g, false);
+  for (NodeSetIt nodeIt = nodesTriComp.begin(); nodeIt != nodesTriComp.end(); ++nodeIt)
+  {
+    sameTriComp[*nodeIt] = true;
+  }
+  
+  initLocalGraph(g,
+                 mwcsGraph.getScores(),
+                 mwcsGraph.getLabels(),
+                 sameTriComp,
+                 subG,
+                 weightSubG,
+                 labelSubG,
+                 mapToG,
+                 mapToSubG,
+                 mwcsSubGraph);
+  
+  // start by solving the unrooted formulation
+//  printNodeSet(mwcsGraph, nodesTriComp);
+//  std::cout << mwcsGraph.getLabel(cutPair.first) << " -- " << mwcsGraph.getLabel(cutPair.second) << std::endl;
+//  mwcsSubGraph.print(std::cout);
+//  assert(lemon::connected(subG));
+  
+  NodeSet subSolutionSet;
+  double solutionScore;
+  if (!solveUnrooted(mwcsSubGraph, subSolutionSet, solutionScore))
+  {
+    abort();
+  }
+  
+  assert(nodesTriComp.find(cutPair.first) != nodesTriComp.end());
+  assert(nodesTriComp.find(cutPair.second) != nodesTriComp.end());
+  
+  NodeSet V4;
+  map(mwcsSubGraph, mapToG, subSolutionSet, V4);
+  
+//  printNodeSet(mwcsSubGraph, subSolutionSet);
+//  printNodeSet(mwcsGraph, V4);
+  
+  // V1 is rooted at cutPair.first
+  // V2 is rooted at cutPair.second
+  // V3 is rooted at cutPair.first and cutPair.second
+  NodeSet V1, V2, V3;
+  
+  if (V4.find(cutPair.first) != V4.end())
+  {
+    V1 = V4;
+    V1.erase(cutPair.first);
+  }
+  else
+  {
+    // solve rooted at cutPair.first
+    mwcsSubGraph.clear();
+    
+    subSolutionSet.clear();
+    if (!solveRooted(mwcsSubGraph,
+                     mwcsSubGraph.getPreNodes(mapToSubG[cutPair.first]),
+                     subSolutionSet,
+                     solutionScore))
+    {
+//      std::cout << mwcsGraph.getLabel(cutPair.first) << std::endl;
+      abort();
+    }
+    map(mwcsSubGraph, mapToG, subSolutionSet, V1);
+    V1.erase(cutPair.first);
+    V1.erase(cutPair.second);
+  }
+  
+  if (V4.find(cutPair.second) != V4.end())
+  {
+    V2 = V4;
+    V2.erase(cutPair.second);
+  }
+  else
+  {
+    // solve rooted at cutPair.second
+    mwcsSubGraph.clear();
+    
+    subSolutionSet.clear();
+    if (!solveRooted(mwcsSubGraph,
+                     mwcsSubGraph.getPreNodes(mapToSubG[cutPair.second]),
+                     subSolutionSet,
+                     solutionScore))
+    {
+//      mwcsSubGraph.print(std::cout);
+//      std::cout << mwcsGraph.getLabel(cutPair.second) << std::endl;
+      abort();
+    }
+    map(mwcsSubGraph, mapToG, subSolutionSet, V2);
+    V2.erase(cutPair.first);
+    V2.erase(cutPair.second);
+  }
+  
+  if (V4.find(cutPair.first) != V4.end() && V4.find(cutPair.second) != V4.end())
+  {
+    V3 = V4;
+    V3.erase(cutPair.first);
+    V3.erase(cutPair.second);
+  }
+  else if (V1.find(cutPair.first) != V1.end() && V1.find(cutPair.second) != V1.end())
+  {
+    V3 = V1;
+    V3.erase(cutPair.first);
+    V3.erase(cutPair.second);
+  }
+  else if (V2.find(cutPair.first) != V2.end() && V2.find(cutPair.second) != V2.end())
+  {
+    V3 = V2;
+    V3.erase(cutPair.first);
+    V3.erase(cutPair.second);
+  }
+  else
+  {
+    // solve rooted at cutPair.first and cutPair.second
+    mwcsSubGraph.clear();
+    
+    NodeSet rootNodes = mwcsSubGraph.getPreNodes(mapToSubG[cutPair.first]);
+    const NodeSet& tmp = mwcsSubGraph.getPreNodes(mapToSubG[cutPair.second]);
+    rootNodes.insert(tmp.begin(), tmp.end());
+
+    assert(rootNodes.size() == 2);
+    
+//    mwcsSubGraph.print(std::cout);
+    
+    subSolutionSet.clear();
+    if (!solveRooted(mwcsSubGraph,
+                     rootNodes,
+                     subSolutionSet,
+                     solutionScore))
+    {
+//      mwcsSubGraph.print(std::cout);
+      abort();
+    }
+    
+    map(mwcsSubGraph, mapToG, subSolutionSet, V3);
+    V3.erase(cutPair.first);
+    V3.erase(cutPair.second);
+  }
+  
+//  std::cout << "V1" << std::endl;
+//  printNodeSet(mwcsGraph, V1);
+//  std::cout << std::endl << "V2" << std::endl;
+//  printNodeSet(mwcsGraph, V2);
+//  std::cout << std::endl << "V3" << std::endl;
+//  printNodeSet(mwcsGraph, V3);
+//  std::cout << std::endl << "V4" << std::endl;
+//  printNodeSet(mwcsGraph, V4);
+
+  // introduce gadget
+  mwcsGraph.extract(V4);
+  
+  NodeSet V1_minus_V2;
+  std::set_difference(V1.begin(), V1.end(),
+                      V2.begin(), V2.end(),
+                      std::inserter(V1_minus_V2, V1_minus_V2.begin()));
+  
+  NodeSet V2_minus_V1;
+  std::set_difference(V2.begin(), V2.end(),
+                      V1.begin(), V1.end(),
+                      std::inserter(V2_minus_V1, V2_minus_V1.begin()));
+  
+  NodeSet V1_cup_V2 = V1;
+  V1_cup_V2.insert(V2.begin(), V2.end());
+  
+  NodeSet V1_cup_V2_cup_V3 = V1_cup_V2;
+  V1_cup_V2_cup_V3.insert(V3.begin(), V3.end());
+  
+  NodeSet comp_V1_cup_V2_cup_V3;
+  std::set_difference(nodesTriComp.begin(), nodesTriComp.end(),
+                      V1_cup_V2_cup_V3.begin(), V1_cup_V2_cup_V3.end(),
+                      std::inserter(comp_V1_cup_V2_cup_V3, comp_V1_cup_V2_cup_V3.begin()));
+  comp_V1_cup_V2_cup_V3.erase(cutPair.first);
+  comp_V1_cup_V2_cup_V3.erase(cutPair.second);
+  
+  NodeSet V3_minus_V1_cup_V2;
+  std::set_difference(V3.begin(), V3.end(),
+                      V1_cup_V2.begin(), V1_cup_V2.end(),
+                      std::inserter(V3_minus_V1_cup_V2, V3_minus_V1_cup_V2.begin()));
+  
+  NodeSet V1_cap_V2;
+  std::set_intersection(V1.begin(), V1.end(),
+                        V2.begin(), V2.end(),
+                        std::inserter(V1_cap_V2, V1_cap_V2.begin()));
+  
+  assert(V1.find(cutPair.first) == V1.end());
+  assert(V2.find(cutPair.first) == V2.end());
+  assert(V3.find(cutPair.first) == V3.end());
+  assert(V1.find(cutPair.second) == V1.end());
+  assert(V2.find(cutPair.second) == V2.end());
+  assert(V3.find(cutPair.second) == V3.end());
+  
+  int res = 0;
+  NodeSet gadget;
+  
+  Node nV1_minus_V2 = lemon::INVALID;
+  if (!V1_minus_V2.empty())
+  {
+    nV1_minus_V2 = mwcsGraph.merge(V1_minus_V2);
+    gadget.insert(nV1_minus_V2);
+    ++res;
+    
+    // let's disconnect nV1_minus_V2
+    while (IncEdgeIt(g, nV1_minus_V2) != lemon::INVALID)
+      mwcsGraph.remove(IncEdgeIt(g, nV1_minus_V2));
+  }
+  
+  Node nV2_minus_V1 = lemon::INVALID;
+  if (!V2_minus_V1.empty())
+  {
+    nV2_minus_V1 = mwcsGraph.merge(V2_minus_V1);
+    gadget.insert(nV2_minus_V1);
+    ++res;
+    
+    // let's disconnect nV2_minus_V1
+    while (IncEdgeIt(g, nV2_minus_V1) != lemon::INVALID)
+      mwcsGraph.remove(IncEdgeIt(g, nV2_minus_V1));
+  }
+  
+  Node nV1_cap_V2 = lemon::INVALID;
+  if (!V1_cap_V2.empty())
+  {
+    nV1_cap_V2 = mwcsGraph.merge(V1_cap_V2);
+    gadget.insert(nV1_cap_V2);
+    ++res;
+    
+    // let's disconnect nV1_cap_V2
+    while (IncEdgeIt(g, nV1_cap_V2) != lemon::INVALID)
+      mwcsGraph.remove(IncEdgeIt(g, nV1_cap_V2));
+  }
+  
+  Node nV3_minus_V1_cup_V2 = lemon::INVALID;
+  if (!V3_minus_V1_cup_V2.empty())
+  {
+    nV3_minus_V1_cup_V2 = mwcsGraph.merge(V3_minus_V1_cup_V2);
+    gadget.insert(nV3_minus_V1_cup_V2);
+    ++res;
+    
+    // let's disconnect nV3_minus_V1_cup_V2
+    while (IncEdgeIt(g, nV3_minus_V1_cup_V2) != lemon::INVALID)
+      mwcsGraph.remove(IncEdgeIt(g, nV3_minus_V1_cup_V2));
+  }
+  
+  if (!comp_V1_cup_V2_cup_V3.empty())
+  {
+    mwcsGraph.remove(comp_V1_cup_V2_cup_V3);
+  }
+  
+  // let's connect up the gadget
+  if (nV1_cap_V2 == lemon::INVALID)
+  {
+    if (nV1_minus_V2 != lemon::INVALID && nV3_minus_V1_cup_V2 != lemon::INVALID)
+    {
+      assert(score[nV1_minus_V2] >= 0);
+      gadget.erase(nV1_minus_V2);
+      nV1_minus_V2 = mwcsGraph.merge(nV1_minus_V2, cutPair.first);
+    }
+    if (nV2_minus_V1 != lemon::INVALID && nV3_minus_V1_cup_V2 != lemon::INVALID)
+    {
+      assert(score[nV2_minus_V1] >= 0);
+      gadget.erase(nV2_minus_V1);
+      nV2_minus_V1 = mwcsGraph.merge(nV2_minus_V1, cutPair.second);
+    }
+  }
+  else
+  {
+    gadget.insert(nV1_cap_V2);
+    if (nV1_minus_V2 != lemon::INVALID)
+    {
+      Edge e = mwcsGraph.addEdge(nV1_minus_V2, nV1_cap_V2);
+      bcTree.assignEdgeToBlock(e, b);
+    }
+    else
+    {
+      Edge e = mwcsGraph.addEdge(cutPair.first, nV1_cap_V2);
+      bcTree.assignEdgeToBlock(e, b);
+    }
+    if (nV2_minus_V1 != lemon::INVALID)
+    {
+      Edge e = mwcsGraph.addEdge(nV2_minus_V1, nV1_cap_V2);
+      bcTree.assignEdgeToBlock(e, b);
+    }
+    else
+    {
+      Edge e = mwcsGraph.addEdge(cutPair.second, nV1_cap_V2);
+      bcTree.assignEdgeToBlock(e, b);
+    }
+  }
+  if (nV1_minus_V2 != lemon::INVALID && nV1_minus_V2 != cutPair.first)
+  {
+    gadget.insert(nV1_minus_V2);
+    Edge e = mwcsGraph.addEdge(cutPair.first, nV1_minus_V2);
+    bcTree.assignEdgeToBlock(e, b);
+  }
+  if (nV2_minus_V1 != lemon::INVALID && nV2_minus_V1 != cutPair.second)
+  {
+    Edge e = mwcsGraph.addEdge(cutPair.second, nV2_minus_V1);
+    bcTree.assignEdgeToBlock(e, b);
+  }
+  if (nV3_minus_V1_cup_V2 != lemon::INVALID)
+  {
+    gadget.insert(nV3_minus_V1_cup_V2);
+    Edge e1 = mwcsGraph.addEdge(cutPair.first, nV3_minus_V1_cup_V2);
+    Edge e2 = mwcsGraph.addEdge(cutPair.second, nV3_minus_V1_cup_V2);
+    bcTree.assignEdgeToBlock(e1, b);
+    bcTree.assignEdgeToBlock(e2, b);
+  }
+  
+  if (nV3_minus_V1_cup_V2 == lemon::INVALID && nV1_cap_V2 == lemon::INVALID)
+  {
+    if (nV1_minus_V2 != lemon::INVALID)
+    {
+      assert(nV2_minus_V1 == lemon::INVALID);
+      Edge e = mwcsGraph.addEdge(cutPair.second, nV1_minus_V2);
+      bcTree.assignEdgeToBlock(e, b);
+    }
+    if (nV2_minus_V1 != lemon::INVALID)
+    {
+      assert(nV1_minus_V2 == lemon::INVALID);
+      Edge e = mwcsGraph.addEdge(cutPair.first, nV2_minus_V1);
+      bcTree.assignEdgeToBlock(e, b);
+    }
+  }
+  
+  gadget.insert(cutPair.first);
+  gadget.insert(cutPair.second);
+  
+  if (g_verbosity >= VERBOSE_ESSENTIAL)
+  {
+    std::cout << "// Replaced tricomponent of "
+              << nodesTriComp.size()
+              << " nodes by a gadget of "
+              << gadget.size() << " nodes" << std::endl;
+  }
+  
+  // print the gadget
+  subG.clear();
+  lemon::mapFill(g, sameTriComp, false);
+  for (NodeSetIt nodeIt = gadget.begin(); nodeIt != gadget.end(); ++nodeIt)
+  {
+    sameTriComp[*nodeIt] = true;
+  }
+  
+  mwcsSubGraph.clear();
+  initLocalGraph(g,
+                 mwcsGraph.getScores(),
+                 mwcsGraph.getLabels(),
+                 sameTriComp,
+                 subG,
+                 weightSubG,
+                 labelSubG,
+                 mapToG,
+                 mapToSubG,
+                 mwcsSubGraph);
+  
+//  std::cout << "gadget:" << std::endl;
+//  mwcsSubGraph.print(std::cout);
+  
+  assert(lemon::connected(SubGraph(g, sameTriComp)));
+  return gadget.size() < nodesTriComp.size();
+}
 
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
-inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock(MwcsPreGraphType& mwcsGraph,
-                                                                    BlockCutTreeType& bcTree,
-                                                                    BcTreeBlockNode b,
-                                                                    BoolNodeMap& sameBlock)
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock1(MwcsPreGraphType& mwcsGraph,
+                                                                     BlockCutTreeType& bcTree,
+                                                                     BcTreeBlockNode b,
+                                                                     BcTreeCutNode c,
+                                                                     Node orgC,
+                                                                     BoolNodeMap& sameBlock)
 {
   const WeightNodeMap& score = mwcsGraph.getScores();
   const Graph& g = mwcsGraph.getGraph();
@@ -476,7 +1014,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock(MwcsPreGraph
   bool result = false;
   
   SpqrType spqr(subG);
-  spqr.run();
+  bool spqrRes = spqr.run();
+  assert(spqrRes);
   
   const SpqrTree& T = spqr.getSpqrTree();
 
@@ -514,8 +1053,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock(MwcsPreGraph
   SpqrTreeNodeVector negativeRoots;
   identifyNegativeRoots(spqr, rootedT, rootNode, orgPosNodesInSubTree, negativeRoots);
   
-  // first let's replace the negative tri components by single nodes and if possible remove them
-  int nNodesRemoved = 0;
+  // first let's replace the negative tri components by single nodes
   BoolNodeMap filter(g, false);
   DoubleArcMap arcCost(g);
   for (SpqrTreeNodeVectorIt it = negativeRoots.begin(); it != negativeRoots.end(); ++it)
@@ -551,16 +1089,26 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock(MwcsPreGraph
       NodeSet nodesToRemoveFromB = nodesToRemove;
       nodesToRemoveFromB.insert(nodesToMerge.begin(), nodesToMerge.end());
       nodesToRemoveFromB.erase(singleNode);
-//      bcTree.removeFromBlockNode(b, nodesToRemoveFromB);
+      bcTree.removeFromBlockNode(b, nodesToRemoveFromB);
       
       mwcsGraph.remove(nodesToRemove);
       
       if (g_verbosity >= VERBOSE_ESSENTIAL)
       {
-        std::cout << "// Replacing negative triconnected component of "
-                  << orgNodesInSubTree[*it].size() << " nodes"
-                  << " and " << realEdgesSize[*it] << " edges with a single node"
-                  << std::endl;
+        if (singleNode != lemon::INVALID)
+        {
+          std::cout << "// Replacing negative triconnected component of "
+                    << orgNodesInSubTree[*it].size() << " nodes"
+                    << " and " << realEdgesSize[*it] << " edges with a single node"
+                    << std::endl;
+        }
+        else
+        {
+          std::cout << "// Removed negative triconnected component of "
+                    << orgNodesInSubTree[*it].size() << " nodes"
+                    << " and " << realEdgesSize[*it] << " edges"
+                    << std::endl;
+        }
       }
       
       result = true;
@@ -578,72 +1126,18 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock(MwcsPreGraph
         singleNode = g.u(e);
       }
     }
-    
-    // now let's check whether we can remove the isolated node
-    NodeList path;
-    double pathLength = shortCircuit(g, subG, score, spqr, rootedT, *it, orgNodesInSubTree, true, filter, arcCost, path);
-    
-    if (pathLength >= score[singleNode])
-    {
-      ++nNodesRemoved;
-
-      // update block cut tree
-      NodeSet nodesToRemoveFromB;
-      nodesToRemoveFromB.insert(singleNode);
-//      bcTree.removeFromBlockNode(b, nodesToRemoveFromB);
-      mwcsGraph.remove(nodesToRemoveFromB);
-      
-      result = true;
-    }
   }
   
-  if (g_verbosity >= VERBOSE_ESSENTIAL)
+  NodeSet cutNodeSet;
+  if (orgC != lemon::INVALID)
   {
-    std::cout << "// Removed " << nNodesRemoved
-              << " negative triconnected component of 1 node and 2 edges" << std::endl;
+    cutNodeSet.insert(orgC);
   }
   
-//  mwcsGraph.preprocess(NodeSet());
+  mwcsGraph.preprocess(cutNodeSet);
   bcTree.recomputeRealNodesAndEdges();
   
-  // Next, look for subtrees with more than 4 nodes
-//  for (RootedSpqrTreeOutArcIt a(rootedT, rootNode); a != lemon::INVALID; ++a)
-//  {
-//    const SpqrTreeNode child = T.v(a);
-//
-//    if (!negativeSubTree[child] && orgNodesInSubTree[child].size() > 4)
-//    {
-//      const NodePair& cutPair = spqr.getCutPair(a);
-//      std::cout << orgNodesInSubTree[child].size() << std::endl;
-//    }
-//  }
-  
   return result;
-  
-//  {
-//    std::ofstream eOut("spqr.edges.txt");
-//    // let's print the spqr tree
-//    for (SpqrTreeEdgeIt e(T); e != lemon::INVALID; ++e)
-//    {
-//      eOut << T.id(T.u(e)) << " (pp) " << T.id(T.v(e))
-//           << "\t" << subG.id(spqr.getCutPair(e).first)
-//           << "\t" << subG.id(spqr.getCutPair(e).second)
-//           << std::endl;
-//    }
-//    eOut.close();
-//    
-//    std::ofstream nOut("spqr.nodes.txt");
-//    // let's print the spqr tree
-//    for (SpqrTreeNodeIt v(T); v != lemon::INVALID; ++v)
-//    {
-//      nOut << T.id(v) << "\t" << spqr.toChar(spqr.getSpqrNodeType(v))
-//           << "\t" << negative[v] << "\t"
-//           << realEdgesSize[v] << "\t"
-//           << orgNodesInSubTree[v].size() << "\t"
-//           << orgPosNodesInSubTree[v].size() << std::endl;
-//    }
-//    nOut.close();
-//  }
 }
   
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
@@ -739,24 +1233,19 @@ inline void EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::rootSpqrTree(const SubGra
                    rootedT, dir, depth, size,
                    realEdgesSize, negSubTree,
                    orgNodesInSubTree, orgPosNodesInSubTree);
+      
       negSubTree[v] = negSubTree[v] && negSubTree[w];
+      
       size[v] += size[w];
       realEdgesSize[v] += realEdgesSize[w];
-      orgNodesInSubTree[v].insert(orgNodesInSubTree[w].begin(), orgNodesInSubTree[w].end());
       
-      //      const NodePair& cutPair = spqr.getCutPair(e);
-      orgPosNodesInSubTree[v].insert(orgPosNodesInSubTree[w].begin(), orgPosNodesInSubTree[w].end());
-      //      if (score[cutPair.first] > 0)
-      //      {
-      //        orgPosNodesInSubTree[v].insert(cutPair.first);
-      //      }
-      //      if (score[cutPair.second] > 0)
-      //      {
-      //        orgPosNodesInSubTree[v].insert(cutPair.second);
-      //      }
+      orgNodesInSubTree[v].insert(orgNodesInSubTree[w].begin(),
+                                  orgNodesInSubTree[w].end());
+      
+      orgPosNodesInSubTree[v].insert(orgPosNodesInSubTree[w].begin(),
+                                     orgPosNodesInSubTree[w].end());
     }
   }
-
 }
   
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
@@ -775,22 +1264,13 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
   Node orgC = c != lemon::INVALID ? bcTree.getArticulationPoint(c) : lemon::INVALID;
   
   const NodeSet& nodesB = bcTree.getRealNodes(b);
-//  mwcsGraph.print(std::cout);
   
   if (g_verbosity >= VERBOSE_ESSENTIAL)
   {
-
-    
     std::cout << std::endl;
     std::cout << "// Considering block " << blockIndex + 1 << "/" << nBlocks
               << ": contains " << nodesB.size() << " nodes and "
               << bcTree.getRealEdges(b).size() << " edges" << std::endl;
-//    std::cout << "Nodes in block:" << std::endl;
-//    printNodeSet(mwcsGraph, nodesB);
-//    if (orgC != lemon::INVALID)
-//    {
-//      std::cout << "Cut node: " << mwcsGraph.getLabel(orgC) << std::endl;
-//    }
   }
 
   if (bcTreeNeg[b])
@@ -798,7 +1278,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
     if (g_verbosity >= VERBOSE_ESSENTIAL)
     {
       std::cout << "// Removed block, as it consists of only negatively weighted nodes"
-      << std::endl;
+                << std::endl;
     }
     
     // don't remove cut node if it connects to other blocks
@@ -810,7 +1290,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
     else if (g_verbosity >= VERBOSE_ESSENTIAL)
     {
       std::cout << "// Removed corresponding cut vertex, as there are no other blocks"
-      << std::endl;
+                << std::endl;
     }
     
     // remove block from graph
@@ -832,9 +1312,9 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
       sameBlock[*nodeIt] = true;
     }
     
-    while (processBlock(mwcsGraph, bcTree, b, sameBlock));
-    
-    printNodeSet(mwcsGraph, nodesB);
+    // process this block
+    while (processBlock1(mwcsGraph, bcTree, b, c, orgC, sameBlock)
+           || processBlock2(mwcsGraph, bcTree, b, c, orgC, sameBlock));
     
     initLocalGraph(g,
                    mwcsGraph.getScores(),
@@ -850,7 +1330,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
     // solve the unrooted formulation first
     NodeSet subSolutionSet;
     double subSolutionScore;
-    if (!solveBlockUnrooted(mwcsSubGraph, subSolutionSet, subSolutionScore))
+    if (!solveUnrooted(mwcsSubGraph, subSolutionSet, subSolutionScore))
     {
       return false;
     }
@@ -866,15 +1346,10 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
     // now check if the cut node is in the solution
     if (orgC == lemon::INVALID || solutionSet.find(orgC) != solutionSet.end())
     {
-//      std::cout << std::endl << "Sol set" << std::endl;
-//      printNodeSet(mwcsGraph, solutionSet);
-//      std::cout << std::endl << "Complement set" << std::endl;
-//      printNodeSet(mwcsGraph, solutionComplementSet);
-
       // no need to solve the rooted formulation!
       // just merge the solution nodes
       
-      // cut node should be kept!!!! update merge function!
+      // cut node should be kept!!!!
       if (orgC == lemon::INVALID)
       {
         mwcsGraph.merge(solutionSet);
@@ -914,7 +1389,10 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
       // solve rooted formulation
       subSolutionSet.clear();
       subSolutionScore = 0;
-      if (!solveBlockRooted(mwcsSubGraph, mapToSubG[orgC], subSolutionSet, subSolutionScore))
+      if (!solveRooted(mwcsSubGraph,
+                       mwcsSubGraph.getPreNodes(mapToSubG[orgC]),
+                       subSolutionSet,
+                       subSolutionScore))
       {
         return false;
       }
@@ -955,9 +1433,9 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
 }
   
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
-inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlockUnrooted(MwcsPreGraphType& mwcsGraph,
-                                                                          NodeSet& solutionSet,
-                                                                          double& solutionScore)
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGraphType& mwcsGraph,
+                                                                     NodeSet& solutionSet,
+                                                                     double& solutionScore)
 {
   const Graph& g = mwcsGraph.getGraph();
   BoolNodeMap solutionMap(g, false);
@@ -968,28 +1446,52 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlockUnrooted(MwcsPr
     mwcsGraph.preprocess(NodeSet());
   }
   
+  // are we done?
+  if (mwcsGraph.getNodeCount() == 0)
+  {
+    solutionSet.clear();
+    solutionScore = 0;
+    return true;
+  }
+  else if (mwcsGraph.getNodeCount() == 1)
+  {
+    solutionSet.clear();
+    Node v = NodeIt(mwcsGraph.getGraph());
+    solutionSet.insert(v);
+    solutionScore = mwcsGraph.getScore(v);
+    return true;
+  }
+  
   _pImpl->init(mwcsGraph);
   return _pImpl->solve(solutionScore, solutionMap, solutionSet);
 }
   
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
-inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlockRooted(MwcsPreGraphType& mwcsGraph,
-                                                                        Node rootNode,
-                                                                        NodeSet& solutionSet,
-                                                                        double& solutionScore)
+inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveRooted(MwcsPreGraphType& mwcsGraph,
+                                                                   const NodeSet& rootNodes,
+                                                                   NodeSet& solutionSet,
+                                                                   double& solutionScore)
 {
   const Graph& g = mwcsGraph.getGraph();
   BoolNodeMap solutionMap(g, false);
   
-  NodeSet rootNodes = mwcsGraph.getPreNodes(rootNode);
-//  std::cout << "Root nodes: " << std::endl;
-//  printNodeSet(mwcsGraph, rootNodes);
-  
   if (_preprocess)
   {
     // preprocess the graph
-//    mwcsGraph.print(std::cout);
     mwcsGraph.preprocess(rootNodes);
+  }
+  
+  // are we done?
+  if (mwcsGraph.getNodeCount() == static_cast<int>(rootNodes.size()))
+  {
+    solutionSet.clear();
+    solutionScore = 0;
+    for (NodeSetIt rootIt = rootNodes.begin(); rootIt != rootNodes.end(); ++rootIt)
+    {
+      solutionSet.insert(*rootIt);
+      solutionScore += mwcsGraph.getScore(*rootIt);
+    }
+    return true;
   }
   
   _pRootedImpl->init(mwcsGraph, rootNodes);

@@ -87,7 +87,6 @@ protected:
       neighbors[adjNode].erase(node);
       
       nEdges--;
-      // TODO double check this
       nArcs -= 2;
     }
     
@@ -110,6 +109,8 @@ protected:
     
     g.erase(node);
     --nNodes;
+    
+//    assert(isValid(g, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector));
   }
   
   Node extract(Graph& g,
@@ -118,6 +119,7 @@ protected:
                IntNodeMap& comp,
                NodeSetMap& mapToPre,
                NodeSetMap& preOrigNodes,
+               NodeSetMap& neighbors,
                int& nNodes,
                int& nArcs,
                int& nEdges,
@@ -126,12 +128,13 @@ protected:
                DegreeNodeSetVector& degreeVector,
                Node node)
   {
-    const NodeSet& orgNodes = preOrigNodes[node];
     Node newNode = g.addNode();
     
     label[newNode] = label[node];
     score[newNode] = score[node];
-    preOrigNodes[newNode] = orgNodes;
+    
+    const NodeSet& orgNodes = preOrigNodes[node];
+    preOrigNodes[newNode].insert(orgNodes.begin(), orgNodes.end());
     
     comp[newNode] = nComponents++;
     degree[newNode] = 0;
@@ -145,6 +148,7 @@ protected:
 
     degreeVector[0].insert(newNode);
     
+//    assert(isValid(g, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector));
     return newNode;
   }
   
@@ -164,60 +168,59 @@ protected:
              Node node2,
              double& LB)
   {
-    // TODO: prevent multiple edges from occurring
     if (node1 == node2)
       return node1;
     
-    // find the node with minimum degree, this is the node to delete
-    Node minNode, maxNode;
-    if (degree[node1] < degree[node2])
-    {
-      minNode = node1;
-      maxNode = node2;
-    }
-    else
-    {
-      minNode = node2;
-      maxNode = node1;
-    }
+    // node1 is deleted, node2 is kept
+    Node minNode = node1, maxNode = node2;
     
-    // erase the degree of maxNode and minNode
+    // erase maxNode and minNode from degreeVector, we'll reinsert them later
     degreeVector[degree[minNode]].erase(minNode);
     degreeVector[degree[maxNode]].erase(maxNode);
     
     // now rewire the edges incident to minNode to maxNode
-    degree[maxNode]--;
+    NodeSet& maxNodeNeighbors = neighbors[maxNode];
+    NodeSet& minNodeNeighbors = neighbors[minNode];
+    
+    minNodeNeighbors.erase(maxNode);
+    maxNodeNeighbors.erase(minNode);
+    
+    NodeSet intersection;
+    std::set_intersection(minNodeNeighbors.begin(), minNodeNeighbors.end(),
+                          maxNodeNeighbors.begin(), maxNodeNeighbors.end(),
+                          std::inserter(intersection, intersection.begin()));
+    
+    // remove edges incident to minNode and intersection => prevent multiple edges
     for (IncEdgeIt e(g, minNode); e != lemon::INVALID;)
     {
       Node node = g.oppositeNode(minNode, e);
-      neighbors[node].erase(minNode);
-      if (node != maxNode)// && arcLookUp(maxNode, node) == lemon::INVALID)
+      
+      if (node == maxNode)
       {
-        if (arcLookUp(maxNode, node) == lemon::INVALID)
-        {
-          neighbors[node].insert(maxNode);
-          // introduce new edge between maxNode and node
-          g.addEdge(maxNode, node);
-          
-          // update degree of maxNode
-          degree[maxNode]++;
-        }
-        else
-        {
-          // adjust degree of node
-          int d = degree[node];
-          degreeVector[d].erase(node);
-          degreeVector[d-1].insert(node);
-          degree[node]--;
-          
-          nEdges--;
-          nArcs -= 2;
-        }
+        ++e;
+        continue;
+      }
+      
+      assert(neighbors[node].find(minNode) != neighbors[node].end());
+      neighbors[node].erase(minNode);
+      neighbors[node].insert(maxNode);
+      
+      if (intersection.find(node) != intersection.end())
+      {
+        // adjust degree of node
+        int d = degree[node];
+        degreeVector[d].erase(node);
+        degreeVector[d-1].insert(node);
+        --degree[node];
         
-        // remove edge between minNode and node
+        // remove edge
         Edge toDelete = e;
         ++e;
         g.erase(toDelete);
+        
+        // update edge and arc count
+        --nEdges;
+        nArcs -= 2;
       }
       else
       {
@@ -225,8 +228,12 @@ protected:
       }
     }
     
+    // now update the neighbor sets
+    maxNodeNeighbors.insert(minNodeNeighbors.begin(), minNodeNeighbors.end());
+    
     // update degree of maxNode
-    int d = degree[maxNode];
+    int d = degree[maxNode] = static_cast<int>(maxNodeNeighbors.size());
+    
     if (degreeVector.size() <= static_cast<size_t>(d))
     {
       // add node sets to degreeVector
@@ -253,7 +260,7 @@ protected:
     label[maxNode] += "\t" + label[minNode];
     
     // erase minNode
-    g.erase(minNode);
+    g.contract(maxNode, minNode, true);
     nNodes--;
     nEdges--;
     nArcs -= 2;
@@ -264,7 +271,62 @@ protected:
       LB = score[maxNode];
     }
     
+#ifdef DEBUG
+    int d2 = 0;
+    for (IncEdgeIt e(g, maxNode); e != lemon::INVALID; ++e)
+    {
+      ++d2;
+    }
+    assert(neighbors[maxNode].size() == static_cast<size_t>(d2));
+    assert(degree[maxNode] == static_cast<int>(neighbors[maxNode].size()));
+    assert(degree[maxNode] >= 0);
+    assert(lemon::simpleGraph(g));
+//    assert(isValid(g, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector));
+#endif
+    
     return maxNode;
+  }
+  
+  bool isValid(Graph& g,
+               NodeSetMap& mapToPre,
+               NodeSetMap& preOrigNodes,
+               NodeSetMap& neighbors,
+               int& nNodes,
+               int& nArcs,
+               int& nEdges,
+               DegreeNodeMap& degree,
+               DegreeNodeSetVector& degreeVector)
+  {
+    if (!lemon::simpleGraph(g))
+      return false;
+    
+    IntNodeMap newDeg(g, 0);
+    NodeSetMap newNeighbors(g);
+    for (NodeIt v(g); v != lemon::INVALID; ++v)
+    {
+      for (IncEdgeIt e(g, v); e != lemon::INVALID; ++e)
+      {
+        ++newDeg[v];
+        newNeighbors[v].insert(g.oppositeNode(v, e));
+      }
+    }
+    
+    for (NodeIt v(g); v != lemon::INVALID; ++v)
+    {
+      if (degree[v] != newDeg[v])
+        return false;
+      
+      if (neighbors[v].size() != static_cast<size_t>(newDeg[v]))
+        return false;
+      
+      if (degreeVector[degree[v]].find(v) == degreeVector[degree[v]].end())
+        return false;
+      
+      if (newNeighbors[v] != neighbors[v])
+        return false;
+    }
+    
+    return true;
   }
 };
 

@@ -119,20 +119,21 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
     
     if (score[v] >= 0 && rootNodes.find(v) == rootNodes.end())
     {
-      if (score[v] > LB)
+      if (score[v] >= LB && rootNodes.empty())
       {
         extract(g, label, score, comp,
-                mapToPre, preOrigNodes,
+                mapToPre, preOrigNodes, neighbors,
                 nNodes, nArcs, nEdges, nComponents,
                 degree, degreeVector, v);
       }
         
       Node u = g.oppositeNode(v, IncEdgeIt(g, v));
       
+      // u may be a root node, that's why we should keep it!
       merge(g, arcLookUp, label, score,
             mapToPre, preOrigNodes, neighbors,
             nNodes, nArcs, nEdges,
-            degree, degreeVector, u, v, LB);
+            degree, degreeVector, v, u, LB);
 
       return 1;
     }

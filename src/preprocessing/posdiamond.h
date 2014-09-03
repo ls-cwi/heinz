@@ -129,26 +129,27 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
   {
     const WeightNodePairSet& set = it->second;
     Node u = it->first.first;
-    Node w = it->first.first;
+    Node w = it->first.second;
     
     int set_size = static_cast<int>(set.size());
-    if (degree[u] == set_size && degree[w] != set_size
-        && rootNodes.find(u) == rootNodes.end())
-    {
-      remove(g, comp, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges, nComponents,
-             degree, degreeVector, u);
-      ++res;
-    }
-    else if (degree[u] != set_size && degree[w] == set_size
-             && rootNodes.find(w) == rootNodes.end())
-    {
-      remove(g, comp, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges, nComponents,
-             degree, degreeVector, w);
-      ++res;
-    }
-    else if (degree[u] == set_size && degree[w] == set_size)
+//    if (degree[u] == set_size && degree[w] != set_size
+//        && rootNodes.find(u) == rootNodes.end())
+//    {
+//      remove(g, comp, mapToPre, preOrigNodes, neighbors,
+//             nNodes, nArcs, nEdges, nComponents,
+//             degree, degreeVector, u);
+//      ++res;
+//    }
+//    else if (degree[u] != set_size && degree[w] == set_size
+//             && rootNodes.find(w) == rootNodes.end())
+//    {
+//      remove(g, comp, mapToPre, preOrigNodes, neighbors,
+//             nNodes, nArcs, nEdges, nComponents,
+//             degree, degreeVector, w);
+//      ++res;
+//    }
+//    else
+    if (degree[u] == set_size && degree[w] == set_size)
     {
       if (score[u] < score[w] && rootNodes.find(u) == rootNodes.end())
       {

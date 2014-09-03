@@ -21,6 +21,7 @@ set( Heinz_Hdr
   src/preprocessing/negmirroredhubs.h
   src/preprocessing/posdeg01.h
   src/preprocessing/posdiamond.h
+  src/preprocessing/shortestpath.h
   src/preprocessing/negbicomponent.h
   src/preprocessing/negtricomponent.h
   src/solver/spqrtree.h

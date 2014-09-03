@@ -141,7 +141,7 @@ protected:
     x_values.end();
     y_values.end();
     
-    std::cerr << "#comps: " << nonZeroComponents.size() << ", generated " << nCuts << " lazy cuts" << std::endl;
+//    std::cerr << "#comps: " << nonZeroComponents.size() << ", generated " << nCuts << " lazy cuts" << std::endl;
   }
 };
 
@@ -600,25 +600,25 @@ protected:
     x_values.end();
     y_values.end();
     
-    std::cerr << "[";
-    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
-    {
-      NodeSet intersection;
-      std::set_intersection(rootNodes.begin(), rootNodes.end(),
-                            it->begin(), it->end(),
-                            std::inserter(intersection, intersection.begin()));
-      
-      std::cerr << " " << it->size();
-      if (intersection.size() > 0) std::cerr << "*";
-    }
-    std::cerr << " ]" << std::endl;
+//    std::cerr << "[";
+//    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
+//    {
+//      NodeSet intersection;
+//      std::set_intersection(rootNodes.begin(), rootNodes.end(),
+//                            it->begin(), it->end(),
+//                            std::inserter(intersection, intersection.begin()));
+//      
+//      std::cerr << " " << it->size();
+//      if (intersection.size() > 0) std::cerr << "*";
+//    }
+//    std::cerr << " ]" << std::endl;
     
 //    if (nCuts != 0 )
 //    {
-      std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
-                << ": generated " << nCuts
-                << " user cuts of which " << nBackCuts << " are back-cuts and "
-                << nNestedCuts << " are nested cuts" << std::endl;
+//      std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
+//                << ": generated " << nCuts
+//                << " user cuts of which " << nBackCuts << " are back-cuts and "
+//                << nNestedCuts << " are nested cuts" << std::endl;
 //    }
     //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }

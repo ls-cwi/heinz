@@ -25,6 +25,7 @@
 #include "preprocessing/posdiamond.h"
 #include "preprocessing/negbicomponent.h"
 #include "preprocessing/negtricomponent.h"
+#include "preprocessing/shortestpath.h"
 
 namespace nina {
 namespace mwcs {
@@ -100,6 +101,7 @@ protected:
   typedef PosDiamond<Graph> PosDiamondType;
   typedef NegBiComponent<Graph> NegBiComponentType;
   typedef NegTriComponent<Graph> NegTriComponentType;
+  typedef ShortestPath<Graph> ShortestPathType;
 
 private:
   typedef struct GraphStruct
@@ -295,6 +297,7 @@ public:
       _pGraph = new GraphStruct(getOrgGraph());
     }
     
+    _pGraph->_pG->clear();
     _pGraph->_nNodes = getOrgNodeCount();
     _pGraph->_nEdges = getOrgEdgeCount();
     _pGraph->_nArcs = getOrgArcCount();
@@ -327,7 +330,7 @@ public:
     bool isolated = true;
     for (IncEdgeIt e(g, node); e != lemon::INVALID; ++e)
     {
-      _pGraph->_nEdges--;
+      --_pGraph->_nEdges;
       _pGraph->_nArcs -= 2;
       isolated = false;
     }
@@ -351,6 +354,31 @@ public:
     --_pGraph->_nNodes;
   }
   
+  Edge addEdge(Node u, Node v)
+  {
+    assert(u != lemon::INVALID);
+    assert(v != lemon::INVALID);
+    
+    Graph& g = *_pGraph->_pG;
+    
+    ++_pGraph->_nEdges;
+    _pGraph->_nArcs += 2;
+    
+    return g.addEdge(u, v);
+  }
+  
+  void remove(Edge e)
+  {
+    assert(e != lemon::INVALID);
+    
+    Graph& g = *_pGraph->_pG;
+    
+    _pGraph->_nEdges--;
+    _pGraph->_nArcs -= 2;
+    
+    g.erase(e);
+  }
+  
   void remove(const NodeSet& nodes)
   {
     for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
@@ -363,32 +391,50 @@ public:
   {
     Graph& g = *_pGraph->_pG;
     
-    // rewire the edges incident to u to v
-    for (IncEdgeIt ee(g, u); ee != lemon::INVALID;)
+    NodeSet neighborsU;
+    for (IncEdgeIt e(g, u); e != lemon::INVALID; ++e)
     {
-      Node node = g.oppositeNode(u, ee);
+      Node node = g.oppositeNode(u, e);
+      neighborsU.insert(node);
+    }
+    
+    NodeSet neighborsV;
+    for (IncEdgeIt e(g, v); e != lemon::INVALID; ++e)
+    {
+      Node node = g.oppositeNode(v, e);
+      neighborsV.insert(node);
+    }
+    
+    NodeSet intersection;
+    std::set_intersection(neighborsU.begin(), neighborsU.end(),
+                          neighborsV.begin(), neighborsV.end(),
+                          std::inserter(intersection, intersection.begin()));
+    
+    // remove edges incident to minNode and intersection => prevent multiple edges
+    for (IncEdgeIt e(g, u); e != lemon::INVALID;)
+    {
+      Node node = g.oppositeNode(u, e);
 
-      if (node != v)
+      if (node == v)
       {
-        if ((*_pGraph->_pArcLookUp)(v, node) == lemon::INVALID)
-        {
-          // introduce new edge between v and node
-          g.addEdge(v, node);
-        }
-        else
-        {
-          --_pGraph->_nEdges;
-          _pGraph->_nArcs -= 2;
-        }
-        
-        // remove edge between minNode and node
-        Edge toDelete = ee;
-        ++ee;
+        ++e;
+        continue;
+      }
+      
+      if (intersection.find(node) != intersection.end())
+      {
+        // remove edge
+        Edge toDelete = e;
+        ++e;
         g.erase(toDelete);
+        
+        // update edge and arc count
+        --_pGraph->_nEdges;
+        _pGraph->_nArcs -= 2;
       }
       else
       {
-        ++ee;
+        ++e;
       }
     }
     
@@ -408,16 +454,36 @@ public:
     (*_pGraph->_pLabel)[v] += "\t" + (*_pGraph->_pLabel)[u];
     
     // erase minNode
-    g.erase(u);
+    g.contract(v, u, true);
     --_pGraph->_nNodes;
     --_pGraph->_nEdges;
     _pGraph->_nArcs -= 2;
+    
+    assert(lemon::simpleGraph(g));
     
     return v;
   }
   
   Node merge(NodeSet nodes)
   {
+    if (nodes.empty())
+    {
+      return lemon::INVALID;
+    }
+    
+//#ifdef DEBUG
+//    // check if connected
+//    BoolNodeMap filter(getGraph(), false);
+//    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
+//    {
+//      filter[*nodeIt] = true;
+//    }
+//    if (!lemon::connected(lemon::filterNodes(getGraph(), filter)))
+//    {
+//      std::cerr << "warning!" << std::endl;
+//    }
+//#endif
+    
     NodeSetIt nodeIt = nodes.begin();
     Node res = *nodeIt;
     for (++nodeIt; nodeIt != nodes.end(); ++nodeIt)
@@ -452,13 +518,23 @@ public:
     
     (*_pGraph->_pScore)[res] = 0;
     
+    bool first = true;
     for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
     {
       Node v = *nodeIt;
       const NodeSet& orgNodes = (*_pGraph->_pPreOrigNodes)[v];
       
       (*_pGraph->_pScore)[res] += (*_pGraph->_pScore)[v];
-      (*_pGraph->_pLabel)[res] += "\t" + (*_pGraph->_pLabel)[v];
+      
+      if (!first)
+      {
+        (*_pGraph->_pLabel)[res] += "\t";
+      }
+      else
+      {
+        first = false;
+      }
+      (*_pGraph->_pLabel)[res] += (*_pGraph->_pLabel)[v];
       (*_pGraph->_pPreOrigNodes)[res].insert(orgNodes.begin(), orgNodes.end());
       
       for (NodeSetIt orgNodeIt = orgNodes.begin(); orgNodeIt != orgNodes.end(); ++orgNodeIt)
@@ -486,11 +562,12 @@ inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::MwcsPreprocessedGraph()
   addPreprocessRule(1, new NegDeg01Type());
   addPreprocessRule(1, new PosEdgeType());
   addPreprocessRule(1, new NegEdgeType());
-  addPreprocessRule(1, new NegCircuitType());
-  addPreprocessRule(1, new NegDiamondType());
+//  addPreprocessRule(1, new NegCircuitType());
+//  addPreprocessRule(1, new NegDiamondType());
   addPreprocessRule(1, new PosDeg01Type());
-  addPreprocessRule(1, new PosDiamondType());
+  addPreprocessRule(2, new PosDiamondType());
   addPreprocessRule(2, new NegMirroredHubsType());
+  addPreprocessRule(3, new ShortestPathType());
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>

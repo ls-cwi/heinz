@@ -126,7 +126,8 @@ protected:
     
     x_values.end();
     
-    std::cerr << "#comps: " << nonZeroComponents.size() << ", generated " << nCuts << " lazy cuts" << std::endl;  }
+//    std::cerr << "#comps: " << nonZeroComponents.size() << ", generated " << nCuts << " lazy cuts" << std::endl;
+  }
 };
 
 template<typename GR,
@@ -447,19 +448,19 @@ protected:
         }
       }
     
-      std::cerr << "[";
-      for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
-      {
-        std::cerr << " " << it->size();
-        if (it->find(root) != it->end()) std::cerr << "*";
-      }
-      std::cerr << " ]" << std::endl;
+//      std::cerr << "[";
+//      for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
+//      {
+//        std::cerr << " " << it->size();
+//        if (it->find(root) != it->end()) std::cerr << "*";
+//      }
+//      std::cerr << " ]" << std::endl;
     }
     
-    std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
-              << ": generated " << nCuts
-              << " user cuts of which " << nBackCuts << " are back-cuts and "
-              << nNestedCuts << " are nested cuts" << std::endl;
+//    std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
+//              << ": generated " << nCuts
+//              << " user cuts of which " << nBackCuts << " are back-cuts and "
+//              << nNestedCuts << " are nested cuts" << std::endl;
     
     x_values.end();
   }

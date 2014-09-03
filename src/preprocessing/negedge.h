@@ -94,7 +94,8 @@ inline int NegEdge<GR, WGHT>::apply(Graph& g,
 
     if (score[u] <= 0 && score[v] <= 0 && degree[u] == 2 && degree[v] == 2)
     {
-      // only merge if neither u nor v is a root node
+      // don't merge if both u and v are root nodes
+      // otherwise ensure that root node is kept
       if (rootNodes.find(u) == rootNodes.end() && rootNodes.find(v) == rootNodes.end())
       {
         res++;
@@ -103,6 +104,14 @@ inline int NegEdge<GR, WGHT>::apply(Graph& g,
               nNodes, nArcs, nEdges,
               degree, degreeVector, u, v, LB);
       }
+//      else if (rootNodes.find(u) != rootNodes.end() && rootNodes.find(v) == rootNodes.end())
+//      {
+//        res++;
+//        merge(g, arcLookUp, label, score,
+//              mapToPre, preOrigNodes, neighbors,
+//              nNodes, nArcs, nEdges,
+//              degree, degreeVector, v, u, LB);
+//      }
     }
   }
 

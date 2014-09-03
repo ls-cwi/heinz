@@ -179,7 +179,8 @@ inline void SpqrTree<GR>::construct()
 template<typename GR>
 inline bool SpqrTree<GR>::run()
 {
-  if (!ogdf::isBiconnected(_ogdfG) ||
+  if (!ogdf::isConnected(_ogdfG) ||
+      !ogdf::isBiconnected(_ogdfG) ||
       _ogdfG.numberOfEdges() <= 2 ||
       !ogdf::isLoopFree(_ogdfG))
   {
