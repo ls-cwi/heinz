@@ -33,7 +33,6 @@ public:
   typedef typename NodeSet::iterator NodeSetIt;
   typedef typename Graph::template NodeMap<NodeSet> NodeSetMap;
   typedef typename std::vector<NodeSet> DegreeNodeSetVector;
-  typedef lemon::DynArcLookUp<Graph> ArcLookUpType;
 
 public:
   Rule()
@@ -46,7 +45,6 @@ public:
   
   virtual int apply(Graph& g,
                     const NodeSet& rootNodes,
-                    const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     IntNodeMap& comp,
@@ -153,7 +151,6 @@ protected:
   }
   
   Node merge(Graph& g,
-             const ArcLookUpType& arcLookUp,
              LabelNodeMap& label,
              WeightNodeMap& score,
              NodeSetMap& mapToPre,

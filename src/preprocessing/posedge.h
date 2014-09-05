@@ -32,7 +32,6 @@ public:
   typedef typename Parent::DegreeNodeMap DegreeNodeMap;
   typedef typename Parent::DegreeNodeSetVector DegreeNodeSetVector;
   typedef typename Parent::LabelNodeMap LabelNodeMap;
-  typedef typename Parent::ArcLookUpType ArcLookUpType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -43,7 +42,6 @@ public:
   virtual ~PosEdge() {}
   virtual int apply(Graph& g,
                     const NodeSet& rootNodes,
-                    const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     IntNodeMap& comp,
@@ -70,7 +68,6 @@ inline PosEdge<GR, WGHT>::PosEdge()
 template<typename GR, typename WGHT>
 inline int PosEdge<GR, WGHT>::apply(Graph& g,
                                     const NodeSet& rootNodes,
-                                    const ArcLookUpType& arcLookUp,
                                     LabelNodeMap& label,
                                     WeightNodeMap& score,
                                     IntNodeMap& comp,
@@ -94,7 +91,7 @@ inline int PosEdge<GR, WGHT>::apply(Graph& g,
         && rootNodes.find(u) == rootNodes.end()
         && rootNodes.find(v) == rootNodes.end())
     {
-      merge(g, arcLookUp, label, score,
+      merge(g, label, score,
             mapToPre, preOrigNodes, neighbors,
             nNodes, nArcs, nEdges,
             degree, degreeVector, u, v, LB);

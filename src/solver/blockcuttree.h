@@ -67,63 +67,63 @@ public:
   
   bool run();
   
-  void recomputeRealNodesAndEdges()
-  {
-    for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
-    {
-      _realEdges[b].clear();
-      _realNodes[b].clear();
-    }
-    
-    // construct _realEdges
-    for (EdgeIt e(_G); e != lemon::INVALID; ++e)
-    {
-      if (_toBlockNode[e] != lemon::INVALID)
-      {
-        assert(_T.valid(_toBlockNode[e]));
-        _realEdges[_toBlockNode[e]].push_back(e);
-      }
-    }
-   
-    // construct _realNodes
-    for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
-    {
-      const EdgeVector& realEdges = getRealEdges(b);
-      NodeSet& realNodes = _realNodes[b];
-      for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
-      {
-        realNodes.insert(_G.u(*edgeIt));
-        realNodes.insert(_G.v(*edgeIt));
-      }
-    }
-  }
+//  void recomputeRealNodesAndEdges()
+//  {
+//    for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
+//    {
+//      _realEdges[b].clear();
+//      _realNodes[b].clear();
+//    }
+//    
+//    // construct _realEdges
+//    for (EdgeIt e(_G); e != lemon::INVALID; ++e)
+//    {
+//      if (_toBlockNode[e] != lemon::INVALID)
+//      {
+//        assert(_T.valid(_toBlockNode[e]));
+//        _realEdges[_toBlockNode[e]].push_back(e);
+//      }
+//    }
+//   
+//    // construct _realNodes
+//    for (BlockNodeIt b(_T); b != lemon::INVALID; ++b)
+//    {
+//      const EdgeVector& realEdges = getRealEdges(b);
+//      NodeSet& realNodes = _realNodes[b];
+//      for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
+//      {
+//        realNodes.insert(_G.u(*edgeIt));
+//        realNodes.insert(_G.v(*edgeIt));
+//      }
+//    }
+//  }
+//  
+//  void assignEdgeToBlock(Edge e, BlockNode b)
+//  {
+//    _toBlockNode[e] = b;
+//  }
   
-  void assignEdgeToBlock(Edge e, BlockNode b)
-  {
-    _toBlockNode[e] = b;
-  }
-  
-  void removeFromBlockNode(BlockNode b,
-                           const NodeSet& nodesToRemove)
-  {
-    EdgeVector newRealEdges;
-    EdgeVector& realEdges = _realEdges[b];
-    for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
-    {
-      Edge e = *edgeIt;
-      
-      Node u = _G.u(e);
-      Node v = _G.v(e);
-      
-      if (nodesToRemove.find(u) == nodesToRemove.end() &&
-          nodesToRemove.find(v) == nodesToRemove.end())
-      {
-        newRealEdges.push_back(e);
-      }
-    }
-    
-    realEdges = newRealEdges;
-  }
+//  void removeFromBlockNode(BlockNode b,
+//                           const NodeSet& nodesToRemove)
+//  {
+//    EdgeVector newRealEdges;
+//    EdgeVector& realEdges = _realEdges[b];
+//    for (EdgeVectorIt edgeIt = realEdges.begin(); edgeIt != realEdges.end(); ++edgeIt)
+//    {
+//      Edge e = *edgeIt;
+//      
+//      Node u = _G.u(e);
+//      Node v = _G.v(e);
+//      
+//      if (nodesToRemove.find(u) == nodesToRemove.end() &&
+//          nodesToRemove.find(v) == nodesToRemove.end())
+//      {
+//        newRealEdges.push_back(e);
+//      }
+//    }
+//    
+//    realEdges = newRealEdges;
+//  }
   
   bool removeBlockNode(BlockNode n)
   {

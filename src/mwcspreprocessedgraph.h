@@ -23,8 +23,6 @@
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
 #include "preprocessing/posdiamond.h"
-#include "preprocessing/negbicomponent.h"
-#include "preprocessing/negtricomponent.h"
 #include "preprocessing/shortestpath.h"
 
 namespace nina {
@@ -62,7 +60,6 @@ public:
   using Parent::getGraph;
   using Parent::getScores;
   using Parent::getOrgArcCount;
-  using Parent::getOrgArcLookUp;
   using Parent::getOrgComponent;
   using Parent::getOrgComponentCount;
   using Parent::getOrgComponentMap;
@@ -89,8 +86,6 @@ public:
   void preprocess(const NodeSet& rootNodes);
 
 protected:
-  typedef typename Parent::ArcLookUpType ArcLookUpType;
-  
   typedef NegDeg01<Graph> NegDeg01Type;
   typedef PosEdge<Graph> PosEdgeType;
   typedef NegEdge<Graph> NegEdgeType;
@@ -99,8 +94,6 @@ protected:
   typedef NegMirroredHubs<Graph> NegMirroredHubsType;
   typedef PosDeg01<Graph> PosDeg01Type;
   typedef PosDiamond<Graph> PosDiamondType;
-  typedef NegBiComponent<Graph> NegBiComponentType;
-  typedef NegTriComponent<Graph> NegTriComponentType;
   typedef ShortestPath<Graph> ShortestPathType;
 
 private:
@@ -116,7 +109,6 @@ private:
     int _nEdges;
     int _nArcs;
     int _nComponents;
-    ArcLookUpType* _pArcLookUp;
 
     // constructor
     GraphStruct(const Graph& orgG)
@@ -130,14 +122,12 @@ private:
       , _nEdges(0)
       , _nArcs(0)
       , _nComponents(0)
-      , _pArcLookUp(new ArcLookUpType(*_pG))
     {
     }
 
     // destructor
     ~GraphStruct()
     {
-      delete _pArcLookUp;
       delete _pPreOrigNodes;
       delete _pMapToPre;
       delete _pComp;
@@ -161,8 +151,6 @@ protected:
     Parent::initParserMembers(pG, pLabel, pScore, pPVal);
     _pGraph = new GraphStruct(*pG);
   }
-
-  virtual const ArcLookUpType& getArcLookUp() const { return *_pGraph->_pArcLookUp; }
 
 public:
   virtual const Graph& getGraph() const
@@ -615,7 +603,7 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess(const Node
         for (RuleVectorIt ruleIt = _rules[phase].begin(); ruleIt != _rules[phase].end(); ruleIt++)
         {
           int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, rootNodes,
-                                              getArcLookUp(), *_pGraph->_pLabel,
+                                              *_pGraph->_pLabel,
                                               *_pGraph->_pScore, *_pGraph->_pComp, *_pGraph->_pMapToPre,
                                               *_pGraph->_pPreOrigNodes, neighbors,
                                               _pGraph->_nNodes, _pGraph->_nArcs,

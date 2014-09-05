@@ -53,7 +53,6 @@ public:
   using Parent::getGraph;
   using Parent::getScores;
   using Parent::getOrgArcCount;
-  using Parent::getOrgArcLookUp;
   using Parent::getOrgComponent;
   using Parent::getOrgComponentCount;
   using Parent::getOrgComponentMap;

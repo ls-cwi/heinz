@@ -32,7 +32,6 @@ public:
   typedef typename Parent::DegreeNodeMap DegreeNodeMap;
   typedef typename Parent::DegreeNodeSetVector DegreeNodeSetVector;
   typedef typename Parent::LabelNodeMap LabelNodeMap;
-  typedef typename Parent::ArcLookUpType ArcLookUpType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -43,7 +42,6 @@ public:
   virtual ~NegEdge() {}
   virtual int apply(Graph& g,
                     const NodeSet& rootNodes,
-                    const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     IntNodeMap& comp,
@@ -70,7 +68,6 @@ inline NegEdge<GR, WGHT>::NegEdge()
 template<typename GR, typename WGHT>
 inline int NegEdge<GR, WGHT>::apply(Graph& g,
                                     const NodeSet& rootNodes,
-                                    const ArcLookUpType& arcLookUp,
                                     LabelNodeMap& label,
                                     WeightNodeMap& score,
                                     IntNodeMap& comp,
@@ -99,7 +96,7 @@ inline int NegEdge<GR, WGHT>::apply(Graph& g,
       if (rootNodes.find(u) == rootNodes.end() && rootNodes.find(v) == rootNodes.end())
       {
         res++;
-        merge(g, arcLookUp, label, score,
+        merge(g, label, score,
               mapToPre, preOrigNodes, neighbors,
               nNodes, nArcs, nEdges,
               degree, degreeVector, u, v, LB);

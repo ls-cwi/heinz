@@ -32,7 +32,6 @@ public:
   typedef typename Parent::DegreeNodeMap DegreeNodeMap;
   typedef typename Parent::DegreeNodeSetVector DegreeNodeSetVector;
   typedef typename Parent::LabelNodeMap LabelNodeMap;
-  typedef typename Parent::ArcLookUpType ArcLookUpType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -43,7 +42,6 @@ public:
   virtual ~NegDiamond() {}
   virtual int apply(Graph& g,
                     const NodeSet& rootNodes,
-                    const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     IntNodeMap& comp,
@@ -70,7 +68,6 @@ inline NegDiamond<GR, WGHT>::NegDiamond()
 template<typename GR, typename WGHT>
 inline int NegDiamond<GR, WGHT>::apply(Graph& g,
                                        const NodeSet& rootNodes,
-                                       const ArcLookUpType& arcLookUp,
                                        LabelNodeMap& label,
                                        WeightNodeMap& score,
                                        IntNodeMap& comp,

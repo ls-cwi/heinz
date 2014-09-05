@@ -32,7 +32,6 @@ public:
   typedef typename Parent::DegreeNodeMap DegreeNodeMap;
   typedef typename Parent::DegreeNodeSetVector DegreeNodeSetVector;
   typedef typename Parent::LabelNodeMap LabelNodeMap;
-  typedef typename Parent::ArcLookUpType ArcLookUpType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -42,7 +41,6 @@ public:
   virtual ~NegDeg01() {}
   virtual int apply(Graph& g,
                     const NodeSet& rootNodes,
-                    const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     IntNodeMap& comp,
@@ -62,7 +60,6 @@ public:
 protected:
   int apply(Graph& g,
             const NodeSet& rootNodes,
-            const ArcLookUpType& arcLookUp,
             LabelNodeMap& label,
             WeightNodeMap& score,
             IntNodeMap& comp,
@@ -87,7 +84,6 @@ inline NegDeg01<GR, WGHT>::NegDeg01()
 template<typename GR, typename WGHT>
 inline int NegDeg01<GR, WGHT>::apply(Graph& g,
                                      const NodeSet& rootNodes,
-                                     const ArcLookUpType& arcLookUp,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
                                      IntNodeMap& comp,
@@ -102,12 +98,12 @@ inline int NegDeg01<GR, WGHT>::apply(Graph& g,
                                      DegreeNodeSetVector& degreeVector,
                                      double& LB)
 {
-  return apply(g, rootNodes, arcLookUp,
+  return apply(g, rootNodes,
                label, score, comp,
                mapToPre, preOrigNodes, neighbors,
                nNodes, nArcs, nEdges, nComponents,
                degree, degreeVector, 0)
-      + apply(g, rootNodes, arcLookUp,
+      + apply(g, rootNodes,
               label, score, comp,
               mapToPre, preOrigNodes, neighbors,
               nNodes, nArcs, nEdges, nComponents,
@@ -117,7 +113,6 @@ inline int NegDeg01<GR, WGHT>::apply(Graph& g,
 template<typename GR, typename WGHT>
 inline int NegDeg01<GR, WGHT>::apply(Graph& g,
                                      const NodeSet& rootNodes,
-                                     const ArcLookUpType& arcLookUp,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
                                      IntNodeMap& comp,

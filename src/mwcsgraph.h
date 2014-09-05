@@ -48,13 +48,11 @@ public:
   typedef typename NodeSet::const_iterator NodeSetIt;
   typedef typename std::vector<NodeSet> NodeSetVector;
   typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
-  typedef lemon::DynArcLookUp<Graph> ArcLookUpType;
   
 public:
   MwcsGraph();
   virtual ~MwcsGraph()
   {
-    delete _pArcLookUp;
     delete _pComp;
 
     if (_parserInit)
@@ -70,7 +68,6 @@ public:
                     LabelNodeMap* pLabel,
                     WeightNodeMap* pScore,
                     WeightNodeMap* pPval);
-  void resetCounts();
 
 private:
   Graph* _pG;
@@ -83,7 +80,6 @@ private:
   int _nEdges;
   int _nArcs;
   int _nComponents;
-  ArcLookUpType* _pArcLookUp;
 
 protected:
   bool _parserInit;
@@ -97,10 +93,6 @@ protected:
   }
 
 public:
-  const ArcLookUpType& getOrgArcLookUp() const { return *_pArcLookUp; }
-  
-  virtual const ArcLookUpType& getArcLookUp() const { return *_pArcLookUp; }
-
   virtual const Graph& getGraph() const
   {
     return getOrgGraph();
@@ -330,9 +322,6 @@ public:
   virtual void printModule(const BoolNodeMap& module,
                            std::ostream& out,
                            bool orig = false) const;
-  virtual void printModules(const NodeSetVector& modules,
-                            std::ostream& out,
-                            bool orig = false) const;
   virtual void printHeinz(const NodeSet& module,
                           std::ostream& out) const;
   virtual void printHeinzOrg(const NodeSet& module,
@@ -353,7 +342,6 @@ inline MwcsGraph<GR, NWGHT, NLBL, EWGHT>::MwcsGraph()
   , _nEdges(0)
   , _nArcs(0)
   , _nComponents(0)
-  , _pArcLookUp(NULL)
   , _parserInit(false)
 {
 }
@@ -396,8 +384,6 @@ inline bool MwcsGraph<GR, NWGHT, NLBL, EWGHT>::init(ParserType* pParser, bool pv
     // determine the components
     _pComp = new IntNodeMap(*_pG, -1);
     _nComponents = lemon::connectedComponents(*_pG, *_pComp);
-
-    _pArcLookUp = new ArcLookUpType(*_pG);
 
     if (g_verbosity >= VERBOSE_ESSENTIAL)
     {
@@ -530,7 +516,6 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printModule(const NodeSet& module
   const Graph& g = orig ? getOrgGraph() : getGraph();
   const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
   const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
-  const ArcLookUpType& arcLookUp = orig ? getOrgArcLookUp() : getArcLookUp();
   const WeightNodeMap* pPVal = orig ? getOrgPValues() : NULL;
 
   std::vector<Edge> edges;
@@ -557,16 +542,6 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printModule(const NodeSet& module
         << "\""
         << (weight[*nodeIt1] < 0 ? ",shape=box" : "")
         << "]" << std::endl;
-
-    // determine incident edges
-//    for (NodeSetIt nodeIt2 = nodeIt1; nodeIt2 != module.end(); nodeIt2++)
-//    {
-//      Edge e = arcLookUp(*nodeIt1, *nodeIt2);
-//      if (e != lemon::INVALID)
-//      {
-//        edges.push_back(e);
-//      }
-//    }
   }
 
   out << "\tlabel=\"Total weight: " << totalWeight << '"' << std::endl;
@@ -639,74 +614,6 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printHeinz(const NodeSet& module,
     }
   }
   out << "#total score\t" << score << std::endl;
-}
-
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printModules(const NodeSetVector& modules,
-                                                            std::ostream& out,
-                                                            bool orig) const
-{
-  const Graph& g = orig ? getOrgGraph() : getGraph();
-  const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
-  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
-  const ArcLookUpType& arcLookUp = orig ? getOrgArcLookUp() : getArcLookUp();
-
-  NodeSet nodes;
-
-  // print header
-  out << "graph G {" << std::endl;
-  out << "\toverlap=scale" << std::endl;
-  out << "\tlayout=neato" << std::endl;
-
-  // print nodes
-  int i = 0;
-  for (NodeSetVectorIt moduleIt = modules.begin(); moduleIt != modules.end(); moduleIt++, i++)
-  {
-    if (moduleIt->size() == 0)
-      continue;
-
-    out << "\tsubgraph cluster_" << i << " {" << std::endl;
-
-    double totalWeight = 0;
-    for (NodeSetIt nodeIt1 = moduleIt->begin(); nodeIt1 != moduleIt->end(); nodeIt1++)
-    {
-      totalWeight += weight[*nodeIt1];
-      out << "\t\t" << g.id(*nodeIt1) << " [label=\""
-          << label[*nodeIt1] << "\\n"
-          << weight[*nodeIt1] << "\\n"
-          << g.id(*nodeIt1)
-          << "\"]" << std::endl;
-
-      nodes.insert(*nodeIt1);
-    }
-
-    out << "\t\tlabel=\"Total weight: " << totalWeight << "\"" << std::endl;
-    out << "\t}" << std::endl;
-  }
-
-  // print edges
-  for (NodeSetIt nodeIt1 = nodes.begin(); nodeIt1 != nodes.end(); nodeIt1++)
-  {
-    for (NodeSetIt nodeIt2 = nodeIt1; nodeIt2 != nodes.end(); nodeIt2++)
-    {
-      if (arcLookUp(*nodeIt1, *nodeIt2) != lemon::INVALID)
-      {
-        out << "\t" << g.id(*nodeIt1) << " -- " << g.id(*nodeIt2) << std::endl;
-      }
-    }
-  }
-
-  // print footer
-  out << "}" << std::endl;
-}
-
-template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
-inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::resetCounts()
-{
-  _nNodes = lemon::countNodes(*_pG);
-  _nEdges = lemon::countEdges(*_pG);
-  _nArcs = lemon::countArcs(*_pG);
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>

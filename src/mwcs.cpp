@@ -29,8 +29,6 @@
 #include "preprocessing/negmirroredhubs.h"
 #include "preprocessing/posdeg01.h"
 #include "preprocessing/posdiamond.h"
-#include "preprocessing/negbicomponent.h"
-#include "preprocessing/negtricomponent.h"
 
 #include "solver/solver.h"
 #include "solver/solverrooted.h"
@@ -65,8 +63,6 @@ typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
-typedef NegBiComponent<Graph> NegBiComponentType;
-typedef NegTriComponent<Graph> NegTriComponentType;
 
 typedef Solver<Graph> SolverType;
 typedef SolverRooted<Graph> SolverRootedType;

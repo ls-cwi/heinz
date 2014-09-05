@@ -32,7 +32,6 @@ public:
   typedef typename Parent::DegreeNodeMap DegreeNodeMap;
   typedef typename Parent::DegreeNodeSetVector DegreeNodeSetVector;
   typedef typename Parent::LabelNodeMap LabelNodeMap;
-  typedef typename Parent::ArcLookUpType ArcLookUpType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -43,7 +42,6 @@ public:
   virtual ~NegCircuit() {}
   virtual int apply(Graph& g,
                     const NodeSet& rootNodes,
-                    const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     IntNodeMap& comp,
@@ -70,7 +68,6 @@ inline NegCircuit<GR, WGHT>::NegCircuit()
 template<typename GR, typename WGHT>
 inline int NegCircuit<GR, WGHT>::apply(Graph& g,
                                        const NodeSet& rootNodes,
-                                       const ArcLookUpType& arcLookUp,
                                        LabelNodeMap& label,
                                        WeightNodeMap& score,
                                        IntNodeMap& comp,
@@ -105,7 +102,6 @@ inline int NegCircuit<GR, WGHT>::apply(Graph& g,
       Node u = g.oppositeNode(v, e1);
       Node w = g.oppositeNode(v, e2);
       if (neighbors[u].find(w) != neighbors[u].end())
-//      if (arcLookUp(u, w) != lemon::INVALID)
       {
         remove(g, comp,
                mapToPre, preOrigNodes, neighbors,

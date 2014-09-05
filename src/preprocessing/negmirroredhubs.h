@@ -28,7 +28,6 @@ public:
   typedef typename Parent::DegreeNodeMap DegreeNodeMap;
   typedef typename Parent::DegreeNodeSetVector DegreeNodeSetVector;
   typedef typename Parent::LabelNodeMap LabelNodeMap;
-  typedef typename Parent::ArcLookUpType ArcLookUpType;
 
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
@@ -39,7 +38,6 @@ public:
   virtual ~NegMirroredHubs() {}
   virtual int apply(Graph& g,
                     const NodeSet& rootNodes,
-                    const ArcLookUpType& arcLookUp,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
                     IntNodeMap& comp,
@@ -66,7 +64,6 @@ inline NegMirroredHubs<GR, WGHT>::NegMirroredHubs()
 template<typename GR, typename WGHT>
 inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
                                             const NodeSet& rootNodes,
-                                            const ArcLookUpType& arcLookUp,
                                             LabelNodeMap& label,
                                             WeightNodeMap& score,
                                             IntNodeMap& comp,
