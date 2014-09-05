@@ -11,6 +11,7 @@ set( Heinz_Hdr
   src/parser/parser.h
   src/parser/mwcsparser.h
   src/parser/stpparser.h
+  src/parser/stppcstparser.h
   src/parser/identityparser.h
   src/preprocessing/rule.h
   src/preprocessing/negdeg01.h

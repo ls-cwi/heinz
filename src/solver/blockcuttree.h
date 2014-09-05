@@ -37,6 +37,8 @@ public:
   typedef Tree::BlueNodeIt BlockNodeIt;
   typedef Tree::RedNode CutNode;
   typedef Tree::RedNodeIt CutNodeIt;
+  typedef Tree::Edge TreeEdge;
+  typedef Tree::IncEdgeIt TreeIncEdgeIt;
   
   typedef typename Graph::template EdgeMap<BlockNode> ToBlockNodeMap;
   typedef Tree::template RedNodeMap<Node> ArticulationMap;

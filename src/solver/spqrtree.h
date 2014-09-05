@@ -179,10 +179,25 @@ inline void SpqrTree<GR>::construct()
 template<typename GR>
 inline bool SpqrTree<GR>::run()
 {
-  if (!ogdf::isConnected(_ogdfG) ||
-      !ogdf::isBiconnected(_ogdfG) ||
-      _ogdfG.numberOfEdges() <= 2 ||
-      !ogdf::isLoopFree(_ogdfG))
+  if (!ogdf::isConnected(_ogdfG))
+  {
+    std::cerr << "Graph is not a valid input for SPQR-tree decomposition!" << std::endl;
+    return false;
+  }
+  
+  if (!ogdf::isBiconnected(_ogdfG))
+  {
+    std::cerr << "Graph is not a valid input for SPQR-tree decomposition!" << std::endl;
+    return false;
+  }
+    
+  if (_ogdfG.numberOfEdges() <= 2)
+  {
+    std::cerr << "Graph is not a valid input for SPQR-tree decomposition!" << std::endl;
+    return false;
+  }
+    
+  if (!ogdf::isLoopFree(_ogdfG))
   {
     std::cerr << "Graph is not a valid input for SPQR-tree decomposition!" << std::endl;
     return false;

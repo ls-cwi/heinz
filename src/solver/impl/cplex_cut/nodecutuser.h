@@ -187,7 +187,7 @@ protected:
       _makeAttempt = _backOff.makeAttempt();
     }
     
-    if (_makeAttempt && (_cutCount < _maxNumberOfCuts || _cutCount == -1 || (_nodeNumber == 0 && _cutCount < 250)))
+    if (_makeAttempt && (_cutCount < _maxNumberOfCuts || _cutCount == -1 || (_nodeNumber == 0 && _cutCount < 50)))
     {
       separate();
       ++_cutCount;

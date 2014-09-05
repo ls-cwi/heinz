@@ -1,12 +1,12 @@
 /*
- * stpparser.h
+ * stppcstparser.h
  *
  *  Created on: 11-oct-2013
  *      Author: M. El-Kebir
  */
 
-#ifndef STPPARSER_H
-#define STPPARSER_H
+#ifndef STPPCSTPARSER_H
+#define STPPCSTPARSER_H
 
 #include <assert.h>
 #include <string.h>
@@ -20,7 +20,7 @@ namespace nina {
 namespace mwcs {
 
 template<typename GR>
-class StpParser : public Parser<GR>
+class StpPcstParser : public Parser<GR>
 {
 public:
   /// Graph type
@@ -54,20 +54,27 @@ private:
   bool parseNrTerminals(std::istream& in, int& lineNumber);
   bool parseEdge(std::istream& in, int& lineNumber);
   bool parseTerminal(std::istream& in, int& lineNumber);
+  
+  int _nOrgNodes;
+  int _nOrgEdges;
+  int _nTerminals;
 
 public:
-  StpParser(const std::string& filename);
+  StpPcstParser(const std::string& filename);
   bool parse();
 };
 
 template<typename GR>
-inline StpParser<GR>::StpParser(const std::string& filename)
+inline StpPcstParser<GR>::StpPcstParser(const std::string& filename)
   : Parent(filename)
+  , _nOrgNodes(0)
+  , _nOrgEdges(0)
+  , _nTerminals(0)
 {
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parseHeader(std::istream& in, int& lineNumber)
+inline bool StpPcstParser<GR>::parseHeader(std::istream& in, int& lineNumber)
 {
   std::string line;
   if (std::getline(in, line))
@@ -82,7 +89,7 @@ inline bool StpParser<GR>::parseHeader(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parseNrTerminals(std::istream& in, int& lineNumber)
+inline bool StpPcstParser<GR>::parseNrTerminals(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -99,11 +106,11 @@ inline bool StpParser<GR>::parseNrTerminals(std::istream& in, int& lineNumber)
       return false;
     }
 
-    int nTerminals = -1;
-    ss >> nTerminals;
-    if (nTerminals != _nNodes)
+    _nTerminals = -1;
+    ss >> _nTerminals;
+    if (_nTerminals < 0)
     {
-      std::cerr << "Error at line " << lineNumber << ": terminal count must match node count" << std::endl;
+      std::cerr << "Error at line " << lineNumber << ": terminal count must be nonnegative" << std::endl;
       return false;
     }
     return true;
@@ -116,7 +123,7 @@ inline bool StpParser<GR>::parseNrTerminals(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
+inline bool StpPcstParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -133,8 +140,7 @@ inline bool StpParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
       return false;
     }
 
-    ss >> _nNodes;
-    _pG->reserveNode(_nNodes);
+    ss >> _nOrgNodes;
     return true;
   }
   else
@@ -145,7 +151,7 @@ inline bool StpParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
+inline bool StpPcstParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
 {
   std::string line;
 
@@ -162,7 +168,14 @@ inline bool StpParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
       return false;
     }
 
-    ss >> _nEdges;
+    ss >> _nOrgEdges;
+    
+    // because of the transformation every edge becomes a node of itself
+    _nNodes = _nOrgNodes + _nOrgEdges;
+    // duplicate edges because of transformation
+    _nEdges = 2 * _nOrgEdges;
+
+    _pG->reserveNode(_nNodes);
     _pG->reserveEdge(_nEdges);
     
     return true;
@@ -175,9 +188,10 @@ inline bool StpParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
+inline bool StpPcstParser<GR>::parseGraph(std::istream& in, int& lineNumber)
 {
   std::string line;
+  char buf[1024];
 
   // skip until "SECTION Graph"
   while (std::getline(in, line) && line != "SECTION Graph")
@@ -195,13 +209,18 @@ inline bool StpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
   }
 
   // add nodes
-  for (int i = 0; i < _nNodes; i++)
+  for (int i = 0; i < _nOrgNodes; i++)
   {
-    _pG->addNode();
+    Node u = _pG->addNode();
+    _pWeightNodeMap->set(u, 0);
+    
+    snprintf(buf, 1024, "%d", _pG->id(u) + 1);
+    _pIdNodeMap->set(u, buf);
+    (*_pInvIdNodeMap)[buf] = u;
   }
 
   // add edges
-  for (int i = 0;i < _nEdges; i++)
+  for (int i = 0;i < _nOrgEdges; i++)
   {
     if (!parseEdge(in, lineNumber))
     {
@@ -224,7 +243,7 @@ inline bool StpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
     return false;
   }
 
-  for (int i = 0; i < _nNodes; i++)
+  for (int i = 0; i < _nTerminals; i++)
   {
     if (!parseTerminal(in, lineNumber))
     {
@@ -236,9 +255,10 @@ inline bool StpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parseEdge(std::istream& in, int& lineNumber)
+inline bool StpPcstParser<GR>::parseEdge(std::istream& in, int& lineNumber)
 {
   std::string line;
+  char buf[1024];
 
   if (std::getline(in, line))
   {
@@ -254,7 +274,8 @@ inline bool StpParser<GR>::parseEdge(std::istream& in, int& lineNumber)
     }
 
     int idU = -1, idV = -1;
-    ss >> idU >> idV;
+    double costUV = std::numeric_limits<double>::max();
+    ss >> idU >> idV >> costUV;
 
     if (!(0 < idU && idU <= _nNodes) || !(0 < idV && idV <= _nNodes))
     {
@@ -262,10 +283,24 @@ inline bool StpParser<GR>::parseEdge(std::istream& in, int& lineNumber)
                 << _nNodes << "]" << std::endl;
       return false;
     }
+    
+    if (costUV == std::numeric_limits<double>::max())
+    {
+      std::cerr << "Error at line " << lineNumber << ": expected real-valued edge cost"
+                << std::endl;
+      return false;
+    }
 
     Node u = _pG->nodeFromId(idU - 1);
     Node v = _pG->nodeFromId(idV - 1);
-    _pG->addEdge(u, v);
+    Node uv = _pG->addNode();
+    _pG->addEdge(u, uv);
+    _pG->addEdge(uv, v);
+    
+    _pWeightNodeMap->set(uv, -costUV);
+    snprintf(buf, 1024, "%d--%d", idU, idV);
+    _pIdNodeMap->set(uv, buf);
+    (*_pInvIdNodeMap)[buf] = uv;
 
     return true;
   }
@@ -277,10 +312,9 @@ inline bool StpParser<GR>::parseEdge(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
+inline bool StpPcstParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
 {
   std::string line;
-  char buf[1024];
 
   if (std::getline(in, line))
   {
@@ -289,9 +323,9 @@ inline bool StpParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
     lineNumber++;
     ss >> text;
 
-    if (text != "T")
+    if (text != "TP")
     {
-      std::cerr << "Error at line " << lineNumber << ": expected 'T'" << std::endl;
+      std::cerr << "Error at line " << lineNumber << ": expected 'TP'" << std::endl;
       return false;
     }
 
@@ -316,10 +350,6 @@ inline bool StpParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
 
     Node u = _pG->nodeFromId(idU - 1);
     _pWeightNodeMap->set(u, weightU);
-    
-    snprintf(buf, 1024, "%d", idU);
-    _pIdNodeMap->set(u, buf);
-    (*_pInvIdNodeMap)[buf] = u;
 
     return true;
   }
@@ -331,7 +361,7 @@ inline bool StpParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
 }
 
 template<typename GR>
-inline bool StpParser<GR>::parse()
+inline bool StpPcstParser<GR>::parse()
 {
   if (!_pG)
     return false;
@@ -353,4 +383,4 @@ inline bool StpParser<GR>::parse()
 } // namespace mwcs
 } // namespace nina
 
-#endif // STPPARSER_H
+#endif // STPPCSTPARSER_H

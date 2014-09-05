@@ -15,6 +15,8 @@
 
 #include "parser/mwcsparser.h"
 #include "parser/stpparser.h"
+#include "parser/stppcstparser.h"
+
 #include "mwcsgraph.h"
 #include "mwcsgraphparser.h"
 #include "mwcspreprocessedgraph.h"
@@ -50,6 +52,8 @@ using namespace nina;
 typedef Parser<Graph> ParserType;
 typedef MwcsParser<Graph> MwcsParserType;
 typedef StpParser<Graph> StpParserType;
+typedef StpPcstParser<Graph> StpPcstParserType;
+
 typedef MwcsGraphParser<Graph> MwcsGraphType;
 typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 
@@ -102,7 +106,8 @@ int main(int argc, char** argv)
   double lambda = 0;
   double a = 0;
   double fdr = 0;
-  std::string stpNodeFile;
+  std::string stpFile;
+  std::string stpPcstFile;
   std::string nodeFile;
   std::string edgeFile;
 
@@ -111,8 +116,8 @@ int main(int argc, char** argv)
   ap
     .boolOption("version", "Show version number")
     .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
-    .refOption("e", "Edge list file", edgeFile, true)
-    .refOption("n", "Node file", nodeFile, true)
+    .refOption("e", "Edge list file", edgeFile, false)
+    .refOption("n", "Node file", nodeFile, false)
     .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
     .refOption("b", "Back-off function:\n"
                         "     0 - Constant waiting (period: 1, override with '-period')\n"
@@ -122,7 +127,8 @@ int main(int argc, char** argv)
                         "     4 - Infinite waiting", backOffFunction, false)
     .refOption("p", "Disable preprocessing", noPreprocess, false)
     .refOption("no-enum", "Disable enumerator", noEnum, false)
-    .refOption("s", "STP node file", stpNodeFile, false)
+    .refOption("stp", "STP file", stpFile, false)
+    .refOption("stp-pcst", "STP-PCST file", stpPcstFile, false)
     .refOption("v", "Specifies the verbosity level:\n"
                     "     0 - No output\n"
                     "     1 - Only necessary output\n"
@@ -143,6 +149,12 @@ int main(int argc, char** argv)
   {
     std::cout << "Version number: " << HEINZ_VERSION << std::endl;
     return 0;
+  }
+  
+  if (!(ap.given("n") && ap.given("e")) && !ap.given("stp") &&  !ap.given("stp-pcst"))
+  {
+    std::cerr << "Please specify either '-n' and '-e', or '-stp', or '-stp-pcst'" << std::endl;
+    return 1;
   }
 
   bool pval = ap.given("FDR");
@@ -170,9 +182,13 @@ int main(int argc, char** argv)
 
   // Construct parser
   ParserType* pParser = NULL;
-  if (!stpNodeFile.empty())
+  if (!stpFile.empty())
   {
-    pParser = new StpParserType(stpNodeFile);
+    pParser = new StpParserType(stpFile);
+  }
+  else if (!stpPcstFile.empty())
+  {
+    pParser = new StpPcstParserType(stpPcstFile);
   }
   else
   {

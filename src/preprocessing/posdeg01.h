@@ -99,6 +99,7 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
     Node v = *nodeIt;
     if (0 <= score[v] && score[v] < LB && rootNodes.find(v) == rootNodes.end())
     {
+      assert(IncEdgeIt(g, v) == lemon::INVALID);
       remove(g, comp, mapToPre, preOrigNodes, neighbors,
              nNodes, nArcs, nEdges, nComponents,
              degree, degreeVector, v);
@@ -138,7 +139,7 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
       return 1;
     }
   }
-              
+
   return 0;
 }
 

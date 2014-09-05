@@ -16,6 +16,7 @@
 #include <lemon/tolerance.h>
 #include <set>
 #include "heuristicrooted.h"
+#include "solver/impl/treesolverunrootedimpl.h"
 
 namespace nina {
 namespace mwcs {
@@ -44,6 +45,8 @@ public:
   using Parent::_n;
   using Parent::_m;
   using Parent::_pMutex;
+  using Parent::_pMwcsSubGraph;
+  using Parent::_pSubSolutionMap;
   using Parent::hasIncumbent;
   using Parent::getIncumbentObjValue;
   using Parent::computeMaxWeightConnectedSubtree;
@@ -52,12 +55,14 @@ public:
   using Parent::getValue;
   using Parent::getValues;
   using Parent::setCplexSolution;
+  using Parent::lock;
+  using Parent::unlock;
   
 protected:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   typedef typename Parent::SubGraphType SubGraphType;
   typedef typename Parent::MwcsSubGraphType MwcsSubGraphType;
-  typedef typename Parent::TreeSolverRootedImplType TreeSolverRootedImplType;
+  typedef TreeSolverUnrootedImpl<const SubGraphType, const WeightNodeMap, LabelNodeMap, DoubleEdgeMap> TreeSolverUnrootedImplType;
   typedef typename Parent::NodeSet NodeSet;
   typedef typename Parent::NodeSetIt NodeSetIt;
   
@@ -77,18 +82,29 @@ public:
     : Parent(env, x, g, weight, NodeSet(), nodeMap, n, m, pMutex)
     , _y(y)
     , _tol(_epsilon)
+    , _pMwcsSubTreeUnrootedSolver(NULL)
   {
+    lock();
+    _pMwcsSubTreeUnrootedSolver = new TreeSolverUnrootedImplType();
+    unlock();
   }
     
   HeuristicUnrooted(const HeuristicUnrooted& other)
     : Parent(other)
     , _y(other._y)
     , _tol(other._tol)
+    , _pMwcsSubTreeUnrootedSolver(NULL)
   {
+    lock();
+    _pMwcsSubTreeUnrootedSolver = new TreeSolverUnrootedImplType();
+    unlock();
   }
     
   ~HeuristicUnrooted()
   {
+    lock();
+    delete _pMwcsSubTreeUnrootedSolver;
+    unlock();
   }
 
 protected:
@@ -96,7 +112,7 @@ protected:
   {
     computeEdgeWeights();
     computeMinimumCostSpanningTree();
-    determineRootNode();
+//    determineRootNode();
     
     IloBoolVarArray solutionVar(_env, 0);
     IloNumArray solution(_env, 0);
@@ -104,8 +120,6 @@ protected:
     
     if (computeMaxWeightConnectedSubtree(solutionVar, solution, solutionWeight))
     {
-      solutionVar.add(_y);
-      solution.add(_y.getSize(), 0);
 //      solution[_x.getSize() + _z.getSize() + _nodeMap[_root]] = 1;
       
 //      std::cout << "Root:";
@@ -148,9 +162,62 @@ protected:
     y_values.end();
   }
   
+  bool computeMaxWeightConnectedSubtree(IloBoolVarArray& solutionVar,
+                                        IloNumArray& solution,
+                                        double& solutionWeight)
+  {
+    _pMwcsSubTreeUnrootedSolver->init(*_pMwcsSubGraph);
+    
+    NodeSet solutionSet;
+    double score;
+    
+    _pMwcsSubTreeUnrootedSolver->solve(score, *_pSubSolutionMap, solutionSet);
+    
+    if (score > solutionWeight)
+    {
+      solutionWeight = score;
+      solutionVar.add(_x);
+      solution.add(_x.getSize(), 0);
+      
+      solutionVar.add(_y);
+      solution.add(_y.getSize(), 0);
+      
+      //      solutionVar.add(_z);
+      //      solution.add(_z.getSize(), 0);
+      
+      for (NodeSetIt it = solutionSet.begin(); it != solutionSet.end(); ++it)
+      {
+        solution[_nodeMap[*it]] = 1;
+      }
+      
+      for (int i = 0; i < _y.getSize(); ++i)
+      {
+        if (solution[i] == 1)
+        {
+          solution[_x.getSize() + i] = 1;
+          break;
+        }
+      }
+      
+      //      for (EdgeIt e(_g); e != lemon::INVALID; ++e)
+      //      {
+      //        if (module.find(_g.u(e)) != module.end() && module.find(_g.v(e)) != module.end())
+      //        {
+      //          solution[_x.getSize() + _edgeMap[e]] = 1;
+      //        }
+      //      }
+      
+      return true;
+    }
+    
+    return false;
+  }
+
+  
 protected:
   IloBoolVarArray _y;
   const lemon::Tolerance<double> _tol;
+  TreeSolverUnrootedImplType* _pMwcsSubTreeUnrootedSolver;
   
   // 1e-5 is the epsilon that CPLEX uses (for deciding integrality),
   // i.e. if |x| < 1e-5 it's considered to be 0 by CPLEX.
