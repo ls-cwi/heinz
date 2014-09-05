@@ -251,16 +251,16 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   IloCplex::HeuristicCallbackI* pHeuristic = NULL;
 
   _cplex.setParam( IloCplex::HeurFreq      , -1 );
-  _cplex.setParam( IloCplex::Cliques       , -1 );
-  _cplex.setParam( IloCplex::Covers        , -1 );
-  _cplex.setParam( IloCplex::FlowCovers    , -1 );
-  _cplex.setParam( IloCplex::GUBCovers     , -1 );
-  _cplex.setParam( IloCplex::FracCuts      , -1 );
-  _cplex.setParam( IloCplex::MIRCuts       , -1 );
-  _cplex.setParam( IloCplex::FlowPaths     , -1 );
-  _cplex.setParam( IloCplex::ImplBd        , -1 );
-  _cplex.setParam( IloCplex::DisjCuts      , -1 );
-  _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
+//  _cplex.setParam( IloCplex::Cliques       , -1 );
+//  _cplex.setParam( IloCplex::Covers        , -1 );
+//  _cplex.setParam( IloCplex::FlowCovers    , -1 );
+//  _cplex.setParam( IloCplex::GUBCovers     , -1 );
+//  _cplex.setParam( IloCplex::FracCuts      , -1 );
+//  _cplex.setParam( IloCplex::MIRCuts       , -1 );
+//  _cplex.setParam( IloCplex::FlowPaths     , -1 );
+//  _cplex.setParam( IloCplex::ImplBd        , -1 );
+//  _cplex.setParam( IloCplex::DisjCuts      , -1 );
+//  _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
 //    _cplex.setParam( IloCplex::LiftProjCuts  , -1 );
   _cplex.setParam( IloCplex::MCFCuts       , -1 );
   _cplex.setParam( IloCplex::MIPEmphasis, IloCplex::MIPEmphasisBestBound );
