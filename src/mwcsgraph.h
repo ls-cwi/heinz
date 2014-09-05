@@ -559,26 +559,28 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printModule(const NodeSet& module
         << "]" << std::endl;
 
     // determine incident edges
-    for (NodeSetIt nodeIt2 = nodeIt1; nodeIt2 != module.end(); nodeIt2++)
-    {
-      Edge e = arcLookUp(*nodeIt1, *nodeIt2);
-      if (e != lemon::INVALID)
-      {
-        edges.push_back(e);
-      }
-    }
+//    for (NodeSetIt nodeIt2 = nodeIt1; nodeIt2 != module.end(); nodeIt2++)
+//    {
+//      Edge e = arcLookUp(*nodeIt1, *nodeIt2);
+//      if (e != lemon::INVALID)
+//      {
+//        edges.push_back(e);
+//      }
+//    }
   }
 
   out << "\tlabel=\"Total weight: " << totalWeight << '"' << std::endl;
 
   // print edges
-  for (typename std::vector<Edge>::const_iterator edgeIt = edges.begin();
-       edgeIt != edges.end(); edgeIt++)
+  for (EdgeIt e(g); e != lemon::INVALID; ++e)
   {
-    Node u = g.u(*edgeIt);
-    Node v = g.v(*edgeIt);
-
-    out << "\t" << g.id(u) << " -- " << g.id(v) << std::endl;
+    Node u = g.u(e);
+    Node v = g.v(e);
+    
+    if (module.find(u) != module.end() && module.find(v) != module.end())
+    {
+      out << "\t" << g.id(u) << " -- " << g.id(v) << std::endl;
+    }
   }
 
   // print footer
