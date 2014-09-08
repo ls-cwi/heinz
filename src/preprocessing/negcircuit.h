@@ -44,14 +44,12 @@ public:
                     const NodeSet& rootNodes,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    IntNodeMap& comp,
                     NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
-                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -70,14 +68,12 @@ inline int NegCircuit<GR, WGHT>::apply(Graph& g,
                                        const NodeSet& rootNodes,
                                        LabelNodeMap& label,
                                        WeightNodeMap& score,
-                                       IntNodeMap& comp,
                                        NodeSetMap& mapToPre,
                                        NodeSetMap& preOrigNodes,
                                        NodeSetMap& neighbors,
                                        int& nNodes,
                                        int& nArcs,
                                        int& nEdges,
-                                       int& nComponents,
                                        DegreeNodeMap& degree,
                                        DegreeNodeSetVector& degreeVector,
                                        double& LB)
@@ -103,9 +99,9 @@ inline int NegCircuit<GR, WGHT>::apply(Graph& g,
       Node w = g.oppositeNode(v, e2);
       if (neighbors[u].find(w) != neighbors[u].end())
       {
-        remove(g, comp,
+        remove(g,
                mapToPre, preOrigNodes, neighbors,
-               nNodes, nArcs, nEdges, nComponents,
+               nNodes, nArcs, nEdges,
                degree, degreeVector, v);
         return 1;
       }

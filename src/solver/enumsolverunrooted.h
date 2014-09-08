@@ -286,7 +286,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solve(const MwcsGraphType
     NodeMap mapToG(subG);
     MwcsPreGraphType mwcsSubGraph;
     
-    // 2b. create and preprocess subgraph
+    // 2b. create subgraph
     initLocalGraph(g,
                    mwcsGraph.getScores(),
                    mwcsGraph.getLabels(),
@@ -343,11 +343,11 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
   const Graph& g = mwcsGraph.getGraph();
   const WeightNodeMap& score = mwcsGraph.getScores();
   
-  if (_preprocess)
-  {
-    // preprocess the graph
-    mwcsGraph.preprocess(NodeSet());
-  }
+//  if (_preprocess)
+//  {
+//    // preprocess the graph
+//    mwcsGraph.preprocess(NodeSet());
+//  }
   
   if (mwcsGraph.getNodeCount() > 1)
   {
@@ -368,8 +368,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
       }
     }
     
-    bcTree.printNodes(std::cout);
-    bcTree.printEdges(std::cout);
+//    bcTree.printNodes(std::cout);
+//    bcTree.printEdges(std::cout);
     
     Graph subG;
     DoubleNodeMap weightSubG(subG);
@@ -703,6 +703,10 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
   const Graph& g = mwcsGraph.getGraph();
   const DoubleNodeMap& score = mwcsGraph.getScores();
   
+  assert(lemon::countNodes(g) == mwcsGraph.getNodeCount());
+  assert(lemon::countEdges(g) == mwcsGraph.getEdgeCount());
+  assert(lemon::countConnectedComponents(g) == mwcsGraph.getComponentCount());
+  
   // create a new graph induced by nodesTriComp
   Graph subG;
   DoubleNodeMap weightSubG(subG);
@@ -735,6 +739,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
 //  std::cout << mwcsGraph.getLabel(cutPair.first) << " -- " << mwcsGraph.getLabel(cutPair.second) << std::endl;
 //  mwcsSubGraph.print(std::cout);
   assert(lemon::connected(subG));
+  assert(mwcsGraph.getComponentCount() == lemon::countConnectedComponents(mwcsGraph.getGraph()));
   
   NodeSet subSolutionSet;
   double solutionScore;
@@ -864,8 +869,9 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
 //  printNodeSet(mwcsGraph, V4);
 
   // introduce gadget
+  Node nV4 = lemon::INVALID;
   if (!V4.empty())
-    mwcsGraph.extract(V4);
+    nV4 = mwcsGraph.extract(V4);
   
   NodeSet V1_minus_V2;
   std::set_difference(V1.begin(), V1.end(),
@@ -889,6 +895,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
                       std::inserter(comp_V1_cup_V2_cup_V3, comp_V1_cup_V2_cup_V3.begin()));
   comp_V1_cup_V2_cup_V3.erase(cutPair.first);
   comp_V1_cup_V2_cup_V3.erase(cutPair.second);
+  comp_V1_cup_V2_cup_V3.erase(nV4);
   
   NodeSet V3_minus_V1_cup_V2;
   std::set_difference(V3.begin(), V3.end(),
@@ -907,7 +914,6 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
   assert(V2.find(cutPair.second) == V2.end());
   assert(V3.find(cutPair.second) == V3.end());
   
-  int res = 0;
   NodeSet gadget;
   
   Node nV1_minus_V2 = lemon::INVALID;
@@ -915,7 +921,6 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
   {
     nV1_minus_V2 = mwcsGraph.merge(V1_minus_V2);
     gadget.insert(nV1_minus_V2);
-    ++res;
     
     // let's disconnect nV1_minus_V2
     while (IncEdgeIt(g, nV1_minus_V2) != lemon::INVALID)
@@ -927,19 +932,17 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
   {
     nV2_minus_V1 = mwcsGraph.merge(V2_minus_V1);
     gadget.insert(nV2_minus_V1);
-    ++res;
     
     // let's disconnect nV2_minus_V1
     while (IncEdgeIt(g, nV2_minus_V1) != lemon::INVALID)
       mwcsGraph.remove(IncEdgeIt(g, nV2_minus_V1));
   }
-  
+
   Node nV1_cap_V2 = lemon::INVALID;
   if (!V1_cap_V2.empty())
   {
     nV1_cap_V2 = mwcsGraph.merge(V1_cap_V2);
     gadget.insert(nV1_cap_V2);
-    ++res;
     
     // let's disconnect nV1_cap_V2
     while (IncEdgeIt(g, nV1_cap_V2) != lemon::INVALID)
@@ -951,7 +954,6 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
   {
     nV3_minus_V1_cup_V2 = mwcsGraph.merge(V3_minus_V1_cup_V2);
     gadget.insert(nV3_minus_V1_cup_V2);
-    ++res;
     
     // let's disconnect nV3_minus_V1_cup_V2
     while (IncEdgeIt(g, nV3_minus_V1_cup_V2) != lemon::INVALID)
@@ -960,8 +962,6 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
   
   if (!comp_V1_cup_V2_cup_V3.empty())
   {
-//    // never remove the cut node!
-//    comp_V1_cup_V2_cup_V3.erase(orgC);
     mwcsGraph.remove(comp_V1_cup_V2_cup_V3);
   }
   
@@ -1042,30 +1042,39 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
               << gadget.size() << " nodes" << std::endl;
   }
   
-  // print the gadget
-  subG.clear();
-  lemon::mapFill(g, sameTriComp, false);
-  for (NodeSetIt nodeIt = gadget.begin(); nodeIt != gadget.end(); ++nodeIt)
-  {
-    sameTriComp[*nodeIt] = true;
-  }
-  
-  mwcsSubGraph.clear();
-  initLocalGraph(g,
-                 mwcsGraph.getScores(),
-                 mwcsGraph.getLabels(),
-                 sameTriComp,
-                 subG,
-                 weightSubG,
-                 labelSubG,
-                 mapToG,
-                 mapToSubG,
-                 mwcsSubGraph);
-  
+//  // print the gadget
+//  if (nV4 != lemon::INVALID)
+//    gadget.insert(nV4);
+//  subG.clear();
+//  lemon::mapFill(g, sameTriComp, false);
+//  for (NodeSetIt nodeIt = gadget.begin(); nodeIt != gadget.end(); ++nodeIt)
+//  {
+//    sameTriComp[*nodeIt] = true;
+//  }
+//  
+//  mwcsSubGraph.clear();
+//  initLocalGraph(g,
+//                 mwcsGraph.getScores(),
+//                 mwcsGraph.getLabels(),
+//                 sameTriComp,
+//                 subG,
+//                 weightSubG,
+//                 labelSubG,
+//                 mapToG,
+//                 mapToSubG,
+//                 mwcsSubGraph);
+//
 //  std::cout << "gadget:" << std::endl;
 //  mwcsSubGraph.print(std::cout);
   
-  assert(lemon::connected(SubGraph(g, sameTriComp)));
+  mwcsGraph.updateComponentMap();
+  
+  assert(lemon::countNodes(g) == mwcsGraph.getNodeCount());
+//  std::cout << lemon::countConnectedComponents(g) << "\t" << mwcsGraph.getComponentCount() << std::endl;
+  assert(lemon::countEdges(g) == mwcsGraph.getEdgeCount());
+  assert(lemon::countConnectedComponents(g) == mwcsGraph.getComponentCount());
+  
+  assert(lemon::countConnectedComponents(SubGraph(g, sameTriComp)) <= 2);
   return gadget.size() < nodesTriComp.size();
 }
 
@@ -1350,17 +1359,17 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
     }
     
     SubGraph subG(g, sameBlockMap);
-    do
+    while (processBlock1(mwcsGraph,
+                         subG,
+                         orgC != lemon::INVALID ? *mwcsGraph.getPreNodes(orgC).begin() : lemon::INVALID)
+           || processBlock2(mwcsGraph,
+                            subG,
+                            orgC != lemon::INVALID ? *mwcsGraph.getPreNodes(orgC).begin() : lemon::INVALID))
     {
       mwcsGraph.preprocess(orgC != lemon::INVALID ? mwcsGraph.getPreNodes(orgC) : NodeSet());
-      assert(lemon::connected(subG));
       assert(orgC == lemon::INVALID || mwcsGraph.getPreNodes(orgC).size() == 1);
-    } while (processBlock1(mwcsGraph,
-                           subG,
-                           orgC != lemon::INVALID ? *mwcsGraph.getPreNodes(orgC).begin() : lemon::INVALID)
-             || processBlock2(mwcsGraph,
-                              subG,
-                              orgC != lemon::INVALID ? *mwcsGraph.getPreNodes(orgC).begin() : lemon::INVALID));
+      assert(lemon::connected(subG));
+    }
 
     
     // solve the unrooted formulation first
@@ -1430,6 +1439,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGrap
   {
     solutionSet.clear();
     solutionScore = 0;
+    std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
     return true;
   }
   else if (mwcsGraph.getNodeCount() == 1)
@@ -1438,6 +1448,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGrap
     Node v = NodeIt(mwcsGraph.getGraph());
     solutionSet.insert(v);
     solutionScore = mwcsGraph.getScore(v);
+    std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
     return true;
   }
   

@@ -45,14 +45,12 @@ public:
                     const NodeSet& rootNodes,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    IntNodeMap& comp,
                     NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
-                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -71,14 +69,12 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
                                      const NodeSet& rootNodes,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
-                                     IntNodeMap& comp,
                                      NodeSetMap& mapToPre,
                                      NodeSetMap& preOrigNodes,
                                      NodeSetMap& neighbors,
                                      int& nNodes,
                                      int& nArcs,
                                      int& nEdges,
-                                     int& nComponents,
                                      DegreeNodeMap& degree,
                                      DegreeNodeSetVector& degreeVector,
                                      double& LB)
@@ -97,8 +93,8 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
     if (0 <= score[v] && score[v] < LB && rootNodes.find(v) == rootNodes.end())
     {
       assert(IncEdgeIt(g, v) == lemon::INVALID);
-      remove(g, comp, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges, nComponents,
+      remove(g, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges,
              degree, degreeVector, v);
       return 1;
     }
@@ -119,9 +115,9 @@ inline int PosDeg01<GR, WGHT>::apply(Graph& g,
     {
       if (score[v] >= LB && rootNodes.empty())
       {
-        extract(g, label, score, comp,
+        extract(g, label, score,
                 mapToPre, preOrigNodes, neighbors,
-                nNodes, nArcs, nEdges, nComponents,
+                nNodes, nArcs, nEdges,
                 degree, degreeVector, v);
       }
         

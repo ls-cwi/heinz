@@ -43,14 +43,12 @@ public:
                     const NodeSet& rootNodes,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    IntNodeMap& comp,
                     NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
-                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -62,14 +60,12 @@ protected:
             const NodeSet& rootNodes,
             LabelNodeMap& label,
             WeightNodeMap& score,
-            IntNodeMap& comp,
             NodeSetMap& mapToPre,
             NodeSetMap& preOrigNodes,
             NodeSetMap& neighbors,
             int& nNodes,
             int& nArcs,
             int& nEdges,
-            int& nComponents,
             DegreeNodeMap& degree,
             DegreeNodeSetVector& degreeVector,
             int d);
@@ -86,27 +82,25 @@ inline int NegDeg01<GR, WGHT>::apply(Graph& g,
                                      const NodeSet& rootNodes,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
-                                     IntNodeMap& comp,
                                      NodeSetMap& mapToPre,
                                      NodeSetMap& preOrigNodes,
                                      NodeSetMap& neighbors,
                                      int& nNodes,
                                      int& nArcs,
                                      int& nEdges,
-                                     int& nComponents,
                                      DegreeNodeMap& degree,
                                      DegreeNodeSetVector& degreeVector,
                                      double& LB)
 {
   return apply(g, rootNodes,
-               label, score, comp,
+               label, score,
                mapToPre, preOrigNodes, neighbors,
-               nNodes, nArcs, nEdges, nComponents,
+               nNodes, nArcs, nEdges,
                degree, degreeVector, 0)
       + apply(g, rootNodes,
-              label, score, comp,
+              label, score,
               mapToPre, preOrigNodes, neighbors,
-              nNodes, nArcs, nEdges, nComponents,
+              nNodes, nArcs, nEdges,
               degree, degreeVector, 1);
 }
 
@@ -115,14 +109,12 @@ inline int NegDeg01<GR, WGHT>::apply(Graph& g,
                                      const NodeSet& rootNodes,
                                      LabelNodeMap& label,
                                      WeightNodeMap& score,
-                                     IntNodeMap& comp,
                                      NodeSetMap& mapToPre,
                                      NodeSetMap& preOrigNodes,
                                      NodeSetMap& neighbors,
                                      int& nNodes,
                                      int& nArcs,
                                      int& nEdges,
-                                     int& nComponents,
                                      DegreeNodeMap& degree,
                                      DegreeNodeSetVector& degreeVector,
                                      int d)
@@ -141,8 +133,8 @@ inline int NegDeg01<GR, WGHT>::apply(Graph& g,
     // remove if negative and not the root node
     if (score[v] < 0 && rootNodes.find(v) == rootNodes.end())
     {
-      remove(g, comp, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges, nComponents,
+      remove(g, mapToPre, preOrigNodes, neighbors,
+             nNodes, nArcs, nEdges,
              degree, degreeVector, v);
       return 1;
     }

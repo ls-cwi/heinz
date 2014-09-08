@@ -225,7 +225,7 @@ int main(int argc, char** argv)
   const NodeSet rootNodeSet = pMwcs->getNodeByLabel(root);
   assert(rootNodeSet.size() == 0 || rootNodeSet.size() == 1);
   
-  if (pPreprocessedMwcs)
+  if (pPreprocessedMwcs && noEnum)
   {
     pPreprocessedMwcs->preprocess(rootNodeSet);
   }

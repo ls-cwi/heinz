@@ -44,14 +44,12 @@ public:
                     const NodeSet& rootNodes,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    IntNodeMap& comp,
                     NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
-                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -70,14 +68,12 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
                                        const NodeSet& rootNodes,
                                        LabelNodeMap& label,
                                        WeightNodeMap& score,
-                                       IntNodeMap& comp,
                                        NodeSetMap& mapToPre,
                                        NodeSetMap& preOrigNodes,
                                        NodeSetMap& neighbors,
                                        int& nNodes,
                                        int& nArcs,
                                        int& nEdges,
-                                       int& nComponents,
                                        DegreeNodeMap& degree,
                                        DegreeNodeSetVector& degreeVector,
                                        double& LB)
@@ -150,15 +146,15 @@ inline int PosDiamond<GR, WGHT>::apply(Graph& g,
     {
       if (score[u] < score[w] && rootNodes.find(u) == rootNodes.end())
       {
-        remove(g, comp, mapToPre, preOrigNodes, neighbors,
-               nNodes, nArcs, nEdges, nComponents,
+        remove(g, mapToPre, preOrigNodes, neighbors,
+               nNodes, nArcs, nEdges,
                degree, degreeVector, u);
         ++res;
       }
       else if (rootNodes.find(w) == rootNodes.end())
       {
-        remove(g, comp, mapToPre, preOrigNodes, neighbors,
-               nNodes, nArcs, nEdges, nComponents,
+        remove(g, mapToPre, preOrigNodes, neighbors,
+               nNodes, nArcs, nEdges,
                degree, degreeVector, w);
         ++res;
       }

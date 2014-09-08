@@ -47,14 +47,12 @@ public:
                     const NodeSet& rootNodes,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    IntNodeMap& comp,
                     NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
-                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB);
@@ -128,14 +126,12 @@ inline int ShortestPath<GR, WGHT>::apply(Graph& g,
                                          const NodeSet& rootNodes,
                                          LabelNodeMap& label,
                                          WeightNodeMap& score,
-                                         IntNodeMap& comp,
                                          NodeSetMap& mapToPre,
                                          NodeSetMap& preOrigNodes,
                                          NodeSetMap& neighbors,
                                          int& nNodes,
                                          int& nArcs,
                                          int& nEdges,
-                                         int& nComponents,
                                          DegreeNodeMap& degree,
                                          DegreeNodeSetVector& degreeVector,
                                          double& LB)
@@ -184,8 +180,8 @@ inline int ShortestPath<GR, WGHT>::apply(Graph& g,
         
         Node curV = v;
         ++v;
-        remove(g, comp, mapToPre, preOrigNodes, neighbors,
-               nNodes, nArcs, nEdges, nComponents,
+        remove(g, mapToPre, preOrigNodes, neighbors,
+               nNodes, nArcs, nEdges,
                degree, degreeVector, curV);
         ++res;
       }

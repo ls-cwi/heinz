@@ -84,6 +84,10 @@ public:
   virtual ~MwcsPreprocessedGraph();
   virtual bool init(ParserType* pParser, bool pval);
   void preprocess(const NodeSet& rootNodes);
+  void updateComponentMap()
+  {
+    _pGraph->_nComponents = lemon::connectedComponents(*_pGraph->_pG, *_pGraph->_pComp);
+  }
 
 protected:
   typedef NegDeg01<Graph> NegDeg01Type;
@@ -332,12 +336,6 @@ public:
       (*_pGraph->_pMapToPre)[orgNode].erase(node);
     }
     
-    // remove the node from the graph
-    if (isolated)
-    {
-      --_pGraph->_nComponents;
-    }
-    
     g.erase(node);
     --_pGraph->_nNodes;
   }
@@ -363,6 +361,9 @@ public:
     
     _pGraph->_nEdges--;
     _pGraph->_nArcs -= 2;
+    
+    Node u = g.u(e);
+    Node v = g.v(e);
     
     g.erase(e);
   }
@@ -401,15 +402,8 @@ public:
     // remove edges incident to minNode and intersection => prevent multiple edges
     for (IncEdgeIt e(g, u); e != lemon::INVALID;)
     {
-      Node node = g.oppositeNode(u, e);
-
-      if (node == v)
-      {
-        ++e;
-        continue;
-      }
-      
-      if (intersection.find(node) != intersection.end())
+      Node node = g.oppositeNode(u, e);      
+      if (node == v || intersection.find(node) != intersection.end())
       {
         // remove edge
         Edge toDelete = e;
@@ -444,8 +438,6 @@ public:
     // erase minNode
     g.contract(v, u, true);
     --_pGraph->_nNodes;
-    --_pGraph->_nEdges;
-    _pGraph->_nArcs -= 2;
     
     assert(lemon::simpleGraph(g));
     
@@ -458,19 +450,6 @@ public:
     {
       return lemon::INVALID;
     }
-    
-//#ifdef DEBUG
-//    // check if connected
-//    BoolNodeMap filter(getGraph(), false);
-//    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
-//    {
-//      filter[*nodeIt] = true;
-//    }
-//    if (!lemon::connected(lemon::filterNodes(getGraph(), filter)))
-//    {
-//      std::cerr << "warning!" << std::endl;
-//    }
-//#endif
     
     NodeSetIt nodeIt = nodes.begin();
     Node res = *nodeIt;
@@ -604,11 +583,14 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess(const Node
         {
           int removedNodes = (*ruleIt)->apply(*_pGraph->_pG, rootNodes,
                                               *_pGraph->_pLabel,
-                                              *_pGraph->_pScore, *_pGraph->_pComp, *_pGraph->_pMapToPre,
+                                              *_pGraph->_pScore, *_pGraph->_pMapToPre,
                                               *_pGraph->_pPreOrigNodes, neighbors,
-                                              _pGraph->_nNodes, _pGraph->_nArcs,
-                                              _pGraph->_nEdges, _pGraph->_nComponents,
+                                              _pGraph->_nNodes, _pGraph->_nArcs, _pGraph->_nEdges,
                                               degree, degreeVector, LB);
+          
+          assert(lemon::countNodes(*_pGraph->_pG) == _pGraph->_nNodes);
+          assert(lemon::countEdges(*_pGraph->_pG) == _pGraph->_nEdges);
+          
           totRemovedNodes += removedNodes;
 
           if (g_verbosity >= VERBOSE_DEBUG && removedNodes > 0)
@@ -630,7 +612,7 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess(const Node
   } while (uberTotRemovedNodes > 0);
 
   // determine the connected components
-  _pGraph->_nComponents = lemon::connectedComponents(*_pGraph->_pG, *_pGraph->_pComp);
+  updateComponentMap();
 
   if (g_verbosity >= VERBOSE_ESSENTIAL)
   {

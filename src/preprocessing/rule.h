@@ -47,14 +47,12 @@ public:
                     const NodeSet& rootNodes,
                     LabelNodeMap& label,
                     WeightNodeMap& score,
-                    IntNodeMap& comp,
                     NodeSetMap& mapToPre,
                     NodeSetMap& preOrigNodes,
                     NodeSetMap& neighbors,
                     int& nNodes,
                     int& nArcs,
                     int& nEdges,
-                    int& nComponents,
                     DegreeNodeMap& degree,
                     DegreeNodeSetVector& degreeVector,
                     double& LB) = 0;
@@ -63,14 +61,12 @@ public:
   
 protected:
   void remove(Graph& g,
-              IntNodeMap& comp,
               NodeSetMap& mapToPre,
               NodeSetMap& preOrigNodes,
               NodeSetMap& neighbors,
               int& nNodes,
               int& nArcs,
               int& nEdges,
-              int& nComponents,
               DegreeNodeMap& degree,
               DegreeNodeSetVector& degreeVector,
               Node node)
@@ -100,11 +96,6 @@ protected:
     }
     
     // remove the node from the graph
-    if (degree[node] == 0)
-    {
-      --nComponents;
-    }
-    
     g.erase(node);
     --nNodes;
     
@@ -114,14 +105,12 @@ protected:
   Node extract(Graph& g,
                LabelNodeMap& label,
                WeightNodeMap& score,
-               IntNodeMap& comp,
                NodeSetMap& mapToPre,
                NodeSetMap& preOrigNodes,
                NodeSetMap& neighbors,
                int& nNodes,
                int& nArcs,
                int& nEdges,
-               int& nComponents,
                DegreeNodeMap& degree,
                DegreeNodeSetVector& degreeVector,
                Node node)
@@ -134,7 +123,6 @@ protected:
     const NodeSet& orgNodes = preOrigNodes[node];
     preOrigNodes[newNode].insert(orgNodes.begin(), orgNodes.end());
     
-    comp[newNode] = nComponents++;
     degree[newNode] = 0;
     
     ++nNodes;
@@ -274,6 +262,7 @@ protected:
     {
       ++d2;
     }
+    assert(lemon::countEdges(g) == nEdges);
     assert(neighbors[maxNode].size() == static_cast<size_t>(d2));
     assert(degree[maxNode] == static_cast<int>(neighbors[maxNode].size()));
     assert(degree[maxNode] >= 0);
