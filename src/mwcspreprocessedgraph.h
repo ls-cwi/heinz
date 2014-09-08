@@ -336,6 +336,11 @@ public:
       (*_pGraph->_pMapToPre)[orgNode].erase(node);
     }
     
+    if ((*_pGraph->_pLabel)[node] == "271--387")
+    {
+      abort();
+    }
+    
     g.erase(node);
     --_pGraph->_nNodes;
   }

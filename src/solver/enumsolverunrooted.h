@@ -343,11 +343,11 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
   const Graph& g = mwcsGraph.getGraph();
   const WeightNodeMap& score = mwcsGraph.getScores();
   
-//  if (_preprocess)
-//  {
-//    // preprocess the graph
-//    mwcsGraph.preprocess(NodeSet());
-//  }
+  if (_preprocess)
+  {
+    // preprocess the graph
+    mwcsGraph.preprocess(NodeSet());
+  }
   
   if (mwcsGraph.getNodeCount() > 1)
   {
@@ -444,13 +444,16 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
           mwcsGraph.remove(solutionComplementSet);
           
         }
-        else if (scoreUnrooted != scoreRooted && solutionUnrooted != solutionRooted)
+        else
         {
-          // rooted solution is different
-          
-          // start by extracting unrooted solution
-          mwcsGraph.extract(orgSolutionUnrooted);
-          
+          if (scoreUnrooted != scoreRooted && solutionUnrooted != solutionRooted)
+          {
+            // rooted solution is different
+            
+            // extracting unrooted solution
+            mwcsGraph.extract(orgSolutionUnrooted);
+          }
+        
           // let's check whether the rooted solution is negative, if so then it can go
           if (scoreRooted <= 0)
           {
