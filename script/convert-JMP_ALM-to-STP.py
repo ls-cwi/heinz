@@ -13,9 +13,9 @@ E = [] # edges
 
 for line in f:
    if line.startswith("node"): break
-next (f) ## skip comment
 
 #parse nodes
+next(f) ## skip comment
 for line in f:
     if line.startswith("link"): break
     l = line.split()
@@ -24,13 +24,12 @@ for line in f:
     #print i, w[i]
     i = i + 1    
 
-next (f) ## skip comment
-
 #parse edges
+next(f) ## skip comment
 for line in f:
     l = line.split()
     #print l[1], l[2]
-    E.append([l[1], l[2]])
+    E.append([int(l[1])+1, int(l[2])+1])
     
 
 print "33D32945 STP File, STP Format Version 1.0\n"
@@ -51,7 +50,7 @@ print "END\n"
 print "SECTION Terminals"
 print "Terminals ", len(w)
 for i, v in enumerate(w):
-    print "T ", i, v
+    print "T ", i+1, v
 print "END\n"
 
 print "EOF"
