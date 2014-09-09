@@ -21,7 +21,7 @@ for line in f:
     l = line.split()
     assert int(l[0]) == i, "node number mismatch"
     w.append(l[3])
-    print i, w[i]
+    #print i, w[i]
     i = i + 1    
 
 next (f) ## skip comment
@@ -29,7 +29,7 @@ next (f) ## skip comment
 #parse edges
 for line in f:
     l = line.split()
-    print l[1], l[2]
+    #print l[1], l[2]
     E.append([l[1], l[2]])
     
 
@@ -46,7 +46,7 @@ print "Nodes ", len(w)
 print "Edges ", len(E)
 for e in E:
     print "E ", e[0], e[1]
-print "END"
+print "END\n"
 
 print "SECTION Terminals"
 print "Terminals ", len(w)
