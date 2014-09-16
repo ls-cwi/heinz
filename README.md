@@ -6,6 +6,7 @@ Dependencies
 
 * LEMON 1.3
 * ILOG CPLEX (>= 12.0)
+* OGDF (v. 2012.07)
 
 Compiling
 ---------
@@ -32,12 +33,27 @@ Note: On Mac OS 10.9, comment out the following two lines and add the code below
       set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
     endif()
 
-You can remove the LEMON sources now, i.e., `rm -rf lemon-1.3`. Next, Heinz can be compiled:
+You can remove the LEMON sources now, i.e., `rm -rf lemon-1.3`.
 
     mkdir build
     cd build
     cmake ..
     make
+    
+Next, OGDF needs to be installed:
+
+    wget http://www.ogdf.net/lib/exe/fetch.php/tech:ogdf.v2012.07.zip
+    unzip tech\:ogdf.v2012.07.zip
+    cd OGDF
+    ./makeMakefile.sh 
+    mkdir ~/ogdf
+    mkdir ~/ogdf/lib
+    mkdir ~/ogdf/include
+    make
+    cp _release/libOGDF.a ~/ogdf/lib/
+    cp -R ogdf ~/ogdf/include/
+    
+You can remove the OGDF sources now, i.e., `rm -rf OGDF`. Next, Heinz can be compiled:
 
 In case auto-detection of LEMON or CPLEX fails, do
 
