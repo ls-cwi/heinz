@@ -70,5 +70,3 @@ Running heinz
 To run heinz on the test instances:
 
     ./heinz -n ../data/test/NodesPCST.txt -e ../data/test/EdgesPCST.txt
-
-Preprocessing can be enabled by specifying `-p`
