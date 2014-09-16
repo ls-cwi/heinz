@@ -40,6 +40,10 @@ set( Heinz_Hdr
   src/solver/impl/treesolverunrootedimpl.h
   src/solver/impl/treesolverrootedimpl.h
   src/solver/impl/cplex_cut/backoff.h
+  src/solver/impl/cplex_cut/edgecut.h
+  src/solver/impl/cplex_cut/edgecutuser.h
+  src/solver/impl/cplex_cut/edgecutlazy.h
+  src/solver/impl/cplex_cut/edgecutunrooted.h
   src/solver/impl/cplex_cut/nodecut.h
   src/solver/impl/cplex_cut/nodecutuser.h
   src/solver/impl/cplex_cut/nodecutlazy.h
@@ -47,6 +51,9 @@ set( Heinz_Hdr
   src/solver/impl/cplex_cut/nodecutunrooted.h
   src/solver/impl/cplex_cut/bk_alg.h
   src/solver/impl/cplexsolverimpl.h
+  src/solver/impl/edgecutsolverimpl.h
+  src/solver/impl/edgecutsolverrootedimpl.h
+  src/solver/impl/edgecutsolverunrootedimpl.h
   src/solver/impl/cutsolverrootedimpl.h
   src/solver/impl/cutsolverunrootedimpl.h
   src/solver/impl/cplex_heuristic/heuristicrooted.h

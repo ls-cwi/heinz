@@ -34,12 +34,13 @@
 #include "solver/solverrooted.h"
 #include "solver/solverunrooted.h"
 #include "solver/enumsolverunrooted.h"
+#include "solver/impl/edgecutsolverimpl.h"
+#include "solver/impl/edgecutsolverunrootedimpl.h"
 #include "solver/impl/cplexsolverimpl.h"
 #include "solver/impl/cutsolverrootedimpl.h"
 #include "solver/impl/cutsolverunrootedimpl.h"
 #include "solver/impl/cplex_cut/backoff.h"
 
-//#include "solver/enumsolverunrooted.h"
 #include "mwcs.h"
 #include "utils.h"
 #include "config.h"
@@ -72,6 +73,9 @@ typedef CplexSolverImpl<Graph> CplexSolverImplType;
 typedef typename CplexSolverImplType::Options Options;
 typedef CutSolverRootedImpl<Graph> CutSolverRootedImplType;
 typedef CutSolverUnrootedImpl<Graph> CutSolverUnrootedImplType;
+typedef EdgeCutSolverUnrootedImpl<Graph> EdgeCutSolverUnrootedImplType;
+typedef SolverUnrootedImpl<Graph> SolverUnrootedImplType;
+typedef SolverRootedImpl<Graph> SolverRootedImplType;
 typedef typename SolverType::NodeSet NodeSet;
 
 BackOff createBackOff(int function, int period)
@@ -86,6 +90,23 @@ BackOff createBackOff(int function, int period)
   }
 }
 
+SolverUnrootedImplType* createSolverUnrootedImpl(int formulation,
+                                                 const Options& options)
+{
+  if (formulation == 0)
+  {
+    return new CutSolverUnrootedImplType(options);
+  }
+  else if (formulation == 1)
+  {
+    return new EdgeCutSolverUnrootedImplType(options);
+  }
+  else
+  {
+    return NULL;
+  }
+}
+
 int main(int argc, char** argv)
 {
   // parse command line arguments
@@ -97,6 +118,7 @@ int main(int argc, char** argv)
   int multiThreading = 1;
   int backOffFunction = 1;
   int backOffPeriod = 1;
+  int formulation = 0;
   std::string root;
   std::string outputFile;
   double lambda = 0;
@@ -121,6 +143,9 @@ int main(int argc, char** argv)
                         "     2 - Quadratic waiting\n"
                         "     3 - Exponential waiting\n"
                         "     4 - Infinite waiting", backOffFunction, false)
+    .refOption("f", "Formulation:\n"
+                        "     0 - Node based (default)\n"
+                        "     1 - Edge based", formulation, false)
     .refOption("p", "Disable preprocessing", noPreprocess, false)
     .refOption("no-enum", "Disable enumerator", noEnum, false)
     .refOption("stp", "STP file", stpFile, false)
@@ -252,13 +277,13 @@ int main(int argc, char** argv)
   }
   else if (noEnum)
   {
-    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new CutSolverUnrootedImplType(options));
+    SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(createSolverUnrootedImpl(formulation, options));
     pSolverUnrooted->solve(*pMwcs);
     pSolver = pSolverUnrooted;
   }
   else
   {
-    SolverUnrootedType* pSolverUnrooted = new EnumSolverUnrootedType(new CutSolverUnrootedImplType(options),
+    SolverUnrootedType* pSolverUnrooted = new EnumSolverUnrootedType(createSolverUnrootedImpl(formulation, options),
                                                                      new CutSolverRootedImplType(options),
                                                                      !noPreprocess);
     pSolverUnrooted->solve(*pMwcs);

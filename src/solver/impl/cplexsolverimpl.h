@@ -92,14 +92,15 @@ protected:
     _cplex.exportModel(filename.c_str());
   }
 
+public:
   virtual void printVariables(const MwcsGraphType& mwcsGraph, std::ostream& out)
   {
     for (int id_v = 0; id_v < _n; id_v++)
     {
       out << "Node '" << mwcsGraph.getLabel(_invNode[id_v])
-      << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v])
-      << ", w = " << mwcsGraph.getScore(_invNode[id_v])
-      << std::endl;
+          << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v])
+          << ", w = " << mwcsGraph.getScore(_invNode[id_v])
+          << std::endl;
     }
   }
 
@@ -126,6 +127,28 @@ protected:
                           NodeSet& solutionSet);
   
   virtual bool solveModel() = 0;
+  
+  virtual void extractSolution(double& score,
+                               BoolNodeMap& solutionMap,
+                               NodeSet& solutionSet)
+  {
+    lemon::Tolerance<double> tol(1e-5);
+    // solution
+    solutionSet.clear();
+    for (int i = 0; i < _n ; i++)
+    {
+      Node node = _invNode[i];
+      bool inSol = tol.nonZero(_cplex.getValue(_x[i]));
+      solutionMap[node] = inSol;
+      
+      if (inSol)
+      {
+        solutionSet.insert(node);
+      }
+    }
+    
+    score = _cplex.getObjValue();
+  }
 
 private:
   struct NodesDegComp
@@ -312,22 +335,8 @@ inline bool CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveCplex(const MwcsGraphT
     }
   }
 
-  lemon::Tolerance<double> tol(1e-5);
-
-  // solution
-  solutionSet.clear();
-  for (int i = 0; i < _n ; i++)
-  {
-    Node node = _invNode[i];
-    solutionMap[node] = _cplex.getValue(_x[i]);
-
-    if (tol.nonZero(_cplex.getValue(_x[i])))
-    {
-      solutionSet.insert(node);
-    }
-  }
-
-  score = _cplex.getObjValue();
+//  printVariables(mwcsGraph, std::cout);
+  extractSolution(score, solutionMap, solutionSet);
   clean();
 
   return true;

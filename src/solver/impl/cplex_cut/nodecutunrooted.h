@@ -256,11 +256,11 @@ public:
     typename Digraph::template ArcMap<DiArc> arcMap(other._h);
     
     lemon::digraphCopy(other._h, _h)
-    .nodeRef(nodeMap)
-    .arcRef(arcMap)
-    .nodeMap(other._h2g, _h2g)
-    .arcMap(other._cap, _cap)
-    .run();
+      .nodeRef(nodeMap)
+      .arcRef(arcMap)
+      .nodeMap(other._h2g, _h2g)
+      .arcMap(other._cap, _cap)
+      .run();
     
     lock();
     _pG2h1 = new NodeDiNodeMap(_g);

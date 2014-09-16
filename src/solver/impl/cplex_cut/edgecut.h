@@ -1,12 +1,12 @@
 /*
- * nodecut.h
+ * edgecut.h
  *
- *  Created on: 17-feb-2014
+ *  Created on: 10-sep-2014
  *      Author: M. El-Kebir
  */
 
-#ifndef NODECUT_H
-#define NODECUT_H
+#ifndef EDGECUT_H
+#define EDGECUT_H
 
 #include <ilcplex/ilocplex.h>
 #include <ilcplex/ilocplexi.h>
@@ -15,40 +15,43 @@
 #include <lemon/tolerance.h>
 #include <set>
 #include <queue>
+#include <list>
 
 namespace nina {
 namespace mwcs {
 
-template<typename GR,
-         typename NWGHT = typename GR::template NodeMap<double>,
-         typename NLBL = typename GR::template NodeMap<std::string>,
-         typename EWGHT = typename GR::template EdgeMap<double> >
-class NodeCut
+template<typename DGR,
+         typename NWGHT = typename DGR::template NodeMap<double> >
+class EdgeCut
 {
 public:
-  typedef GR Graph;
+  typedef DGR Graph;
   typedef NWGHT WeightNodeMap;
-  typedef NLBL LabelNodeMap;
-  typedef EWGHT WeightEdgeMap;
 
 protected:
-  TEMPLATE_GRAPH_TYPEDEFS(Graph);
+  TEMPLATE_DIGRAPH_TYPEDEFS(Graph);
   typedef std::set<Node> NodeSet;
   typedef typename NodeSet::const_iterator NodeSetIt;
+  typedef std::set<Arc> ArcSet;
+  typedef typename ArcSet::const_iterator ArcSetIt;
   typedef std::vector<NodeSet> NodeSetVector;
   typedef typename NodeSetVector::const_iterator NodeSetVectorIt;
   typedef lemon::FilterNodes<const Graph, const BoolNodeMap> SubGraph;
   typedef typename SubGraph::NodeIt SubNodeIt;
-  typedef typename SubGraph::EdgeIt SubEdgeIt;
+  typedef typename SubGraph::ArcIt SubArcIt;
   typedef std::queue<Node> NodeQueue;
+  typedef std::list<Node> NodeList;
+  typedef typename NodeList::const_iterator NodeListIt;
 
 protected:
   IloBoolVarArray _x;
-  IloBoolVarArray _y;
-  const Graph& _g;
+  IloBoolVarArray _z;
+  const Graph& _d;
   const WeightNodeMap& _weight;
   const IntNodeMap& _nodeMap;
+  const IntArcMap& _arcMap;
   const int _n;
+  const int _m;
   const int _maxNumberOfCuts;
   const lemon::Tolerance<double> _tol;
   BoolNodeMap* _pNodeBoolMap;
@@ -63,20 +66,24 @@ protected:
   static const double _epsilon = 1e-5;
 
 public:
-  NodeCut(IloBoolVarArray x,
-          IloBoolVarArray y,
-          const Graph& g,
+  EdgeCut(IloBoolVarArray x,
+          IloBoolVarArray z,
+          const Graph& d,
           const WeightNodeMap& weight,
           const IntNodeMap& nodeMap,
+          const IntArcMap& arcMap,
           int n,
+          int m,
           int maxNumberOfCuts,
           IloFastMutex* pMutex)
     : _x(x)
-    , _y(y)
-    , _g(g)
+    , _z(z)
+    , _d(d)
     , _weight(weight)
     , _nodeMap(nodeMap)
+    , _arcMap(arcMap)
     , _n(n)
+    , _m(m)
     , _maxNumberOfCuts(maxNumberOfCuts)
     , _tol(_epsilon)
     , _pNodeBoolMap(NULL)
@@ -85,19 +92,21 @@ public:
     , _pMutex(pMutex)
   {
     lock();
-    _pNodeBoolMap = new BoolNodeMap(_g);
-    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
-    _pComp = new IntNodeMap(_g);
+    _pNodeBoolMap = new BoolNodeMap(_d);
+    _pSubG = new SubGraph(_d, *_pNodeBoolMap);
+    _pComp = new IntNodeMap(_d);
     unlock();
   }
 
-  NodeCut(const NodeCut& other)
+  EdgeCut(const EdgeCut& other)
     : _x(other._x)
-    , _y(other._y)
-    , _g(other._g)
+    , _z(other._z)
+    , _d(other._d)
     , _weight(other._weight)
     , _nodeMap(other._nodeMap)
+    , _arcMap(other._arcMap)
     , _n(other._n)
+    , _m(other._m)
     , _maxNumberOfCuts(other._maxNumberOfCuts)
     , _tol(other._tol)
     , _pNodeBoolMap(NULL)
@@ -106,13 +115,13 @@ public:
     , _pMutex(other._pMutex)
   {
     lock();
-    _pNodeBoolMap = new BoolNodeMap(_g);
-    _pSubG = new SubGraph(_g, *_pNodeBoolMap);
-    _pComp = new IntNodeMap(_g);
+    _pNodeBoolMap = new BoolNodeMap(_d);
+    _pSubG = new SubGraph(_d, *_pNodeBoolMap);
+    _pComp = new IntNodeMap(_d);
     unlock();
   }
 
-  virtual ~NodeCut()
+  virtual ~EdgeCut()
   {
     lock();
     delete _pNodeBoolMap;
@@ -134,10 +143,10 @@ protected:
       _pMutex->unlock();
   }
   
-  NodeSetVector determineConnectedComponents(const IloNumArray& x_values)
+  NodeSetVector determineStronglyConnectedComponents(const IloNumArray& x_values)
   {
     // update _pSubG
-    for (NodeIt v(_g); v != lemon::INVALID; ++v)
+    for (NodeIt v(_d); v != lemon::INVALID; ++v)
     {
       double val = x_values[_nodeMap[v]];
       _pNodeBoolMap->set(v, _tol.nonZero(val));
@@ -156,12 +165,12 @@ protected:
   }
   
   template<typename CBK>
-  void separateConnectedComponent(const NodeSet& S,
-                                  const NodeSet rootNodes,
-                                  const IloNumArray& x_values,
-                                  const IloNumArray& y_values,
-                                  CBK& cbk,
-                                  int& nCuts)
+  void separateStronglyConnectedComponent(const NodeSet& S,
+                                          const NodeSet rootNodes,
+                                          const IloNumArray& x_values,
+                                          const IloNumArray& z_values,
+                                          CBK& cbk,
+                                          int& nCuts)
   {
 #ifdef DEBUG
     NodeSet intersection;
@@ -174,24 +183,42 @@ protected:
     IloExpr rhs(cbk.getEnv());
     
     // determine dS
-    NodeSet dS;
+    ArcSet dS;
     for (NodeSetIt it = S.begin(); it != S.end(); ++it)
     {
       const Node i = *it;
-      for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+      for (InArcIt a(_d, i); a != lemon::INVALID; ++a)
       {
-        const Node j = _g.target(a);
+        const Node j = _d.source(a);
         if (S.find(j) == S.end())
         {
-          dS.insert(j);
+          bool val_a = _tol.nonZero(z_values[_arcMap[a]]);
+          if (!val_a)
+          {
+            dS.insert(a);
+          }
+          else
+          {
+            for (InArcIt a2(_d, j); a2 != lemon::INVALID; ++a2)
+            {
+              bool val_a2 = _tol.nonZero(z_values[_arcMap[a2]]);
+              assert(!val_a2);
+              dS.insert(a2);
+            }
+          }
         }
       }
     }
     
-    constructRHS(rhs, dS, S);
+    constructRHS(rhs, dS);
+//    std::cout << std::endl << "dS" << std::endl;
+//    printArcSet(dS, _z, z_values);
+//    std::cout << "S" << std::endl;
+//    printNodeSet(S, _x, x_values);
+//    std::cout << std::endl << std::endl;
     for (NodeSetIt it = S.begin(); it != S.end(); ++it)
     {
-      assert(isValid(*it, dS, S));
+      assert(isValid(*it, dS));
       cbk.add(_x[_nodeMap[*it]] <= rhs, IloCplex::UseCutPurge).end();
       ++nCuts;
     }
@@ -200,11 +227,11 @@ protected:
   }
   
   template<typename CBK>
-  void separateRootedConnectedComponent(const NodeSet& S,
-                                        const Node root,
-                                        const IloNumArray& x_values,
-                                        CBK& cbk,
-                                        int& nCuts)
+  void separateRootedStronglyConnectedComponent(const NodeSet& S,
+                                                const Node root,
+                                                const IloNumArray& x_values,
+                                                CBK& cbk,
+                                                int& nCuts)
   {
     assert(S.find(root) == S.end());
 
@@ -215,9 +242,9 @@ protected:
     for (NodeSetIt it = S.begin(); it != S.end(); ++it)
     {
       const Node i = *it;
-      for (OutArcIt a(_g, i); a != lemon::INVALID; ++a)
+      for (OutArcIt a(_d, i); a != lemon::INVALID; ++a)
       {
-        const Node j = _g.target(a);
+        const Node j = _d.target(a);
         if (S.find(j) == S.end())
         {
           dS.insert(j);
@@ -241,17 +268,54 @@ protected:
                         IloNumArray values) const
   {
     std::cerr << cbk.getNnodes() << ":";
-    for (NodeIt i(_g); i != lemon::INVALID; ++i)
+    for (NodeIt i(_d); i != lemon::INVALID; ++i)
     {
       double i_value = values[_nodeMap[i]];
       if (!_tol.nonZero(i_value)) continue;
       std::cerr << " " << variables[_nodeMap[i]].getName()
-                << " (" << _g.id(i) << ", " << _weight[i] << ", " << i_value << ") " ;
+                << " (" << _d.id(i) << ", " << _weight[i] << ", " << i_value << ") " ;
 
       if (cbk.getDirection(variables[_nodeMap[i]]) == CPX_BRANCH_UP)
         std::cerr << "*";
+      std::cerr << std::endl;
     }
     std::cerr << std::endl;
+  }
+  
+  void printArcSet(const ArcSet& arcs,
+                   IloBoolVarArray variables,
+                   IloNumArray values) const
+  {
+    std::cout.precision(std::numeric_limits<double>::digits10);
+    bool first = true;
+    for (ArcSetIt it = arcs.begin(); it != arcs.end(); it++)
+    {
+      if (!first)
+        std::cout << " ";
+      else
+        first = false;
+      
+      std::cout << _d.id(*it) << "(" << variables[_arcMap[*it]].getName()
+                << " = " << std::fixed << values[_arcMap[*it]]
+                << (_tol.nonZero(values[_arcMap[*it]]) ? "*" : "") << ")";
+    }
+    std::cout << std::endl;
+  }
+  
+  void printArcSet(const ArcSet& arcs,
+                    IloBoolVarArray variables) const
+  {
+    bool first = true;
+    for (ArcSetIt it = arcs.begin(); it != arcs.end(); it++)
+    {
+      if (!first)
+        std::cout << " ";
+      else
+        first = false;
+      
+      std::cout << _d.id(*it) << "(" << variables[_arcMap[*it]].getName() << ")";
+    }
+    std::cout << std::endl;
   }
 
   void printNodeSet(const NodeSet& nodes,
@@ -267,7 +331,7 @@ protected:
       else
         first = false;
 
-      std::cout << _g.id(*it) << "(" << variables[_nodeMap[*it]].getName()
+      std::cout << _d.id(*it) << "(" << variables[_nodeMap[*it]].getName()
                 << " = " << std::fixed << values[_nodeMap[*it]]
                 << (_tol.nonZero(values[_nodeMap[*it]]) ? "*" : "") << ")";
     }
@@ -285,7 +349,7 @@ protected:
       else
         first = false;
       
-      std::cout << _g.id(*it) << "(" << variables[_nodeMap[*it]].getName() << ")";
+      std::cout << _d.id(*it) << "(" << variables[_nodeMap[*it]].getName() << ")";
     }
     std::cout << std::endl;
   }
@@ -325,9 +389,9 @@ protected:
     }
   }
   
-  bool isValid(Node target, const NodeSet& dS) const
+  bool isValid(Node target, const ArcSet& dS) const
   {
-    return dS.find(target) == dS.end();
+    return true;
   }
   
   template<typename CBK>
@@ -358,13 +422,13 @@ protected:
         //first = false;
       }
       
-      for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); nodeIt++)
-      {
-        expr += _y[_nodeMap[*nodeIt]];
-        
-        //std::cout << (first ? " " : " + ") << _y[_nodeMap[*nodeIt]].getName();
-        //first = false;
-      }
+//      for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); nodeIt++)
+//      {
+//        expr += _y[_nodeMap[*nodeIt]];
+//        
+//        //std::cout << (first ? " " : " + ") << _y[_nodeMap[*nodeIt]].getName();
+//        //first = false;
+//      }
       
       //std::cout << std::endl;
       
@@ -377,106 +441,92 @@ protected:
   }
 
   void constructRHS(IloExpr& rhs,
-                    const NodeSet& dS)
+                    const ArcSet& dS)
   {
     rhs.clear();
-    for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
+    for (ArcSetIt arcIt = dS.begin(); arcIt != dS.end(); ++arcIt)
     {
-      rhs += _x[_nodeMap[*nodeIt]];
+      rhs += _z[_arcMap[*arcIt]];
     }
   }
   
-  void constructRHS(IloExpr& rhs,
-                    const NodeSet& dS,
-                    const NodeSet& S)
-  {
-    rhs.clear();
-    for (NodeSetIt nodeIt = dS.begin(); nodeIt != dS.end(); nodeIt++)
-    {
-      rhs += _x[_nodeMap[*nodeIt]];
-    }
-    
-    for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); nodeIt++)
-    {
-      rhs += _y[_nodeMap[*nodeIt]];
-    }
-  }
-
-  bool isValid(Node target,
-               const NodeSet& dS,
-               const NodeSet& S) const
-  {
-    NodeSet ddS;
-    for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); ++nodeIt)
-    {
-      Node u = *nodeIt;
-      for (OutArcIt a(_g, u); a != lemon::INVALID; ++a)
-      {
-        Node v = _g.target(a);
-        if (S.find(v) == S.end())
-        {
-          ddS.insert(v);
-        }
-      }
-    }
-    
-    // let's do a bfs from target
-    NodeSet SS;
-    BoolNodeMap visited(_g, false);
-
-    NodeQueue Q;
-    Q.push(target);
-    while (!Q.empty())
-    {
-      Node v = Q.front();
-      Q.pop();
-      visited[v] = true;
-      SS.insert(v);
-      
-      for (IncEdgeIt e(_g, v); e != lemon::INVALID; ++e)
-      {
-        Node u = _g.oppositeNode(v, e);
-        if (!visited[u] && dS.find(u) == dS.end())
-        {
-          Q.push(u);
-        }
-      }
-    }
-    
-    if (S != SS)
-    {
-      std::cerr << std::endl << "SS" << std::endl;
-      printNodeSet(SS, _y);
-      return false;
-    }
-    
-    if (dS != ddS)
-    {
-      std::cerr << std::endl << "ddS" << std::endl;
-      printNodeSet(ddS, _x);
-      return false;
-    }
-    else
-    {
-      // target must be in S
-      if (S.find(target) == S.end())
-      {
-        return false;
-      }
-      
-      // but must not be in dS
-      if (dS.find(target) != dS.end())
-      {
-        return false;
-      }
-      
-      return true;
-    }
-  }
+//  bool isValid(Node target,
+//               const ArcSet& dS,
+//               const NodeSet& S) const
+//  {
+//    ArcSet ddS;
+//    for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); ++nodeIt)
+//    {
+//      Node u = *nodeIt;
+//      for (InArcIt a(_d, u); a != lemon::INVALID; ++a)
+//      {
+//        Node v = _d.source(a);
+//        if (S.find(v) == S.end())
+//        {
+//          ddS.insert(a);
+//        }
+//      }
+//    }
+//    
+//    // let's do a bfs from target
+//    NodeSet SS;
+//    BoolNodeMap visited(_d, false);
+//
+//    NodeQueue Q;
+//    Q.push(target);
+//    while (!Q.empty())
+//    {
+//      Node v = Q.front();
+//      Q.pop();
+//      visited[v] = true;
+//      SS.insert(v);
+//      
+////      for (IncEdgeIt e(_d, v); e != lemon::INVALID; ++e)
+////      {
+////        Node u = _d.oppositeNode(v, e);
+////        if (!visited[u] && dS.find(u) == dS.end())
+////        {
+////          Q.push(u);
+////        }
+////      }
+//    }
+//    
+//    if (S != SS)
+//    {
+//      std::cerr << std::endl << "SS" << std::endl;
+//      printNodeSet(SS, _y);
+//      return false;
+//    }
+//    
+//    if (dS != ddS)
+//    {
+//      std::cerr << std::endl << "ddS" << std::endl;
+//      printArcSet(ddS, _z);
+//      return false;
+//    }
+//    else
+//    {
+//      // target must be in S
+//      if (S.find(target) == S.end())
+//      {
+//        return false;
+//      }
+//      
+//      // but must not be in dS
+//      for (ArcSetIt arcIt = dS.begin(); arcIt != dS.end(); ++arcIt)
+//      {
+//        if (target == _d.source(*arcIt))
+//        {
+//          return false;
+//        }
+//      }
+//      
+//      return true;
+//    }
+//  }
 };
 
 } // namespace mwcs
 } // namespace nina
 
-
-#endif // NODECUT_H
+#endif // EDGECUT_H
