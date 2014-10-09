@@ -24,22 +24,8 @@ First, LEMON 1.3 needs to be installed:
     cmake -DCMAKE_INSTALL_PREFIX=~/lemon
     make install
     
-Note: On Mac OS 10.9, comment out the following two lines and add the code below at line 162 in `CMakeLists.txt` before `make install`
-
-    #ADD_SUBDIRECTORY(demo) 
-    #ADD_SUBDIRECTORY(tools)
-    
-    if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
-      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
-    endif()
-
 You can remove the LEMON sources now, i.e., `rm -rf lemon-1.3`.
 
-    mkdir build
-    cd build
-    cmake ..
-    make
-    
 Next, OGDF needs to be installed:
 
     wget http://www.ogdf.net/lib/exe/fetch.php/tech:ogdf.v2012.07.zip
@@ -53,8 +39,15 @@ Next, OGDF needs to be installed:
     cp _release/libOGDF.a ~/ogdf/lib/
     cp -R ogdf ~/ogdf/include/
     
-You can remove the OGDF sources now, i.e., `rm -rf OGDF`. Next, Heinz can be compiled:
+You can remove the OGDF sources now, i.e., `rm -rf OGDF`. 
 
+Next, Heinz can be compiled:
+
+    mkdir build
+    cd build
+    cmake ..
+    make
+    
 In case auto-detection of LEMON or CPLEX fails, do
 
     cmake \
