@@ -382,111 +382,115 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
     
     int nBlocks = bcTree.getNumBlockTreeNodes();
     int blockIndex = 0;
-    
-    for (int blockDegree = nBlocks > 1 ? 1 : 0; blockDegree >= 0; --blockDegree)
-    {
-      const BcTreeBlockNodeSet& leaves = bcTree.getBlockNodeSetByDegree(blockDegree);
-      while (!leaves.empty())
-      {
-        BcTreeBlockNode b = *leaves.begin();
-        
-        BcTreeEdge e(BcTreeIncEdgeIt(T, b));
-        BcTreeCutNode c = e != lemon::INVALID ? T.redNode(e) : lemon::INVALID;
-        Node orgC = c != lemon::INVALID ? bcTree.getArticulationPoint(c) : lemon::INVALID;
-        
-        const NodeSet& nodesInBlock = bcTree.getRealNodes(b);
-        
-        lemon::mapFill(g, sameBlock, false);
-        for (NodeSetIt nodeIt = nodesInBlock.begin(); nodeIt != nodesInBlock.end(); ++nodeIt)
-        {
-          sameBlock[*nodeIt] = true;
-        }
-        
-        initLocalGraph(g,
-                       mwcsGraph.getScores(),
-                       mwcsGraph.getLabels(),
-                       sameBlock,
-                       subG,
-                       weightSubG,
-                       labelSubG,
-                       mapToG,
-                       mapToSubG,
-                       mwcsSubGraph);
-        
-        NodeSet solutionUnrooted, solutionRooted;
-        double scoreUnrooted, scoreRooted;
-        
-        assert(orgC == lemon::INVALID || mwcsSubGraph.getPreNodes(mapToSubG[orgC]).size() == 1);
-        
-        if (!solveBlock(mwcsSubGraph,
-                        orgC != lemon::INVALID ? mapToSubG[orgC] : lemon::INVALID,
-                        blockIndex, nBlocks,
-                        solutionUnrooted, scoreUnrooted,
-                        solutionRooted, scoreRooted))
-        {
-          return false;
-        }
-        
-        
-        NodeSet orgSolutionUnrooted;
-        map(mwcsSubGraph, mapToG, solutionUnrooted, orgSolutionUnrooted);
-        
-        if (orgC == lemon::INVALID)
-        {
-          // there is no cut node, so just merge the solution a single node
-          mwcsGraph.merge(orgSolutionUnrooted);
-          
-          // and remove the nodes that are not part of the solution
-          NodeSet solutionComplementSet;
-          std::set_difference(nodesInBlock.begin(), nodesInBlock.end(),
-                              orgSolutionUnrooted.begin(), orgSolutionUnrooted.end(),
-                              std::inserter(solutionComplementSet, solutionComplementSet.begin()));
-          mwcsGraph.remove(solutionComplementSet);
-          
-        }
-        else
-        {
-          if (scoreUnrooted != scoreRooted && solutionUnrooted != solutionRooted)
-          {
-            // rooted solution is different
-            
-            // extracting unrooted solution
-            mwcsGraph.extract(orgSolutionUnrooted);
-          }
-        
-          // let's check whether the rooted solution is negative, if so then it can go
-          if (scoreRooted <= 0)
-          {
-            NodeSet solutionComplementSet = nodesInBlock;
 
-            // don't remove the cut node if it connects to other blocks, i.e. has degree >= 2
-            if (bcTree.getDegree(c) > 1)
-            {
-              solutionComplementSet.erase(orgC);
-            }
+    // guard against the degenerate case, when there are no edges
+    if (nBlocks != 0)
+    {
+      for (int blockDegree = nBlocks > 1 ? 1 : 0; blockDegree >= 0; --blockDegree)
+      {
+        const BcTreeBlockNodeSet& leaves = bcTree.getBlockNodeSetByDegree(blockDegree);
+        while (!leaves.empty())
+        {
+          BcTreeBlockNode b = *leaves.begin();
+          
+          BcTreeEdge e(BcTreeIncEdgeIt(T, b));
+          BcTreeCutNode c = e != lemon::INVALID ? T.redNode(e) : lemon::INVALID;
+          Node orgC = c != lemon::INVALID ? bcTree.getArticulationPoint(c) : lemon::INVALID;
+          
+          const NodeSet& nodesInBlock = bcTree.getRealNodes(b);
+          
+          lemon::mapFill(g, sameBlock, false);
+          for (NodeSetIt nodeIt = nodesInBlock.begin(); nodeIt != nodesInBlock.end(); ++nodeIt)
+          {
+            sameBlock[*nodeIt] = true;
+          }
+          
+          initLocalGraph(g,
+                         mwcsGraph.getScores(),
+                         mwcsGraph.getLabels(),
+                         sameBlock,
+                         subG,
+                         weightSubG,
+                         labelSubG,
+                         mapToG,
+                         mapToSubG,
+                         mwcsSubGraph);
+          
+          NodeSet solutionUnrooted, solutionRooted;
+          double scoreUnrooted, scoreRooted;
+          
+          assert(orgC == lemon::INVALID || mwcsSubGraph.getPreNodes(mapToSubG[orgC]).size() == 1);
+          
+          if (!solveBlock(mwcsSubGraph,
+                          orgC != lemon::INVALID ? mapToSubG[orgC] : lemon::INVALID,
+                          blockIndex, nBlocks,
+                          solutionUnrooted, scoreUnrooted,
+                          solutionRooted, scoreRooted))
+          {
+            return false;
+          }
+          
+          
+          NodeSet orgSolutionUnrooted;
+          map(mwcsSubGraph, mapToG, solutionUnrooted, orgSolutionUnrooted);
+          
+          if (orgC == lemon::INVALID)
+          {
+            // there is no cut node, so just merge the solution a single node
+            mwcsGraph.merge(orgSolutionUnrooted);
             
+            // and remove the nodes that are not part of the solution
+            NodeSet solutionComplementSet;
+            std::set_difference(nodesInBlock.begin(), nodesInBlock.end(),
+                                orgSolutionUnrooted.begin(), orgSolutionUnrooted.end(),
+                                std::inserter(solutionComplementSet, solutionComplementSet.begin()));
             mwcsGraph.remove(solutionComplementSet);
+            
           }
           else
           {
-            // rooted solution is not negative
-            NodeSet orgSolutionRooted;
-            map(mwcsSubGraph, mapToG, solutionRooted, orgSolutionRooted);
+            if (scoreUnrooted != scoreRooted && solutionUnrooted != solutionRooted)
+            {
+              // rooted solution is different
+              
+              // extracting unrooted solution
+              mwcsGraph.extract(orgSolutionUnrooted);
+            }
+          
+            // let's check whether the rooted solution is negative, if so then it can go
+            if (scoreRooted <= 0)
+            {
+              NodeSet solutionComplementSet = nodesInBlock;
 
-            // collapse it into the cut node and remove the other nodes
-            NodeSet solutionComplementSet;
-            std::set_difference(nodesInBlock.begin(), nodesInBlock.end(),
-                                orgSolutionRooted.begin(), orgSolutionRooted.end(),
-                                std::inserter(solutionComplementSet, solutionComplementSet.begin()));
+              // don't remove the cut node if it connects to other blocks, i.e. has degree >= 2
+              if (bcTree.getDegree(c) > 1)
+              {
+                solutionComplementSet.erase(orgC);
+              }
+              
+              mwcsGraph.remove(solutionComplementSet);
+            }
+            else
+            {
+              // rooted solution is not negative
+              NodeSet orgSolutionRooted;
+              map(mwcsSubGraph, mapToG, solutionRooted, orgSolutionRooted);
 
-            mwcsGraph.merge(orgC, orgSolutionRooted);
-            mwcsGraph.remove(solutionComplementSet);
+              // collapse it into the cut node and remove the other nodes
+              NodeSet solutionComplementSet;
+              std::set_difference(nodesInBlock.begin(), nodesInBlock.end(),
+                                  orgSolutionRooted.begin(), orgSolutionRooted.end(),
+                                  std::inserter(solutionComplementSet, solutionComplementSet.begin()));
+
+              mwcsGraph.merge(orgC, orgSolutionRooted);
+              mwcsGraph.remove(solutionComplementSet);
+            }
           }
+          
+          // update block-cut vertex tree
+          bcTree.removeBlockNode(b);
+          ++blockIndex;
         }
-        
-        // update block-cut vertex tree
-        bcTree.removeBlockNode(b);
-        ++blockIndex;
       }
     }
   }
