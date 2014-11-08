@@ -52,8 +52,8 @@ typedef SolverUnrooted<Graph> SolverUnrootedType;
 typedef TreeHeuristicSolverImpl<Graph> TreeHeuristicSolverImplType;
 typedef TreeHeuristicSolverUnrootedImpl<Graph> TreeHeuristicSolverUnrootedImplType;
 typedef TreeHeuristicSolverRootedImpl<Graph> TreeHeuristicSolverRootedImplType;
-typedef typename SolverType::NodeSet NodeSet;
-typedef typename TreeHeuristicSolverImplType::Options Options;
+typedef SolverType::NodeSet NodeSet;
+typedef TreeHeuristicSolverImplType::Options Options;
 
 int main (int argc, char** argv)
 {
