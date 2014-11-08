@@ -595,7 +595,7 @@ inline void MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::preprocess(const Node
 
           if (g_verbosity >= VERBOSE_DEBUG && removedNodes > 0)
           {
-            std::cout << "// Phase " << phase
+            std::cout << "// Phase " << phase + 1
                       << ": applied rule '" << (*ruleIt)->name()
                       << "' and removed " << removedNodes
                       << " node(s)" << std::endl;
