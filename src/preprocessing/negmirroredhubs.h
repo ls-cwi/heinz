@@ -86,6 +86,7 @@ inline int NegMirroredHubs<GR, WGHT>::apply(Graph& g,
   for (size_t d = 3; d < degreeVector.size(); ++d)
   {
     const NodeSet& nodes = degreeVector[d];
+    if (nodes.size() > 1000) continue;
     for (NodeSetIt nodeIt1 = nodes.begin(); nodeIt1 != nodes.end(); ++nodeIt1)
     {
       Node u = *nodeIt1;
