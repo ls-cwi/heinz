@@ -143,6 +143,11 @@ inline int ShortestPath<GR, WGHT>::apply(Graph& g,
     // nothing to remove, there are no degree 2 nodes
     return 0;
   }
+  else if (degreeVector[2].size() > 1000)
+  {
+    // too many nodes
+    return 0;
+  }
   
   // let's construct the arc costs
   DoubleArcMap arcCost(g);
