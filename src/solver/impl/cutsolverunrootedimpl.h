@@ -241,6 +241,10 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
       }
     }
   }
+  if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+  {
+    std::cout << std::endl;
+  }
 }
   
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
