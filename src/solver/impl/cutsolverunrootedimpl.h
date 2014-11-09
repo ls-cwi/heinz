@@ -207,8 +207,17 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
   // must be part of the solution as well
   // if you get in, you have to get out as well
   // BIG FAT WARNING: not true for xHeinz!!!
-  for (NodeIt i(g); i != lemon::INVALID; ++i)
+  if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
   {
+    std::cout << std::endl;
+  }
+  int idx = 0;
+  for (NodeIt i(g); i != lemon::INVALID; ++i, ++idx)
+  {
+    if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+    {
+      std::cout << "\rAdding symmetry breaking constraints " << idx << "/" << _n << std::flush;
+    }
     if (weight[i] <= 0)
     {
       expr.clear();
