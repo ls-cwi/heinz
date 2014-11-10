@@ -116,6 +116,10 @@ int main(int argc, char** argv)
   
   printRunSection(threads, solver.getSolutionWeight(), solver.getSolutionWeightUB());
   
+  *g_pOut << "SECTION Finalsolution" << std::endl;
+  instance.printMwcsDimacs(solver.getSolutionModule(), *g_pOut);
+  *g_pOut << "End" << std::endl;
+  
   if (!std_out_used)
     delete g_pOut;
   

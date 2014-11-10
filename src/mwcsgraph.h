@@ -326,6 +326,8 @@ public:
                           std::ostream& out) const;
   virtual void printHeinzOrg(const NodeSet& module,
                           std::ostream& out) const;
+  virtual void printMwcsDimacs(const NodeSet& module,
+                               std::ostream& out) const;
   virtual void computeScores(double lambda, double a, double FDR) {}
   virtual void computeScores(double tau) {}
 };
@@ -614,6 +616,17 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printHeinz(const NodeSet& module,
     }
   }
   out << "#total score\t" << score << std::endl;
+}
+
+template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
+inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printMwcsDimacs(const NodeSet& module,
+                                                               std::ostream& out) const
+{
+  out << "Vertices " << module.size() << std::endl;
+  for (NodeSetIt nodeIt = module.begin(); nodeIt != module.end(); nodeIt++)
+  {
+    out << "V " << getLabel(*nodeIt) << std::endl;
+  }
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
