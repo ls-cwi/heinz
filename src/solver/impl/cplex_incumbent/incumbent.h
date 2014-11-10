@@ -11,6 +11,7 @@
 #include <ilcplex/ilocplex.h>
 #include <ilcplex/ilocplexi.h>
 #include <ilconcert/ilothread.h>
+#include <limits>
 #include "utils.h"
 
 namespace nina {
@@ -37,7 +38,13 @@ protected:
   
   virtual void main()
   {
-    *g_pOut << "Solution " << g_timer.realTime() << " " << getObjValue() << std::endl;
+    lock();
+    if (getObjValue() > _highestObj)
+    {
+      _highestObj = getObjValue();
+      *g_pOut << "Solution " << g_timer.realTime() << " " << getObjValue() << std::endl;
+    }
+    unlock();
   }
   
   virtual IloCplex::CallbackI* duplicateCallback() const
@@ -56,7 +63,11 @@ protected:
     if (_pMutex)
       _pMutex->unlock();
   }
+  
+  static double _highestObj;
 };
+
+double Incumbent::_highestObj = -std::numeric_limits<double>::max();
   
 } // namespace mwcs
 } // namespace nina
