@@ -362,9 +362,6 @@ public:
     _pGraph->_nEdges--;
     _pGraph->_nArcs -= 2;
     
-    Node u = g.u(e);
-    Node v = g.v(e);
-    
     g.erase(e);
   }
   

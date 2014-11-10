@@ -1,5 +1,5 @@
 /*
- *  dimacs_mwcs.cpp
+ *  heinz_mwcs_dc.cpp
  *
  *   Created on: 8-nov-2014
  *       Author: M. El-Kebir
@@ -12,7 +12,7 @@
 
 #include "utils.h"
 #include "config.h"
-#include "parser/stpparser.h"
+#include "parser/stppcstparser.h"
 #include "mwcspreprocessedgraph.h"
 
 #include "solver/solver.h"
@@ -24,20 +24,18 @@
 #include "solver/impl/cutsolverunrootedimpl.h"
 #include "solver/impl/cplex_cut/backoff.h"
 
-#define PROBLEM "\"MWCS\""
-#define METHOD "\"heinz-dc\""
+#define PROBLEM "PCST"
+#define METHOD "heinz-pcst-no-dc"
 
 using namespace nina::mwcs;
 
-typedef StpParser<Graph> StpParserType;
+typedef StpPcstParser<Graph> StpPcstParserType;
 typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 typedef Solver<Graph> SolverType;
 typedef SolverRooted<Graph> SolverRootedType;
 typedef SolverUnrooted<Graph> SolverUnrootedType;
-typedef EnumSolverUnrooted<Graph> EnumSolverUnrootedType;
 typedef CplexSolverImpl<Graph> CplexSolverImplType;
 typedef CplexSolverImplType::Options Options;
-typedef CutSolverRootedImpl<Graph> CutSolverRootedImplType;
 typedef CutSolverUnrootedImpl<Graph> CutSolverUnrootedImplType;
 typedef SolverType::NodeSet NodeSet;
 
@@ -90,13 +88,14 @@ int main(int argc, char** argv)
   
   g_verbosity = VERBOSE_NONE;
   //g_verbosity = VERBOSE_NON_ESSENTIAL;
-  StpParserType parser(input);
+  StpPcstParserType parser(input);
   
   MwcsPreprocessedGraphType instance;
   if (!instance.init(&parser, false))
   {
     return 1;
   }
+  instance.preprocess(NodeSet());
   
   Options options(BackOff(1), // linear waiting
                   true,
@@ -104,11 +103,9 @@ int main(int argc, char** argv)
                   timelimit,
                   threads);
 
-  printCommentSection(parser.getName(), "MWCS", "heinz-dc", HEINZ_VERSION);
+  printCommentSection(parser.getName(), PROBLEM, METHOD, HEINZ_VERSION);
   
-  EnumSolverUnrootedType solver(new CutSolverUnrootedImplType(options),
-                                new CutSolverRootedImplType(options),
-                                true);
+  SolverUnrootedType solver(new CutSolverUnrootedImplType(options));
   
   *g_pOut << "SECTION Solutions" << std::endl;
   solver.solve(instance);
@@ -117,7 +114,7 @@ int main(int argc, char** argv)
   printRunSection(threads, solver.getSolutionWeight(), solver.getSolutionWeightUB());
   
   *g_pOut << "SECTION Finalsolution" << std::endl;
-  instance.printMwcsDimacs(solver.getSolutionModule(), *g_pOut);
+  instance.printPcstDimacs(solver.getSolutionModule(), *g_pOut);
   *g_pOut << "End" << std::endl;
   
   if (!std_out_used)

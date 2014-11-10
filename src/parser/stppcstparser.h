@@ -55,18 +55,25 @@ private:
   bool parseEdge(std::istream& in, int& lineNumber);
   bool parseTerminal(std::istream& in, int& lineNumber);
   
-  int _nOrgNodes;
-  int _nOrgEdges;
-  int _nTerminals;
-
 public:
   StpPcstParser(const std::string& filename);
   bool parse();
+  const std::string& getName() const
+  {
+    return _name;
+  }
+  
+protected:
+  std::string _name;
+  int _nOrgNodes;
+  int _nOrgEdges;
+  int _nTerminals;
 };
 
 template<typename GR>
 inline StpPcstParser<GR>::StpPcstParser(const std::string& filename)
   : Parent(filename)
+  , _name()
   , _nOrgNodes(0)
   , _nOrgEdges(0)
   , _nTerminals(0)
@@ -192,6 +199,17 @@ inline bool StpPcstParser<GR>::parseGraph(std::istream& in, int& lineNumber)
 {
   std::string line;
   char buf[1024];
+  
+  // skip until "Name"
+  while (std::getline(in, line) && line.substr(0, 4) != "Name")
+    lineNumber++;
+  
+  if (line.size() < 6)
+  {
+    std::cerr << "Error: missing 'Name'" << std::endl;
+    return false;
+  }
+  _name = line.substr(5);
 
   // skip until "SECTION Graph"
   while (std::getline(in, line) && line != "SECTION Graph")

@@ -328,6 +328,8 @@ public:
                           std::ostream& out) const;
   virtual void printMwcsDimacs(const NodeSet& module,
                                std::ostream& out) const;
+  virtual void printPcstDimacs(const NodeSet& module,
+                               std::ostream& out) const;
   virtual void computeScores(double lambda, double a, double FDR) {}
   virtual void computeScores(double tau) {}
 };
@@ -622,10 +624,69 @@ template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printMwcsDimacs(const NodeSet& module,
                                                                std::ostream& out) const
 {
-  out << "Vertices " << module.size() << std::endl;
-  for (NodeSetIt nodeIt = module.begin(); nodeIt != module.end(); nodeIt++)
+  int n = 0;
+  for (NodeSetIt nodeIt = module.begin(); nodeIt != module.end(); ++nodeIt)
   {
-    out << "V " << getLabel(*nodeIt) << std::endl;
+    n += getOrgNodes(*nodeIt).size();
+  }
+  out << "Vertices " << n << std::endl;
+  
+  for (NodeSetIt nodeIt = module.begin(); nodeIt != module.end(); ++nodeIt)
+  {
+    NodeSet orgNodes = getOrgNodes(*nodeIt);
+    for (NodeSetIt nodeIt2 = orgNodes.begin(); nodeIt2 != orgNodes.end(); ++nodeIt2)
+    {
+      out << "V " << getOrgLabel(*nodeIt2) << std::endl;
+    }
+  }
+}
+  
+template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
+inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printPcstDimacs(const NodeSet& module,
+                                                               std::ostream& out) const
+{
+  typedef std::pair<int, int> IntPair;
+  typedef std::vector<IntPair> IntPairVector;
+  typedef IntPairVector::const_iterator IntPairVectorIt;
+  typedef std::vector<int> IntVector;
+  typedef IntVector::const_iterator IntVectorIt;
+  
+  IntVector vertices;
+  IntPairVector edges;
+  
+  // determine vertices and edges
+  for (NodeSetIt nodeIt = module.begin(); nodeIt != module.end(); ++nodeIt)
+  {
+    NodeSet orgNodes = getOrgNodes(*nodeIt);
+    for (NodeSetIt nodeIt2 = orgNodes.begin(); nodeIt2 != orgNodes.end(); ++nodeIt2)
+    {
+      const std::string& label = getOrgLabel(*nodeIt2);
+      int u = -1, v = -1;
+      if (sscanf(label.c_str(), "%d--%d", &u, &v) == 2)
+      {
+        edges.push_back(std::make_pair(u, v));
+      }
+      else if (sscanf(label.c_str(), "%d", &u) == 1)
+      {
+        vertices.push_back(u);
+      }
+      else
+      {
+        assert(false);
+      }
+    }
+  }
+  
+  out << "Vertices " << vertices.size() << std::endl;
+  for (IntVectorIt nodeIt = vertices.begin(); nodeIt != vertices.end(); ++nodeIt)
+  {
+    out << "V " << *nodeIt << std::endl;
+  }
+  
+  out << "Edges " << edges.size() << std::endl;
+  for (IntPairVectorIt edgeIt = edges.begin(); edgeIt != edges.end(); ++edgeIt)
+  {
+    out << "E " << edgeIt->first << " " << edgeIt->second << std::endl;
   }
 }
 
