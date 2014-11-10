@@ -12,6 +12,7 @@
 #include <string.h>
 #include <map>
 #include <string>
+#include <limits>
 #include <lemon/core.h>
 #include "parser.h"
 #include "utils.h"
