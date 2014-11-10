@@ -69,9 +69,9 @@ void nina::mwcs::printCommentSection(const std::string& name,
   assert(g_pOut);
   *g_pOut << "SECTION Comment" << std::endl;
   *g_pOut << "Name " << name << std::endl;
-  *g_pOut << "Problem " << problem << std::endl;
-  *g_pOut << "Program " << method << std::endl;
-  *g_pOut << "Version " << version << std::endl;
+  *g_pOut << "Problem \"" << problem << "\"" << std::endl;
+  *g_pOut << "Program \"" << method << "\"" << std::endl;
+  *g_pOut << "Version \"" << version << "\"" << std::endl;
   *g_pOut << "End" << std::endl;
   *g_pOut << std::endl;
 }
