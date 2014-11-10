@@ -282,6 +282,19 @@ public:
     return (*_pGraph->_pMapToPre)[orgNode];
   }
   
+  virtual NodeSet getPreNodes(const NodeSet orgNodes) const
+  {
+    assert(_pGraph->_pMapToPre);
+    NodeSet res;
+    for (NodeSetIt nodeIt = orgNodes.begin(); nodeIt != orgNodes.end(); ++nodeIt)
+    {
+      const NodeSet& preNodes = (*_pGraph->_pMapToPre)[*nodeIt];
+      res.insert(preNodes.begin(), preNodes.end());
+    }
+    return res;
+  }
+  
+  
   void clear()
   {
     if (!_pGraph)

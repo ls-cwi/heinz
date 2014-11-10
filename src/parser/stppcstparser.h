@@ -13,6 +13,7 @@
 #include <map>
 #include <string>
 #include <lemon/core.h>
+#include <set>
 #include "parser.h"
 #include "utils.h"
 
@@ -30,6 +31,10 @@ public:
 
 private:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
+  
+public:
+  /// Node set type
+  typedef std::set<Node> NodeSet;
 
 public:
   typedef typename Parent::InvIdNodeMap InvIdNodeMap;
@@ -63,11 +68,17 @@ public:
     return _name;
   }
   
+  NodeSet getRootNodes() const
+  {
+    return _rootNodes;
+  }
+  
 protected:
   std::string _name;
   int _nOrgNodes;
   int _nOrgEdges;
   int _nTerminals;
+  NodeSet _rootNodes;
 };
 
 template<typename GR>
@@ -77,6 +88,7 @@ inline StpPcstParser<GR>::StpPcstParser(const std::string& filename)
   , _nOrgNodes(0)
   , _nOrgEdges(0)
   , _nTerminals(0)
+  , _rootNodes()
 {
 }
 
@@ -341,9 +353,9 @@ inline bool StpPcstParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
     lineNumber++;
     ss >> text;
 
-    if (text != "TP")
+    if (text != "TP" && text != "RootP")
     {
-      std::cerr << "Error at line " << lineNumber << ": expected 'TP'" << std::endl;
+      std::cerr << "Error at line " << lineNumber << ": expected 'TP' or 'RootP'" << std::endl;
       return false;
     }
 
@@ -351,23 +363,31 @@ inline bool StpPcstParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
     double weightU = -std::numeric_limits<double>::max();
 
     ss >> idU >> weightU;
-
-    if (!(0 < idU && idU <= _nNodes))
+    
+    if (text == "RootP")
     {
-      std::cerr << "Error at line " << lineNumber << ": expected node id in [1, "
-                << _nNodes << "]" << std::endl;
-      return false;
+      Node u = _pG->nodeFromId(idU - 1);
+      _rootNodes.insert(u);
     }
-
-    if (weightU == -std::numeric_limits<double>::max())
+    else
     {
-      std::cerr << "Error at line " << lineNumber << ": expected real-valued node weight"
-                << std::endl;
-      return false;
-    }
+      if (!(0 < idU && idU <= _nNodes))
+      {
+        std::cerr << "Error at line " << lineNumber << ": expected node id in [1, "
+                  << _nNodes << "]" << std::endl;
+        return false;
+      }
 
-    Node u = _pG->nodeFromId(idU - 1);
-    _pWeightNodeMap->set(u, weightU);
+      if (weightU == -std::numeric_limits<double>::max())
+      {
+        std::cerr << "Error at line " << lineNumber << ": expected real-valued node weight"
+                  << std::endl;
+        return false;
+      }
+      
+      Node u = _pG->nodeFromId(idU - 1);
+      _pWeightNodeMap->set(u, weightU);
+    }
 
     return true;
   }
