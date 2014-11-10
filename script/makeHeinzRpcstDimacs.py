@@ -17,7 +17,7 @@ timelimit_heinz = sys.argv[5]
 print "#PBS -N", filename
 print "#PBS -o", filename + ".out"
 print "#PBS -e", filename + ".err"
-print "#PBS -l", "walltime=" + timelimit_pbs
+print "#PBS -l", "walltime=" + timelimit_pbs + ":cpu3"
 print "cd ~/DIMACS2014/"
 print "( /usr/bin/time -o " + filename1 + ".time bin/heinz_rpcst_no_pre " + full_filename + " " + timelimit_heinz + " 2 " + filename1 + ".dimacs" + " > " + filename1 + ".out 2> " + filename1 + ".err ) &"
 print "( /usr/bin/time -o " + filename2 + ".time bin/heinz_rpcst_no_dc " + full_filename + " " + timelimit_heinz + " 2 " + filename2 + ".dimacs" + " > " + filename2 + ".out 2> " + filename2 + ".err ) &"
