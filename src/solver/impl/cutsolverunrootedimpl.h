@@ -12,6 +12,7 @@
 #include "cplexsolverimpl.h"
 #include "cplex_cut/nodecutunrooted.h"
 #include "cplex_heuristic/heuristicunrooted.h"
+#include "cplex_incumbent/incumbent.h"
 
 namespace nina {
 namespace mwcs {
@@ -262,6 +263,7 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   IloCplex::LazyConstraintCallbackI* pLazyCut = NULL;
   IloCplex::UserCutCallbackI* pUserCut = NULL;
   IloCplex::HeuristicCallbackI* pHeuristic = NULL;
+  IloCplex::IncumbentCallbackI* pIncumbent = NULL;
 
   _cplex.setParam( IloCplex::HeurFreq      , -1 );
 //  _cplex.setParam( IloCplex::Cliques       , -1 );
@@ -293,6 +295,9 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
                                                 g, weight,
                                                 *_pNode, //*_pEdge,
                                                 _n, _m, pMutex);
+  
+  if (g_pOut)
+    pIncumbent = new (_env) Incumbent(_env, pMutex);
 
   _cplex.setParam(IloCplex::MIPInterval, 1);
   
@@ -304,6 +309,10 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 
   IloCplex::Callback cb3(pUserCut);
   _cplex.use(cb3);
+  
+  IloCplex::Callback cb4(pIncumbent);
+  if (pIncumbent)
+    _cplex.use(cb4);
   
 //  // determine degrees
 //  IntNodeMap deg(g, 0);
@@ -327,7 +336,11 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   cb.end();
   cb2.end();
   cb3.end();
-
+  if (g_pOut)
+  {
+    cb4.end();
+  }
+  
   if (res)
   {
     if (g_verbosity > VERBOSE_NONE)

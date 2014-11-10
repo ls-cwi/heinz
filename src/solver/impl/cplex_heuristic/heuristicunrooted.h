@@ -9,7 +9,6 @@
 #define HEURISTICUNROOTED_H
 
 #include <ilcplex/ilocplex.h>
-#include <ilcplex/ilocplex.h>
 #include <ilconcert/ilothread.h>
 #include <lemon/adaptors.h>
 #include <lemon/bfs.h>

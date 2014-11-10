@@ -37,6 +37,7 @@ set( Heinz_Hdr
   src/solver/impl/treesolverimpl.h
   src/solver/impl/treesolverunrootedimpl.h
   src/solver/impl/treesolverrootedimpl.h
+  src/solver/impl/cplex_incumbent/incumbent.h
   src/solver/impl/cplex_cut/backoff.h
   src/solver/impl/cplex_cut/nodecut.h
   src/solver/impl/cplex_cut/nodecutuser.h

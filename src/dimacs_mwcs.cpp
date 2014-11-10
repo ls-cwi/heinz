@@ -110,7 +110,9 @@ int main(int argc, char** argv)
                                 new CutSolverRootedImplType(options),
                                 true);
   
+  *g_pOut << "SECTION Solutions" << std::endl;
   solver.solve(instance);
+  *g_pOut << "End" << std::endl << std::endl;
   
   printRunSection(threads, solver.getSolutionWeight(), solver.getSolutionWeightUB());
   
