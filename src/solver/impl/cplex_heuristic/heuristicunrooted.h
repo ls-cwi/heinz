@@ -170,8 +170,9 @@ protected:
     
     NodeSet solutionSet;
     double score;
+    double scoreUB;
     
-    _pMwcsSubTreeUnrootedSolver->solve(score, *_pSubSolutionMap, solutionSet);
+    _pMwcsSubTreeUnrootedSolver->solve(score, scoreUB, *_pSubSolutionMap, solutionSet);
     
     if (score > solutionWeight)
     {

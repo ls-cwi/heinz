@@ -21,15 +21,6 @@
 #include "mwcsgraphparser.h"
 #include "mwcspreprocessedgraph.h"
 
-#include "preprocessing/negdeg01.h"
-#include "preprocessing/posedge.h"
-#include "preprocessing/negedge.h"
-#include "preprocessing/negcircuit.h"
-#include "preprocessing/negdiamond.h"
-#include "preprocessing/negmirroredhubs.h"
-#include "preprocessing/posdeg01.h"
-#include "preprocessing/posdiamond.h"
-
 #include "solver/solver.h"
 #include "solver/solverrooted.h"
 #include "solver/solverunrooted.h"
@@ -55,24 +46,15 @@ typedef StpPcstParser<Graph> StpPcstParserType;
 typedef MwcsGraphParser<Graph> MwcsGraphType;
 typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 
-typedef NegDeg01<Graph> NegDeg01Type;
-typedef PosEdge<Graph> PosEdgeType;
-typedef NegEdge<Graph> NegEdgeType;
-typedef NegCircuit<Graph> NegCircuitType;
-typedef NegDiamond<Graph> NegDiamondType;
-typedef NegMirroredHubs<Graph> NegMirroredHubsType;
-typedef PosDeg01<Graph> PosDeg01Type;
-typedef PosDiamond<Graph> PosDiamondType;
-
 typedef Solver<Graph> SolverType;
 typedef SolverRooted<Graph> SolverRootedType;
 typedef SolverUnrooted<Graph> SolverUnrootedType;
 typedef EnumSolverUnrooted<Graph> EnumSolverUnrootedType;
 typedef CplexSolverImpl<Graph> CplexSolverImplType;
-typedef typename CplexSolverImplType::Options Options;
+typedef CplexSolverImplType::Options Options;
 typedef CutSolverRootedImpl<Graph> CutSolverRootedImplType;
 typedef CutSolverUnrootedImpl<Graph> CutSolverUnrootedImplType;
-typedef typename SolverType::NodeSet NodeSet;
+typedef SolverType::NodeSet NodeSet;
 
 BackOff createBackOff(int function, int period)
 {
@@ -221,7 +203,6 @@ int main(int argc, char** argv)
   }
 
   // Solve
-  lemon::Timer t;
   const NodeSet rootNodeSet = pMwcs->getNodeByLabel(root);
   assert(rootNodeSet.size() == 0 || rootNodeSet.size() == 1);
   
@@ -355,7 +336,7 @@ int main(int argc, char** argv)
 //    delete pSolver;
 //  }
 
-  std::cerr << "Time: " << t.realTime() << "s" << std::endl;
+  std::cerr << "Time: " << g_timer.realTime() << "s" << std::endl;
 
   delete pParser;
   delete pMwcs;

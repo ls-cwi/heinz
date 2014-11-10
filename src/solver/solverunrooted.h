@@ -37,6 +37,7 @@ public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   using Parent::_score;
+  using Parent::_scoreUB;
   using Parent::_pSolutionMap;
   using Parent::_solutionSet;
   
@@ -57,7 +58,7 @@ public:
     _pSolutionMap = new BoolNodeMap(mwcsGraph.getGraph(), false);
     
     _pImpl->init(mwcsGraph);
-    return _pImpl->solve(_score, *_pSolutionMap, _solutionSet);
+    return _pImpl->solve(_score, _scoreUB, *_pSolutionMap, _solutionSet);
   }
   
 protected:

@@ -73,8 +73,9 @@ public:
     Parent2::init(mwcsGraph);
   }
   
-  bool solve(double& score, BoolNodeMap& solutionMap, NodeSet& solutionSet)
+  bool solve(double& score, double& scoreUB, BoolNodeMap& solutionMap, NodeSet& solutionSet)
   {
+    scoreUB = std::numeric_limits<double>::max();
     return solveMonteCarlo(*_pMwcsGraph, _mwcsUnrootedSubTreeSolver, score, solutionMap, solutionSet);
   }
   
@@ -86,7 +87,8 @@ protected:
   
   bool solveSubTree(double& score, SubBoolNodeMap& solutionMap, NodeSet& solutionSet)
   {
-    return _mwcsUnrootedSubTreeSolver.solve(score, solutionMap, solutionSet);
+    double scoreUB;
+    return _mwcsUnrootedSubTreeSolver.solve(score, scoreUB, solutionMap, solutionSet);
   }
   
 private:

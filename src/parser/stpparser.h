@@ -14,7 +14,7 @@
 #include <string>
 #include <lemon/core.h>
 #include "parser.h"
-#include "verbose.h"
+#include "utils.h"
 
 namespace nina {
 namespace mwcs {
@@ -58,6 +58,13 @@ private:
 public:
   StpParser(const std::string& filename);
   bool parse();
+  const std::string& getName() const
+  {
+    return _name;
+  }
+  
+protected:
+  std::string _name;
 };
 
 template<typename GR>
@@ -178,6 +185,17 @@ template<typename GR>
 inline bool StpParser<GR>::parseGraph(std::istream& in, int& lineNumber)
 {
   std::string line;
+  
+  // skip until "Name"
+  while (std::getline(in, line) && line.substr(0, 4) != "Name")
+    lineNumber++;
+  
+  if (line.size() < 6)
+  {
+    std::cerr << "Error: missing 'Name'" << std::endl;
+    return false;
+  }
+  _name = line.substr(5);
 
   // skip until "SECTION Graph"
   while (std::getline(in, line) && line != "SECTION Graph")

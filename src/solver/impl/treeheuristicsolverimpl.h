@@ -325,6 +325,7 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
   const Graph& g = mwcsGraph.getGraph();
   
   double newScore;
+  double newScoreUB;
   SubBoolNodeMap newSolutionMap(_pMwcsSubGraph->getGraph());
   NodeSet newSolutionSet;
 
@@ -341,7 +342,7 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
     lemon::kruskal(g, *_pEdgeCost, *_pFilterMap);
 
     initSubTreeSolver();
-    if (!subTreeSolver.solve(newScore, newSolutionMap, newSolutionSet))
+    if (!subTreeSolver.solve(newScore, newScoreUB, newSolutionMap, newSolutionSet))
     {
       return false;
     }

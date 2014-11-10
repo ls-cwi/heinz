@@ -93,6 +93,7 @@ public:
   void init(const MwcsGraphType& mwcsGraph, Node root);
  
   virtual bool solve(double& score,
+                     double& scoreUB,
                      BoolNodeMap& solutionMap,
                      NodeSet& solutionSet) = 0;
 

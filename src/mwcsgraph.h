@@ -17,7 +17,7 @@
 #include <lemon/core.h>
 #include <lemon/lgf_writer.h>
 #include <lemon/connectivity.h>
-#include "verbose.h"
+#include "utils.h"
 #include "parser/parser.h"
 #include "solver/spqrtree.h"
 

@@ -199,8 +199,9 @@ protected:
     
     NodeSet solutionSet;
     double score;
+    double scoreUB;
     
-    _pMwcsSubTreeSolver->solve(score, *_pSubSolutionMap, solutionSet);
+    _pMwcsSubTreeSolver->solve(score, scoreUB, *_pSubSolutionMap, solutionSet);
     
     if (score > solutionWeight)
     {
@@ -215,7 +216,7 @@ protected:
       {
         solution[_nodeMap[*it]] = 1;
       }
-      
+            
 //      for (EdgeIt e(_g); e != lemon::INVALID; ++e)
 //      {
 //        if (module.find(_g.u(e)) != module.end() && module.find(_g.v(e)) != module.end())

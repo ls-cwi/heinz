@@ -55,6 +55,7 @@ public:
   typedef SolverRootedImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> SolverRootedImplType;
   
   using Parent::_score;
+  using Parent::_scoreUB;
   using Parent::_pSolutionMap;
   using Parent::_solutionSet;
   using Parent::_pImpl;
@@ -67,6 +68,7 @@ public:
     , _pRootedImpl(pRootedImpl)
     , _preprocess(preprocess)
   {
+    _scoreUB = -std::numeric_limits<double>::max();
   }
   
   ~EnumSolverUnrooted()
@@ -125,7 +127,8 @@ private:
   
   bool solveComponent(MwcsPreGraphType& mwcsGraph,
                       NodeSet& solutionSet,
-                      double& solutionScore);
+                      double& solutionScore,
+                      double& solutionScoreUB);
   
   bool processBlock1(MwcsPreGraphType& mwcsGraph,
                      const SubGraph& subG,
@@ -141,8 +144,10 @@ private:
                   int nBlocks,
                   NodeSet& solutionUnrooted,
                   double& solutionScoreUnrooted,
+                  double& solutionScoreUnrootedUB,
                   NodeSet& solutionRooted,
-                  double& solutionScoreRooted);
+                  double& solutionScoreRooted,
+                  double& solutionScoreRootedUB);
   
   
   bool solveTriComp(MwcsPreGraphType& mwcsGraph,
@@ -153,12 +158,14 @@ private:
   bool solveUnrooted(MwcsPreGraphType& mwcsGraph,
                      const NodeSet& blacklistNodes,
                      NodeSet& solutionSet,
-                     double& solutionScore);
+                     double& solutionScore,
+                     double& solutionScoreUB);
 
   bool solveRooted(MwcsPreGraphType& mwcsGraph,
                    const NodeSet& rootNodes,
                    NodeSet& solutionSet,
-                   double& solutionScore);
+                   double& solutionScore,
+                   double& solutionScoreUB);
   
   void map(const MwcsGraphType& mwcsGraph,
            const NodeMap& m,
@@ -307,8 +314,9 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solve(const MwcsGraphType
     
     // 3. solve
     double solutionScore;
+    double solutionScoreUB;
     NodeSet solutionSet;
-    if (!solveComponent(mwcsSubGraph, solutionSet, solutionScore))
+    if (!solveComponent(mwcsSubGraph, solutionSet, solutionScore, solutionScoreUB))
     {
       return false;
     }
@@ -337,7 +345,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solve(const MwcsGraphType
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
 inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGraphType& mwcsGraph,
                                                                       NodeSet& solutionSet,
-                                                                      double& solutionScore)
+                                                                      double& solutionScore,
+                                                                      double& solutionScoreUB)
 {
   // mwcsGraph corresponds to a single component
   const Graph& g = mwcsGraph.getGraph();
@@ -418,14 +427,15 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
           
           NodeSet solutionUnrooted, solutionRooted;
           double scoreUnrooted, scoreRooted;
+          double scoreUnrootedUB, scoreRootedUB;
           
           assert(orgC == lemon::INVALID || mwcsSubGraph.getPreNodes(mapToSubG[orgC]).size() == 1);
           
           if (!solveBlock(mwcsSubGraph,
                           orgC != lemon::INVALID ? mapToSubG[orgC] : lemon::INVALID,
                           blockIndex, nBlocks,
-                          solutionUnrooted, scoreUnrooted,
-                          solutionRooted, scoreRooted))
+                          solutionUnrooted, scoreUnrooted, scoreUnrootedUB,
+                          solutionRooted, scoreRooted, scoreRootedUB))
           {
             return false;
           }
@@ -498,7 +508,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveComponent(MwcsPreGra
   // solve
 //  mwcsGraph.print(std::cout);
 
-  return solveUnrooted(mwcsGraph, NodeSet(), solutionSet, solutionScore);
+  return solveUnrooted(mwcsGraph, NodeSet(), solutionSet, solutionScore, solutionScoreUB);
 }
   
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
@@ -750,7 +760,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
   
   NodeSet subSolutionSet;
   double solutionScore;
-  if (!solveUnrooted(mwcsSubGraph, NodeSet(), subSolutionSet, solutionScore))
+  double solutionScoreUB;
+  if (!solveUnrooted(mwcsSubGraph, NodeSet(), subSolutionSet, solutionScore, solutionScoreUB))
   {
     abort();
   }
@@ -784,7 +795,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
     if (!solveRooted(mwcsSubGraph,
                      mwcsSubGraph.getPreNodes(mapToSubG[cutPair.first]),
                      subSolutionSet,
-                     solutionScore))
+                     solutionScore,
+                     solutionScoreUB))
     {
 //      std::cout << mwcsGraph.getLabel(cutPair.first) << std::endl;
       abort();
@@ -809,7 +821,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
     if (!solveRooted(mwcsSubGraph,
                      mwcsSubGraph.getPreNodes(mapToSubG[cutPair.second]),
                      subSolutionSet,
-                     solutionScore))
+                     solutionScore,
+                     solutionScoreUB))
     {
 //      mwcsSubGraph.print(std::cout);
 //      std::cout << mwcsGraph.getLabel(cutPair.second) << std::endl;
@@ -855,7 +868,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
     if (!solveRooted(mwcsSubGraph,
                      rootNodes,
                      subSolutionSet,
-                     solutionScore))
+                     solutionScore,
+                     solutionScoreUB))
     {
 //      mwcsSubGraph.print(std::cout);
       abort();
@@ -1322,8 +1336,10 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
                                                                   int nBlocks,
                                                                   NodeSet& solutionUnrooted,
                                                                   double& solutionScoreUnrooted,
+                                                                  double& solutionScoreUnrootedUB,
                                                                   NodeSet& solutionRooted,
-                                                                  double& solutionScoreRooted)
+                                                                  double& solutionScoreRooted,
+                                                                  double& solutionScoreRootedUB)
 {
   const Graph& g = mwcsGraph.getGraph();
   
@@ -1382,7 +1398,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
     // solve the unrooted formulation first
     if (!solveUnrooted(mwcsGraph,
                        orgC != lemon::INVALID ? mwcsGraph.getPreNodes(orgC) : NodeSet(),
-                       solutionUnrooted, solutionScoreUnrooted))
+                       solutionUnrooted, solutionScoreUnrooted, solutionScoreUnrootedUB))
     {
       abort();
       return false;
@@ -1404,7 +1420,8 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveBlock(MwcsPreGraphTy
       if (!solveRooted(mwcsGraph,
                        mwcsGraph.getPreNodes(orgC),
                        solutionRooted,
-                       solutionScoreRooted))
+                       solutionScoreRooted,
+                       solutionScoreRootedUB))
       {
         abort();
         return false;
@@ -1430,7 +1447,8 @@ template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
 inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGraphType& mwcsGraph,
                                                                      const NodeSet& blacklistNodes,
                                                                      NodeSet& solutionSet,
-                                                                     double& solutionScore)
+                                                                     double& solutionScore,
+                                                                     double& solutionScoreUB)
 {
   const Graph& g = mwcsGraph.getGraph();
   BoolNodeMap solutionMap(g, false);
@@ -1446,7 +1464,10 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGrap
   {
     solutionSet.clear();
     solutionScore = 0;
-    std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
+    if (g_verbosity > VERBOSE_NONE)
+    {
+      std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
+    }
     return true;
   }
   else if (mwcsGraph.getNodeCount() == 1)
@@ -1455,19 +1476,28 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGrap
     Node v = NodeIt(mwcsGraph.getGraph());
     solutionSet.insert(v);
     solutionScore = mwcsGraph.getScore(v);
-    std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
+    if (g_verbosity > VERBOSE_NONE)
+    {
+      std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
+    }
     return true;
   }
   
   _pImpl->init(mwcsGraph);
-  return _pImpl->solve(solutionScore, solutionMap, solutionSet);
+  bool res = _pImpl->solve(solutionScore, solutionScoreUB, solutionMap, solutionSet);
+  if (res && solutionScoreUB > _scoreUB)
+  {
+    _scoreUB = solutionScoreUB;
+  }
+  return res;
 }
   
 template<typename GR, typename WGHT, typename NLBL, typename EWGHT>
 inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveRooted(MwcsPreGraphType& mwcsGraph,
                                                                    const NodeSet& rootNodes,
                                                                    NodeSet& solutionSet,
-                                                                   double& solutionScore)
+                                                                   double& solutionScore,
+                                                                   double& solutionScoreUB)
 {
   const Graph& g = mwcsGraph.getGraph();
   BoolNodeMap solutionMap(g, false);
@@ -1492,7 +1522,12 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveRooted(MwcsPreGraphT
   }
   
   _pRootedImpl->init(mwcsGraph, rootNodes);
-  return _pRootedImpl->solve(solutionScore, solutionMap, solutionSet);
+  bool res = _pRootedImpl->solve(solutionScore, solutionScoreUB, solutionMap, solutionSet);
+  if (res && solutionScoreUB > _scoreUB)
+  {
+    _scoreUB = solutionScoreUB;
+  }
+  return res;
 }
 
 } // namespace mwcs

@@ -20,7 +20,7 @@
 #include <lemon/connectivity.h>
 #include "mwcsgraph.h"
 #include "parser/parser.h"
-#include "verbose.h"
+#include "utils.h"
 
 namespace nina {
 namespace mwcs {

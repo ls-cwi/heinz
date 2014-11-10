@@ -11,6 +11,7 @@
 #include <set>
 #include <vector>
 #include <ostream>
+#include <limits>
 
 namespace nina {
 namespace mwcs {
@@ -41,6 +42,7 @@ public:
 public:
   Solver()
     : _score(0)
+    , _scoreUB(std::numeric_limits<double>::max())
     , _pSolutionMap(NULL)
     , _solutionSet()
   {
@@ -53,6 +55,7 @@ public:
   
 protected:
   double _score;
+  double _scoreUB;
   BoolNodeMap* _pSolutionMap;
   NodeSet _solutionSet;
   
@@ -80,6 +83,11 @@ public:
   double getSolutionWeight() const
   {
     return _score;
+  }
+  
+  double getSolutionWeightUB() const
+  {
+    return _scoreUB;
   }
   
   const BoolNodeMap& getSolutionNodeMap() const

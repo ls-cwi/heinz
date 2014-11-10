@@ -122,6 +122,7 @@ protected:
 
   virtual bool solveCplex(const MwcsGraphType& mwcsGraph,
                           double& score,
+                          double& scoreUB,
                           BoolNodeMap& solutionMap,
                           NodeSet& solutionSet);
   
@@ -263,6 +264,7 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline bool CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveCplex(const MwcsGraphType& mwcsGraph,
                                                                 double& score,
+                                                                double& scoreUB,
                                                                 BoolNodeMap& solutionMap,
                                                                 NodeSet& solutionSet)
 {
@@ -328,6 +330,7 @@ inline bool CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveCplex(const MwcsGraphT
   }
 
   score = _cplex.getObjValue();
+  scoreUB = _cplex.getBestObjValue();
   clean();
 
   return true;

@@ -67,7 +67,7 @@ public:
   {
   }
   
-  virtual bool solve(double& score, BoolNodeMap& solutionMap, NodeSet& solutionSet);
+  virtual bool solve(double& score, double& scoreUB, BoolNodeMap& solutionMap, NodeSet& solutionSet);
   
   virtual void init(const MwcsGraphType& mwcsGraph,
                     const NodeSet& rootNodes)
@@ -80,6 +80,7 @@ public:
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline bool TreeSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::solve(double& score,
+                                                                double& scoreUB,
                                                                 BoolNodeMap& solutionMap,
                                                                 NodeSet& solutionSet)
 {

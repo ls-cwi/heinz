@@ -46,7 +46,7 @@ public:
   {
   }
   
-  virtual bool solve(double& score, BoolNodeMap& solutionMap, NodeSet& solutionSet) = 0;  
+  virtual bool solve(double& score, double& scoreUB, BoolNodeMap& solutionMap, NodeSet& solutionSet) = 0;
 };
 
 } // namespace mwcs

@@ -1,9 +1,16 @@
 #include "utils.h"
+#include <assert.h>
 
 using namespace nina;
 using namespace nina::mwcs;
 
-void generateRandomGraph(Graph& g, Graph::NodeMap<int>& weight, int nNodes, int nEdges)
+VerbosityLevel nina::mwcs::g_verbosity = VERBOSE_ESSENTIAL;
+
+lemon::Timer nina::mwcs::g_timer;
+
+std::ostream* nina::mwcs::g_pOut = NULL;
+
+void nina::mwcs::generateRandomGraph(Graph& g, Graph::NodeMap<int>& weight, int nNodes, int nEdges)
 {
   for (int i = 0; i < nNodes; i++)
   {
@@ -22,7 +29,7 @@ void generateRandomGraph(Graph& g, Graph::NodeMap<int>& weight, int nNodes, int 
     }
 }
 
-void generatePCSTGraph(Graph &graph, Graph::NodeMap<int> &weight)
+void nina::mwcs::generatePCSTGraph(Graph &graph, Graph::NodeMap<int> &weight)
 {
   Node a = graph.addNode(); weight[a] = 5;
   Node b = graph.addNode(); weight[b] = -4;
@@ -45,11 +52,41 @@ void generatePCSTGraph(Graph &graph, Graph::NodeMap<int> &weight)
   graph.addEdge(e, f);
 }
 
-void generateSimpleGraph(Graph &graph, Graph::NodeMap<int> &weight)
+void nina::mwcs::generateSimpleGraph(Graph &graph, Graph::NodeMap<int> &weight)
 {
   Node a = graph.addNode(); weight[a] = 5;
   Node b = graph.addNode(); weight[b] = -1;
   Node c = graph.addNode(); weight[c] = 5;
   graph.addEdge(a, b);
   graph.addEdge(c, b);
+}
+
+void nina::mwcs::printCommentSection(const std::string& name,
+                                     const std::string& problem,
+                                     const std::string& method,
+                                     const std::string& version)
+{
+  assert(g_pOut);
+  *g_pOut << "SECTION Comment" << std::endl;
+  *g_pOut << "Name " << name << std::endl;
+  *g_pOut << "Problem " << problem << std::endl;
+  *g_pOut << "Program " << method << std::endl;
+  *g_pOut << "Version " << version << std::endl;
+  *g_pOut << "End" << std::endl;
+  *g_pOut << std::endl;
+}
+
+void nina::mwcs::printRunSection(int threads, double primalObjValue, double dualObjValue)
+{
+  assert(g_pOut);
+  *g_pOut << "SECTION Run" << std::endl;
+  *g_pOut << "Threads " << threads << std::endl;
+  *g_pOut << "Time " << g_timer.realTime() << std::endl;
+  if (dualObjValue != -1)
+  {
+    *g_pOut << "Dual " << dualObjValue << std::endl;
+  }
+  *g_pOut << "Primal " << primalObjValue << std::endl;
+  *g_pOut << "End" << std::endl;
+  *g_pOut << std::endl;
 }

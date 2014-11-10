@@ -96,9 +96,9 @@ public:
     initConstraints(mwcsGraph);
   }
   
-  bool solve(double& score, BoolNodeMap& solutionMap, NodeSet& solutionSet)
+  bool solve(double& score, double& scoreUB, BoolNodeMap& solutionMap, NodeSet& solutionSet)
   {
-    return Parent2::solveCplex(*_pMwcsGraph, score, solutionMap, solutionSet);
+    return Parent2::solveCplex(*_pMwcsGraph, score, scoreUB, solutionMap, solutionSet);
   }
 
 protected:
@@ -330,8 +330,11 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 
   if (res)
   {
-    std::cerr << "[" << _cplex.getObjValue() << ", "
-              << _cplex.getBestObjValue() << "]" << std::endl;
+    if (g_verbosity > VERBOSE_NONE)
+    {
+      std::cerr << "[" << _cplex.getObjValue() << ", "
+                << _cplex.getBestObjValue() << "]" << std::endl;
+    }
     // print overview
 //    std::cerr << "# Cover cuts: " << _cplex.getNcuts(IloCplex::CutCover) << std::endl;
 //    std::cerr << "# GUB cover cuts: " << _cplex.getNcuts(IloCplex::CutGubCover) << std::endl;

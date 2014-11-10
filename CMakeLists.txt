@@ -25,10 +25,8 @@ set( Heinz_Hdr
   src/preprocessing/shortestpath.h
   src/solver/spqrtree.h
   src/solver/blockcuttree.h
-  src/verbose.h
   src/mwcs.h
   src/analysis.h
-#  src/elementarypaths.h
   src/solver/enumsolverunrooted.h
   src/solver/impl/solverimpl.h
   src/solver/impl/solverunrootedimpl.h
@@ -59,9 +57,7 @@ set( Heinz_Hdr
 )
 
 set( Heinz_Src
-  src/mwcs.cpp
   src/utils.cpp
-  src/verbose.cpp
 )
 
 set( Heinz_Monte_Carlo_Hdr
@@ -73,13 +69,11 @@ set( Heinz_Monte_Carlo_Hdr
 set( Heinz_Monte_Carlo_Src
   src/mwcs-mc.cpp
   src/utils.cpp
-  src/verbose.cpp
 )
 
 set( Heinz_Print_Graph_Src
   src/printgraph.cpp
   src/utils.cpp
-  src/verbose.cpp
 )
 
 set( GitCommand1 "symbolic-ref HEAD 2> /dev/null | cut -b 12-" )
@@ -141,11 +135,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 SET(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libstdc++")
-set(CMAKE_CXX_FLAGS_DEBUG "-Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -g -ggdb -O0 -DDEBUG -DVERBOSE")
-set(CMAKE_CXX_FLAGS_RELEASE "-Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -DNDEBUG")
-set(CMAKE_CXX_FLAGS_PROFILE "-Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -g -ggdb -DNDEBUG")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -g -ggdb -O0 -DDEBUG -DVERBOSE")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -g -ggdb -DNDEBUG")
 
-set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings " )
+set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-write-strings -Wno-unused-private-field -Wno-unused-variable -Wno-gnu-static-float-init" )
 add_definitions( -DIL_STD )
 configure_file( src/config.h.in ${PROJECT_SOURCE_DIR}/src/config.h )
 
@@ -166,11 +160,14 @@ set( CommonLibs
 	OGDF
 )
 
-add_executable( heinz ${Heinz_Src} ${Heinz_Hdr} ${CommonObjs} )
+add_executable( heinz-mc ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
+target_link_libraries( heinz-mc emon OGDF pthread )
+
+add_executable( heinz src/mwcs.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz ${CommonLibs} )
 
-add_executable( heinz-mc ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} ${CommonObjs} )
-target_link_libraries( heinz-mc emon OGDF pthread )
+add_executable( dimacs_mwcs src/dimacs_mwcs.cpp ${Heinz_Src} ${Heinz_Hdr} )
+target_link_libraries( dimacs_mwcs ${CommonLibs} )
 
 #add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
 #target_link_libraries( print emon OGDF pthread )
