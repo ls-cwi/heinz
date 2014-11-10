@@ -272,7 +272,10 @@ inline bool CutSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   }
   else
   {
-    std::cerr << "[0, 0]" << std::endl;
+    if (g_verbosity > VERBOSE_NONE)
+    {
+      std::cerr << "[0, 0]" << std::endl;
+    }
   }
 
   //printVariables(std::cerr);
