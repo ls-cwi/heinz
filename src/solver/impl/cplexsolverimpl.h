@@ -284,7 +284,9 @@ inline bool CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveCplex(const MwcsGraphT
   
   if (_options._timeLimit > 0)
   {
-    _cplex.setParam(IloCplex::TiLim, _options._timeLimit);
+    int limit = g_timer.realTime() - _options._timeLimit;
+    limit = std::min(0, limit);
+    _cplex.setParam(IloCplex::TiLim, limit);
   }
   
   if (_options._multiThreading > 1)
