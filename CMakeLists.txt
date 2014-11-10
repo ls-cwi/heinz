@@ -173,14 +173,23 @@ target_link_libraries( heinz_mwcs_dc ${CommonLibs} )
 add_executable( heinz_mwcs_no_dc src/dimacs/heinz_mwcs_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz_mwcs_no_dc ${CommonLibs} )
 
+add_executable( heinz_mwcs_no_pre src/dimacs/heinz_mwcs_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
+target_link_libraries( heinz_mwcs_no_pre ${CommonLibs} )
+
 add_executable( heinz_pcst_dc src/dimacs/heinz_pcst_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz_pcst_dc ${CommonLibs} )
 
 add_executable( heinz_pcst_no_dc src/dimacs/heinz_pcst_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz_pcst_no_dc ${CommonLibs} )
 
+add_executable( heinz_pcst_no_pre src/dimacs/heinz_pcst_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
+target_link_libraries( heinz_pcst_no_pre ${CommonLibs} )
+
 add_executable( heinz_rpcst_no_dc src/dimacs/heinz_rpcst_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz_rpcst_no_dc ${CommonLibs} )
+
+add_executable( heinz_rpcst_no_pre src/dimacs/heinz_rpcst_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
+target_link_libraries( heinz_rpcst_no_pre ${CommonLibs} )
 
 #add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
 #target_link_libraries( print emon OGDF pthread )
