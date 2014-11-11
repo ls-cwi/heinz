@@ -18,7 +18,7 @@ print "#PBS -N", filename
 print "#PBS -o", filename + ".out"
 print "#PBS -e", filename + ".err"
 print "#PBS -lwalltime=" + timelimit_pbs
-print "#PBS -lcpu3"
+print "#PBS -lnodes=1:cpu3"
 print "cd ~/DIMACS2014/"
 print "( /usr/bin/time -o " + filename1 + ".time bin/heinz_rpcst_no_pre " + full_filename + " " + timelimit_heinz + " 2 " + filename1 + ".dimacs" + " > " + filename1 + ".out 2> " + filename1 + ".err ) &"
 print "( /usr/bin/time -o " + filename2 + ".time bin/heinz_rpcst_no_dc " + full_filename + " " + timelimit_heinz + " 2 " + filename2 + ".dimacs" + " > " + filename2 + ".out 2> " + filename2 + ".err ) &"
