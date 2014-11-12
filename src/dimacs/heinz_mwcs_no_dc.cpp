@@ -85,7 +85,7 @@ int main(int argc, char** argv)
   }
   
   g_verbosity = VERBOSE_NONE;
-  //g_verbosity = VERBOSE_NON_ESSENTIAL;
+  g_verbosity = VERBOSE_NON_ESSENTIAL;
   StpParserType parser(input);
   
   MwcsPreprocessedGraphType instance;
