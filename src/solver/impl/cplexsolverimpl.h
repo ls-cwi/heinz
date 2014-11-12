@@ -51,12 +51,14 @@ public:
             bool analysis,
             int maxNumberOfCuts,
             int timeLimit,
-            int multiThreading)
+            int multiThreading,
+            int memoryLimit)
       : _backOff(backOff)
       , _analysis(analysis)
       , _maxNumberOfCuts(maxNumberOfCuts)
       , _timeLimit(timeLimit)
       , _multiThreading(multiThreading)
+      , _memoryLimit(memoryLimit)
     {
     }
     
@@ -64,6 +66,7 @@ public:
     bool _analysis;
     int _maxNumberOfCuts;
     int _timeLimit;
+    int _memoryLimit;
     int _multiThreading;
   };
 
@@ -287,6 +290,11 @@ inline bool CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveCplex(const MwcsGraphT
     int limit = _options._timeLimit - g_timer.realTime();
     limit = std::max(1, limit);
     _cplex.setParam(IloCplex::TiLim, limit);
+  }
+  
+  if (_options._memoryLimit > 0)
+  {
+    _cplex.setParam(IloCplex::TreLim, _options._memoryLimit);
   }
   
   if (_options._multiThreading > 1)

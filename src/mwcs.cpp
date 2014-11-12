@@ -74,6 +74,7 @@ int main(int argc, char** argv)
   int verbosityLevel = 2;
   int maxNumberOfCuts = 3;
   int timeLimit = -1;
+  int memoryLimit = -1;
   bool noPreprocess = false;
   bool noEnum = false;
   int multiThreading = 1;
@@ -94,6 +95,7 @@ int main(int argc, char** argv)
   ap
     .boolOption("version", "Show version number")
     .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
+    .refOption("ml", "Memory limit (in MB, default: -1)", memoryLimit, false)
     .refOption("e", "Edge list file", edgeFile, false)
     .refOption("n", "Node file", nodeFile, false)
     .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
@@ -206,7 +208,7 @@ int main(int argc, char** argv)
   const NodeSet rootNodeSet = pMwcs->getNodeByLabel(root);
   assert(rootNodeSet.size() == 0 || rootNodeSet.size() == 1);
   
-  if (pPreprocessedMwcs && noEnum)
+  if (pPreprocessedMwcs && (noEnum || rootNodeSet.size() > 0))
   {
     pPreprocessedMwcs->preprocess(rootNodeSet);
   }
@@ -217,7 +219,8 @@ int main(int argc, char** argv)
                   true,
                   maxNumberOfCuts,
                   timeLimit,
-                  multiThreading);
+                  multiThreading,
+                  memoryLimit);
   
   if (rootNodeSet.size() == 0 && !root.empty())
   {

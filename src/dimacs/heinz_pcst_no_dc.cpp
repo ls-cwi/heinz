@@ -26,6 +26,7 @@
 
 #define PROBLEM "PCST"
 #define METHOD "heinz-pcst-no-dc"
+#define MEMORY_LIMIT 30*1024 // 30 GB
 
 using namespace nina::mwcs;
 
@@ -101,7 +102,8 @@ int main(int argc, char** argv)
                   true,
                   10,
                   timelimit,
-                  threads);
+                  threads,
+                  MEMORY_LIMIT);
 
   printCommentSection(parser.getName(), PROBLEM, METHOD, HEINZ_VERSION);
   
