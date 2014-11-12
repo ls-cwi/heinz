@@ -24,8 +24,8 @@
 #include "solver/impl/cutsolverunrootedimpl.h"
 #include "solver/impl/cplex_cut/backoff.h"
 
-#define PROBLEM "PCST"
-#define METHOD "heinz-pcst-no-dc"
+#define PROBLEM "RPCST"
+#define METHOD "heinz-rpcst-no-dc"
 
 using namespace nina::mwcs;
 

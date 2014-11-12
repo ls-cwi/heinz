@@ -1464,6 +1464,11 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGrap
   {
     solutionSet.clear();
     solutionScore = 0;
+    solutionScoreUB = solutionScore;
+    if (solutionScoreUB > _scoreUB)
+    {
+      _scoreUB = solutionScoreUB;
+    }
     if (g_verbosity > VERBOSE_NONE)
     {
       std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
@@ -1476,6 +1481,11 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGrap
     Node v = NodeIt(mwcsGraph.getGraph());
     solutionSet.insert(v);
     solutionScore = mwcsGraph.getScore(v);
+    solutionScoreUB = solutionScore;
+    if (solutionScoreUB > _scoreUB)
+    {
+      _scoreUB = solutionScoreUB;
+    }
     if (g_verbosity > VERBOSE_NONE)
     {
       std::cerr << "[" << solutionScore << ", " << solutionScore << "]" << std::endl;
@@ -1517,6 +1527,11 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveRooted(MwcsPreGraphT
     {
       solutionSet.insert(*rootIt);
       solutionScore += mwcsGraph.getScore(*rootIt);
+      solutionScoreUB = solutionScore;
+      if (solutionScoreUB > _scoreUB)
+      {
+        _scoreUB = solutionScoreUB;
+      }
     }
     return true;
   }
