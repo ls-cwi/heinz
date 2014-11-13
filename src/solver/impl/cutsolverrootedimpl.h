@@ -179,7 +179,7 @@ inline bool CutSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 //  _cplex.setParam( IloCplex::MIRCuts       , -1 );
 //  _cplex.setParam( IloCplex::FlowPaths     , -1 );
 //  _cplex.setParam( IloCplex::ImplBd        , -1 );
-  _cplex.setParam( IloCplex::DisjCuts      , -1 );
+//  _cplex.setParam( IloCplex::DisjCuts      , -1 );
 //  _cplex.setParam( IloCplex::ZeroHalfCuts  , -1 );
   _cplex.setParam( IloCplex::MCFCuts       , -1 );
 //  _cplex.setParam( IloCplex::AggFill       ,  0 );
