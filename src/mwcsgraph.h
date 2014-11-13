@@ -624,6 +624,7 @@ template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printMwcsDimacs(const NodeSet& module,
                                                                std::ostream& out) const
 {
+  // determine vertices
   int n = 0;
   for (NodeSetIt nodeIt = module.begin(); nodeIt != module.end(); ++nodeIt)
   {
@@ -631,13 +632,36 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printMwcsDimacs(const NodeSet& mo
   }
   out << "Vertices " << n << std::endl;
   
+  std::set<Node> nodes;
   for (NodeSetIt nodeIt = module.begin(); nodeIt != module.end(); ++nodeIt)
   {
     NodeSet orgNodes = getOrgNodes(*nodeIt);
     for (NodeSetIt nodeIt2 = orgNodes.begin(); nodeIt2 != orgNodes.end(); ++nodeIt2)
     {
+      nodes.insert(*nodeIt2);
       out << "V " << getOrgLabel(*nodeIt2) << std::endl;
     }
+  }
+  
+  // determine edges
+  std::set<Edge> edges;
+  const Graph& g = getOrgGraph();
+  for (EdgeIt e(g); e != lemon::INVALID; ++e)
+  {
+    Node u = g.u(e);
+    Node v = g.v(e);
+    
+    if (nodes.find(u) != nodes.end() && nodes.find(v) != nodes.end())
+    {
+      edges.insert(e);
+    }
+  }
+  
+  out << "Edges " << edges.size() << std::endl;
+  for (typename std::set<Edge>::const_iterator edgeIt = edges.begin();
+       edgeIt != edges.end(); ++edgeIt)
+  {
+    out << "E " << getOrgLabel(g.u(*edgeIt)) << " " << getOrgLabel(g.v(*edgeIt)) << std::endl;
   }
 }
   

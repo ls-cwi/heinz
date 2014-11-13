@@ -18,6 +18,7 @@
 #include <lemon/adaptors.h>
 #include <lemon/kruskal.h>
 #include <lemon/random.h>
+#include <lemon/time_measure.h>
 #include "mwcsgraph.h"
 #include "../solver.h"
 #include "treesolverimpl.h"
@@ -54,16 +55,19 @@ public:
   {
     Options(EdgeHeuristic heuristic,
             bool analysis,
-            int nRepetitions)
+            int nRepetitions,
+            int timeLimit)
       : _heuristic(heuristic)
       , _analysis(analysis)
       , _nRepetitions(nRepetitions)
+      , _timeLimit(timeLimit)
     {
     }
     
     EdgeHeuristic _heuristic;
     bool _analysis;
     int _nRepetitions;
+    int _timeLimit;
   };
 
 protected:
@@ -329,7 +333,8 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
   SubBoolNodeMap newSolutionMap(_pMwcsSubGraph->getGraph());
   NodeSet newSolutionSet;
 
-  for (int i = 0; i < _options._nRepetitions; ++i)
+  lemon::Timer timer;
+  for (int i = 0; i < _options._nRepetitions || _options._nRepetitions == -1; ++i)
   {
     if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
     {
@@ -353,11 +358,21 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
       
       lemon::mapCopy(_pMwcsSubGraph->getGraph(), newSolutionMap, solutionMap);
       solutionSet = newSolutionSet;
+      
+      if (g_pOut)
+      {
+        *g_pOut << "Solution " << g_timer.realTime() << " " << score << std::endl;
+      }
     }
     
     if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
     {
       std::cerr << score << std::flush;
+    }
+    
+    if (_options._timeLimit > 0 && timer.realTime() > _options._timeLimit)
+    {
+      break;
     }
   }
   

@@ -10,22 +10,19 @@
 #include <lemon/time_measure.h>
 
 #include "parser/mwcsparser.h"
+#include "parser/stpparser.h"
+#include "parser/stppcstparser.h"
+
 #include "mwcsgraph.h"
 #include "mwcsgraphparser.h"
 #include "mwcspreprocessedgraph.h"
-#include "preprocessing/negdeg01.h"
-#include "preprocessing/posedge.h"
-#include "preprocessing/negedge.h"
-#include "preprocessing/negcircuit.h"
-#include "preprocessing/negdiamond.h"
-#include "preprocessing/negmirroredhubs.h"
-#include "preprocessing/posdeg01.h"
-#include "preprocessing/posdiamond.h"
+
 #include "solver/solver.h"
 #include "solver/solverrooted.h"
 #include "solver/solverunrooted.h"
 #include "solver/impl/treeheuristicsolverrootedimpl.h"
 #include "solver/impl/treeheuristicsolverunrootedimpl.h"
+
 #include "mwcs.h"
 #include "utils.h"
 #include "config.h"
@@ -35,6 +32,9 @@ using namespace nina;
 
 typedef Parser<Graph> ParserType;
 typedef MwcsParser<Graph> MwcsParserType;
+typedef StpParser<Graph> StpParserType;
+typedef StpPcstParser<Graph> StpPcstParserType;
+
 typedef MwcsGraphParser<Graph> MwcsGraphType;
 typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 typedef NegDeg01<Graph> NegDeg01Type;
@@ -60,7 +60,7 @@ int main (int argc, char** argv)
   // parse command line arguments
   int verbosityLevel = 2;
   bool noPreprocess = false;
-  bool noAnalyze = false;
+  bool analyze = false;
   std::string root;
   std::string outputFile;
   double lambda = 0;
@@ -68,16 +68,22 @@ int main (int argc, char** argv)
   double fdr = 0;
   std::string nodeFile;
   std::string edgeFile;
-  int n = 100;
-  int h = 3;
+  std::string stpFile;
+  std::string stpPcstFile;
+  int n = -1;
+  int timeLimit = -1;
+  int h = 1;
 
   lemon::ArgParser ap(argc, argv);
 
   ap
     .boolOption("version", "Show version number")
+    .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
     .refOption("p", "Disable preprocessing", noPreprocess, false)
-    .refOption("e", "Edge list file", edgeFile, true)
-    .refOption("n", "Node file", nodeFile, true)
+    .refOption("e", "Edge list file", edgeFile, false)
+    .refOption("n", "Node file", nodeFile, false)
+    .refOption("stp", "STP file", stpFile, false)
+    .refOption("stp-pcst", "STP-PCST file", stpPcstFile, false)
     .refOption("v", "Specifies the verbosity level:\n"
                     "     0 - No output\n"
                     "     1 - Only necessary output\n"
@@ -91,17 +97,23 @@ int main (int argc, char** argv)
     .refOption("o", "Output file", outputFile, false)
     .refOption("h", "Specifies heuristic\n"
                     "     0 - fixed_edge\n"
-                    "     1 - random_edge\n"
+                    "     1 - random_edge (default)\n"
                     "     2 - uniform_edge\n"
-                    "     3 - min_max_edge (default)", h, false)
+                    "     3 - min_max_edge", h, false)
     .refOption("m", "Number of Monte Carlo iterations", n, false)
-    .refOption("z", "Disable negative hubs sampling", noAnalyze, false);
+    .refOption("z", "Enable negative hubs sampling", analyze, false);
   ap.parse();
 
   if (ap.given("version"))
   {
     std::cout << "Version number: " << HEINZ_VERSION << std::endl;
     return 0;
+  }
+  
+  if (timeLimit <= 0 && n <= 0)
+  {
+    std::cerr << "Please specify either -n or -t" << std::endl;
+    return 1;
   }
 
   bool pval = ap.given("FDR") && ap.given("lambda") && ap.given("a");
@@ -125,13 +137,31 @@ int main (int argc, char** argv)
     }
   }
   
+  if (!(ap.given("n") && ap.given("e")) && !ap.given("stp") &&  !ap.given("stp-pcst"))
+  {
+    std::cerr << "Please specify either '-n' and '-e', or '-stp', or '-stp-pcst'" << std::endl;
+    return 1;
+  }
+  
   Options options(static_cast<TreeHeuristicSolverImplType::EdgeHeuristic>(h),
-                  !noAnalyze, n);
+                  analyze, n, timeLimit);
 
   g_verbosity = static_cast<VerbosityLevel>(verbosityLevel);
 
   // Construct parser
-  ParserType* pParser = new MwcsParserType(nodeFile, edgeFile);
+  ParserType* pParser = NULL;
+  if (!stpFile.empty())
+  {
+    pParser = new StpParserType(stpFile);
+  }
+  else if (!stpPcstFile.empty())
+  {
+    pParser = new StpPcstParserType(stpPcstFile);
+  }
+  else
+  {
+    pParser = new MwcsParserType(nodeFile, edgeFile);
+  }
 
   // Parse the input graph file and preprocess
   MwcsGraphType* pMwcs;
@@ -139,14 +169,6 @@ int main (int argc, char** argv)
   if (!noPreprocess)
   {
     pMwcs = pPreprocessedMwcs = new MwcsPreprocessedGraphType();
-    pPreprocessedMwcs->addPreprocessRule(1, new NegDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(1, new PosEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(1, new NegEdgeType());
-    pPreprocessedMwcs->addPreprocessRule(1, new NegCircuitType());
-    pPreprocessedMwcs->addPreprocessRule(1, new NegDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(1, new PosDeg01Type());
-    pPreprocessedMwcs->addPreprocessRule(1, new PosDiamondType());
-    pPreprocessedMwcs->addPreprocessRule(2, new NegMirroredHubsType());
   }
   else
   {
@@ -192,15 +214,6 @@ int main (int argc, char** argv)
     pSolverUnrooted->solve(*pMwcs);
     pSolver = pSolverUnrooted;
   }
-
-//  for (int i = 0; i < n; i++)
-//  {
-//    std::cerr << "\rIteration " << i << ": " << std::flush;
-//    pTreeSolver->computeEdgeCosts(*pMwcs);
-//    pTreeSolver->solve();
-//    std::cerr << pTreeSolver->getSolutionWeight() << std::flush;
-//  }
-//  std::cerr << std::endl;
 
   if (outputFile != "-" && !outputFile.empty())
   {

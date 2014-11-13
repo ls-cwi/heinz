@@ -1,7 +1,7 @@
 /*
- *  heinz_pcst_no_dc.cpp
+ *  heinz_pcst_mc.cpp
  *
- *   Created on: 8-nov-2014
+ *   Created on: 13-nov-2014
  *       Author: M. El-Kebir
  */
 
@@ -18,15 +18,11 @@
 #include "solver/solver.h"
 #include "solver/solverrooted.h"
 #include "solver/solverunrooted.h"
-#include "solver/enumsolverunrooted.h"
-#include "solver/impl/cplexsolverimpl.h"
-#include "solver/impl/cutsolverrootedimpl.h"
-#include "solver/impl/cutsolverunrootedimpl.h"
-#include "solver/impl/cplex_cut/backoff.h"
+#include "solver/impl/treeheuristicsolverrootedimpl.h"
+#include "solver/impl/treeheuristicsolverunrootedimpl.h"
 
 #define PROBLEM "PCST"
-#define METHOD "heinz-pcst-no-dc"
-#define MEMORY_LIMIT 30*1024 // 30 GB
+#define METHOD "heinz-pcst-mc"
 
 using namespace nina::mwcs;
 
@@ -35,9 +31,10 @@ typedef MwcsPreprocessedGraph<Graph> MwcsPreprocessedGraphType;
 typedef Solver<Graph> SolverType;
 typedef SolverRooted<Graph> SolverRootedType;
 typedef SolverUnrooted<Graph> SolverUnrootedType;
-typedef CplexSolverImpl<Graph> CplexSolverImplType;
-typedef CplexSolverImplType::Options Options;
-typedef CutSolverUnrootedImpl<Graph> CutSolverUnrootedImplType;
+typedef TreeHeuristicSolverImpl<Graph> TreeHeuristicSolverImplType;
+typedef TreeHeuristicSolverUnrootedImpl<Graph> TreeHeuristicSolverUnrootedImplType;
+typedef TreeHeuristicSolverRootedImpl<Graph> TreeHeuristicSolverRootedImplType;
+typedef TreeHeuristicSolverImplType::Options Options;
 typedef SolverType::NodeSet NodeSet;
 
 void printUsage(std::ostream& out, const char* argv0)
@@ -98,22 +95,20 @@ int main(int argc, char** argv)
   }
   instance.preprocess(NodeSet());
   
-  Options options(BackOff(1), // linear waiting
-                  true,
-                  10,
-                  timelimit,
-                  threads,
-                  MEMORY_LIMIT);
+  Options options(TreeHeuristicSolverImplType::EDGE_COST_RANDOM,
+                  false,
+                  -1,
+                  timelimit - g_timer.realTime());
 
   printCommentSection(parser.getName(), PROBLEM, METHOD, HEINZ_VERSION);
   
-  SolverUnrootedType solver(new CutSolverUnrootedImplType(options));
+  SolverUnrootedType solver(new TreeHeuristicSolverUnrootedImplType(options));
   
   *g_pOut << "SECTION Solutions" << std::endl;
   solver.solve(instance);
   *g_pOut << "End" << std::endl << std::endl;
   
-  printRunSection(threads, solver.getSolutionWeight(), solver.getSolutionWeightUB());
+  printRunSection(1, solver.getSolutionWeight(), -1);
   
   *g_pOut << "SECTION Finalsolution" << std::endl;
   instance.printPcstDimacs(solver.getSolutionModule(), *g_pOut);

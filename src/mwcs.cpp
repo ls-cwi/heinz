@@ -30,7 +30,6 @@
 #include "solver/impl/cutsolverunrootedimpl.h"
 #include "solver/impl/cplex_cut/backoff.h"
 
-//#include "solver/enumsolverunrooted.h"
 #include "mwcs.h"
 #include "utils.h"
 #include "config.h"
@@ -181,8 +180,6 @@ int main(int argc, char** argv)
   if (!noPreprocess)
   {
     pMwcs = pPreprocessedMwcs = new MwcsPreprocessedGraphType();
-//    pPreprocessedMwcs->addPreprocessRule(3, new NegBiComponentType());
-//    pPreprocessedMwcs->addPreprocessRule(4, new NegTriComponentType());
   }
   else
   {

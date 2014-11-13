@@ -66,8 +66,8 @@ public:
     bool _analysis;
     int _maxNumberOfCuts;
     int _timeLimit;
-    int _memoryLimit;
     int _multiThreading;
+    int _memoryLimit;
   };
 
 protected:

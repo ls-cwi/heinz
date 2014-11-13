@@ -1,5 +1,5 @@
 /*
- *  heinz_mwcs_dc.cpp
+ *  heinz_pcst_dc.cpp
  *
  *   Created on: 8-nov-2014
  *       Author: M. El-Kebir
