@@ -266,7 +266,7 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   IloCplex::IncumbentCallbackI* pIncumbent = NULL;
 
   _cplex.setParam( IloCplex::HeurFreq      , -1 );
-//  _cplex.setParam( IloCplex::Cliques       , -1 );
+  _cplex.setParam( IloCplex::Cliques       , -1 );
 //  _cplex.setParam( IloCplex::Covers        , -1 );
 //  _cplex.setParam( IloCplex::FlowCovers    , -1 );
 //  _cplex.setParam( IloCplex::GUBCovers     , -1 );
