@@ -334,9 +334,17 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
   NodeSet newSolutionSet;
 
   lemon::Timer timer;
+  double elapsedTimeLastIt = 0;
   for (int i = 0; i < _options._nRepetitions || _options._nRepetitions == -1; ++i)
   {
-    if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+    double curTime = timer.realTime();
+    if (_options._timeLimit > 0 && (curTime + elapsedTimeLastIt) > _options._timeLimit)
+    {
+      // don't attempt a new iteration, if it's going take longer than the time limit
+      break;
+    }
+
+    if (g_verbosity >= VERBOSE_DEBUG)
     {
       std::cerr << "\rIteration " << i << ": " << std::flush;
     }
@@ -365,7 +373,7 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
       }
     }
     
-    if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+    if (g_verbosity >= VERBOSE_DEBUG)
     {
       std::cerr << score << std::flush;
     }
@@ -374,9 +382,13 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
     {
       break;
     }
+    else
+    {
+      elapsedTimeLastIt = timer.realTime() - curTime;
+    }
   }
   
-  if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+  if (g_verbosity >= VERBOSE_DEBUG)
   {
     std::cerr << std::endl;
   }
