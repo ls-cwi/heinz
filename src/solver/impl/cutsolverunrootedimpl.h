@@ -215,7 +215,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
   int idx = 0;
   for (NodeIt i(g); i != lemon::INVALID; ++i, ++idx)
   {
-    if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+    if (g_verbosity >= VERBOSE_DEBUG)
     {
       std::cout << "\rAdding symmetry breaking constraints " << idx << "/" << _n << std::flush;
     }
@@ -242,7 +242,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
       }
     }
   }
-  if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+  if (g_verbosity >= VERBOSE_DEBUG)
   {
     std::cout << std::endl;
   }
