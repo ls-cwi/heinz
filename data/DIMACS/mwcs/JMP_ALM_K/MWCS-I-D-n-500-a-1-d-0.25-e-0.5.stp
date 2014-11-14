@@ -3,6 +3,7 @@
 SECTION Comment
 Name	"MWCS-I-D-n-500-a-1-d-0.25-e-0.5"
 Creator	"CWI_LS_GWK"
+Problem "Maximum Node Weight Connected Subgraph"
 Comment	"converted from format used in Alvarez-Miranda et al., based on the random geometric instances of Johnson et al."
 END
 
