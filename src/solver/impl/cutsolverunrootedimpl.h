@@ -166,14 +166,16 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
   }
   
   // root node has to be positive
+  expr.clear();
   for (int i = 0; i < _n; i++)
   {
     double weight_i = weight[_invNode[i]];
     if (weight_i < 0)
     {
-      _model.add(_y[i] == 0);
+      expr += _y[i];
     }
   }
+  _model.add(expr == 0);
   
   // objective must be positive
   expr.clear();
@@ -208,11 +210,11 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
   // must be part of the solution as well
   // if you get in, you have to get out as well
   // BIG FAT WARNING: not true for xHeinz!!!
-  if (g_verbosity >= VERBOSE_NON_ESSENTIAL)
+  if (g_verbosity >= VERBOSE_DEBUG)
   {
     std::cout << std::endl;
   }
-  int idx = 0;
+  int idx = 1;
   for (NodeIt i(g); i != lemon::INVALID; ++i, ++idx)
   {
     if (g_verbosity >= VERBOSE_DEBUG)
@@ -232,14 +234,16 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
     else
     {
       // symmetry breaking
+      // sum_{j > i, w_j > 0} y_j <= 1 - x_i
       int id_i = (*_pNode)[i];
-      
-      for (int id_j = 0; id_j < id_i; ++id_j)
+      expr.clear();
+      for (int id_j = id_i + 1; id_j < _n; ++id_j)
       {
         Node j = _invNode[id_j];
         if (weight[j] < 0) continue;
-        _model.add(_y[id_i] <= 1 - _x[id_j]);
+        expr += _y[id_j];
       }
+      _model.add(expr <= 1 - _x[id_i]);
     }
   }
   if (g_verbosity >= VERBOSE_DEBUG)
