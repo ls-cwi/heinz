@@ -2,5 +2,6 @@
 #define CONFIG_H
 
 #define HEINZ_VERSION @HEINZ_VERSION@
+#define MEMORY_LIMIT @MEMORY_LIMIT@
 
 #endif // CONFIG_H

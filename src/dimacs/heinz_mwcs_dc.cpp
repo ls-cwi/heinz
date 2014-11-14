@@ -26,7 +26,6 @@
 
 #define PROBLEM "MWCS"
 #define METHOD "heinz-mwcs-dc"
-#define MEMORY_LIMIT 30*1024 // 30 GB
 
 using namespace nina::mwcs;
 

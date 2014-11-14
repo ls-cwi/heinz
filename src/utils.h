@@ -27,10 +27,10 @@ void printCommentSection(const std::string& name,
 void printRunSection(int threads, double primalObjValue, double dualObjValue);
   
 typedef enum {
-               VERBOSE_NONE,
-               VERBOSE_ESSENTIAL, 
-               VERBOSE_NON_ESSENTIAL, 
-               VERBOSE_DEBUG
+               VERBOSE_NONE = 0,
+               VERBOSE_ESSENTIAL = 1,
+               VERBOSE_NON_ESSENTIAL = 2,
+               VERBOSE_DEBUG = 3
              } VerbosityLevel;
 
 extern VerbosityLevel g_verbosity;

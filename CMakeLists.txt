@@ -87,6 +87,8 @@ set( HEINZ_VERSION \"${GitBranch}-${GitHashtag}\" )
 set( LIBOGDF_ROOT "$ENV{HOME}/ogdf" CACHE PATH "Additional search directory for OGDF library" )
 set( LIBLEMON_ROOT "$ENV{HOME}/lemon" CACHE PATH "Additional search directory for lemon library" )
 
+set( MEMORY_LIMIT 10240 CACHE STRING "Memory limit in MB" )
+
 if( NOT CPLEX_INC_DIR OR NOT CPLEX_LIB_DIR OR NOT CONCERT_INC_DIR OR NOT CONCERT_LIB_DIR )
 	set( CPLEX_AUTODETECTION_PREFIXES "$ENV{HOME}/ILOG;/opt/ibm/ILOG;$ENV{HOME}/Applications/IBM/ILOG" CACHE STRING "CPLEX automatic lookup directories" )
 	foreach( CplexInstallPrefix ${CPLEX_AUTODETECTION_PREFIXES} )
