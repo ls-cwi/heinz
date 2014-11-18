@@ -119,18 +119,6 @@ protected:
     
     if (computeMaxWeightConnectedSubtree(solutionVar, solution, solutionWeight))
     {
-//      solution[_x.getSize() + _z.getSize() + _nodeMap[_root]] = 1;
-      
-//      std::cout << "Root:";
-      for (NodeSetIt rootIt = _rootNodes.begin(); rootIt != _rootNodes.end(); ++rootIt)
-      {
-        Node root = *rootIt;
-        solution[_x.getSize() + _nodeMap[root]] = 1;
-        
-//        std::cout << " " << _y[_nodeMap[root]].getName()
-//                  << " = " << getValue(_y[_nodeMap[root]]);
-      }
-//      std::cout << " and found solution with weight: " << solutionWeight << std::endl;
       setCplexSolution(solutionVar, solution, solutionWeight);
     }
     
