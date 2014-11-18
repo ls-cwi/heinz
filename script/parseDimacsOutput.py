@@ -3,6 +3,7 @@ import sys
 
 with open(sys.argv[1]) as f:
   sys.stdout.write('"'+sys.argv[1]+'"')
+  sys.stdout.write(',"'+sys.argv[1].split("/")[2]+'"')
   for line in f:
     s = line.rstrip("\n").split()
     if len(s) == 0:
