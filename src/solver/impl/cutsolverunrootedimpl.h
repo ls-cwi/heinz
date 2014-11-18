@@ -242,7 +242,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
         Node j = _invNode[id_j];
         if (weight[j] < 0) continue;
         expr += _y[id_j];
-        _model.add(_y[id_i] <= 1 - _x[id_j]);
+        _model.add(_y[id_j] <= 1 - _x[id_i]);
       }
       _model.add(expr <= 1 - _x[id_i]);
     }

@@ -185,19 +185,27 @@ protected:
       //      solutionVar.add(_z);
       //      solution.add(_z.getSize(), 0);
       
+      int smallestIdx = _x.getSize();
       for (NodeSetIt it = solutionSet.begin(); it != solutionSet.end(); ++it)
       {
-        solution[_nodeMap[*it]] = 1;
-      }
-      
-      for (int i = 0; i < _y.getSize(); ++i)
-      {
-        if (solution[i] == 1)
+        int idx = _nodeMap[*it];
+        solution[idx] = 1;
+        if (idx < smallestIdx && _weight[*it] > 0)
         {
-          solution[_x.getSize() + i] = 1;
-          break;
+          smallestIdx = idx;
         }
       }
+      
+      solution[_x.getSize() + smallestIdx] = 1;
+      
+//      for (int i = 0; i < _y.getSize(); ++i)
+//      {
+//        if (solution[i] == 1)
+//        {
+//          solution[_x.getSize() + i] = 1;
+//          break;
+//        }
+//      }
       
       //      for (EdgeIt e(_g); e != lemon::INVALID; ++e)
       //      {
