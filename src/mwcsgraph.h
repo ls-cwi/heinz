@@ -313,9 +313,13 @@ public:
                              bool orig = false) const;
   virtual void printEdgeList(std::ostream& out,
                              bool orig = false) const;
-
   virtual void print(std::ostream& out,
                      bool orig = false) const;
+  virtual void printSTP(const std::string& name,
+                        const std::string& creator,
+                        std::ostream& out,
+                        bool orig = false) const;
+  
   virtual void printModule(const NodeSet& module,
                            std::ostream& out,
                            bool orig = false) const;
@@ -712,6 +716,55 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printPcstDimacs(const NodeSet& mo
   {
     out << "E " << edgeIt->first << " " << edgeIt->second << std::endl;
   }
+}
+  
+template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
+inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printSTP(const std::string& name,
+                                                        const std::string& creator,
+                                                        std::ostream& out,
+                                                        bool orig) const
+{
+  const Graph& g = orig ? getOrgGraph() : getGraph();
+  const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
+  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
+
+  out << "33D32945 STP File, STP Format Version 1.0" << std::endl;
+  out << std::endl;
+  
+  out << "SECTION Comment" << std::endl;
+  out << "Name \"" << name << '"' << std::endl;
+  out << "Creator \"" << creator << '"' << std::endl;
+  out << "Problem \"MWCS\"" << std::endl;
+  out << "END" << std::endl;
+  out << std::endl;
+  
+  out << "SECTION Graph" << std::endl;
+  out << "Nodes " << getNodeCount() << std::endl;
+  out << "Edges " << getEdgeCount() << std::endl;
+  
+  IntNodeMap id(g);
+  int idx = 1;
+  for (NodeIt v(g); v != lemon::INVALID; ++v, ++idx)
+  {
+    id[v] = idx;
+  }
+  
+  for (EdgeIt e(g); e != lemon::INVALID; ++e)
+  {
+    out << "E " << id[g.u(e)] << " " << id[g.v(e)] << std::endl;
+  }
+  out << "END" << std::endl;
+  out << std::endl;
+  
+  out << "SECTION Terminals" << std::endl;
+  out << "Terminals " << getNodeCount() << std::endl;
+  for (NodeIt v(g); v != lemon::INVALID; ++v)
+  {
+    out << "T " << id[v] << " " << weight[v] << std::endl;
+  }
+  out << "END" << std::endl;
+  out << std::endl;
+  out << "EOF" << std::endl;
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
