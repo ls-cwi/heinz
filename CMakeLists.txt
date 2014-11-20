@@ -13,6 +13,7 @@ set( Heinz_Hdr
   src/parser/stpparser.h
   src/parser/stppcstparser.h
   src/parser/identityparser.h
+  src/parser/dimacsparser.h
   src/preprocessing/rule.h
   src/preprocessing/negdeg01.h
   src/preprocessing/negedge.h
@@ -203,3 +204,7 @@ target_link_libraries( heinz_rpcst_no_pre ${CommonLibs} )
 
 add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( print emon OGDF pthread )
+
+add_executable( check_solution src/check_solution.cpp src/utils.cpp )
+target_link_libraries( check_solution emon OGDF pthread )
+
