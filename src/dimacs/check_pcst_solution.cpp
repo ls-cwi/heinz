@@ -1,7 +1,7 @@
 /*
- *  check_solution.cpp
+ *  check_pcst_solution.cpp
  *
- *   Created on: 19-nov-2014
+ *   Created on: 20-nov-2014
  *       Author: M. El-Kebir
  */
 
@@ -9,7 +9,6 @@
 #include <lemon/arg_parser.h>
 
 #include "parser/mwcsparser.h"
-#include "parser/stpparser.h"
 #include "parser/stppcstparser.h"
 #include "parser/dimacsparser.h"
 
@@ -20,38 +19,35 @@
 #include "mwcsgraph.h"
 #include "mwcsgraphparser.h"
 
+#include <set>
+
 using namespace nina::mwcs;
 using namespace nina;
 
 typedef Parser<Graph> ParserType;
 typedef MwcsParser<Graph> MwcsParserType;
-typedef StpParser<Graph> StpParserType;
 typedef StpPcstParser<Graph> StpPcstParserType;
 typedef DimacsParser<Graph> DimacsParserType;
 typedef MwcsGraphParser<Graph> MwcsGraphType;
+typedef std::set<Node> NodeSet;
+typedef NodeSet::const_iterator NodeSetIt;
 
 int main(int argc, char** argv)
 {
   // parse command line arguments
-  int verbosityLevel = 2;
+  int verbosityLevel = 0;
   std::string stpFile;
-  std::string stpPcstFile;
-  std::string nodeFile;
-  std::string edgeFile;
   std::string dimacsFile;
 
   lemon::ArgParser ap(argc, argv);
   
   ap
     .boolOption("version", "Show version number")
-    .refOption("e", "Edge list file", edgeFile, false)
-    .refOption("n", "Node file", nodeFile, false)
-    .refOption("stp", "STP file", stpFile, false)
-    .refOption("stp-pcst", "STP-PCST file", stpPcstFile, false)
+    .refOption("stp", "STP file", stpFile, true)
     .refOption("v", "Specifies the verbosity level:\n"
                "     0 - No output\n"
-               "     1 - Only necessary output\n"
-               "     2 - More verbose output (default)\n"
+               "     1 - Only necessary output (default)\n"
+               "     2 - More verbose output\n"
                "     3 - Debug output", verbosityLevel, false)
     .refOption("s", "DIMACS solution file", dimacsFile, true);
   ap.parse();
@@ -62,28 +58,10 @@ int main(int argc, char** argv)
     return 0;
   }
   
-  if (!(ap.given("n") && ap.given("e")) && !ap.given("stp") &&  !ap.given("stp-pcst"))
-  {
-    std::cerr << "Please specify either '-n' and '-e', or '-stp', or '-stp-pcst'" << std::endl;
-    return 1;
-  }
-  
   g_verbosity = static_cast<VerbosityLevel>(verbosityLevel);
   
   // Construct parser
-  ParserType* pParserInput = NULL;
-  if (!stpFile.empty())
-  {
-    pParserInput = new StpParserType(stpFile);
-  }
-  else if (!stpPcstFile.empty())
-  {
-    pParserInput = new StpPcstParserType(stpPcstFile);
-  }
-  else
-  {
-    pParserInput = new MwcsParserType(nodeFile, edgeFile);
-  }
+  StpPcstParserType* pParserInput = new StpPcstParserType(stpFile);
   
   // Parse the input graph file
   MwcsGraphType mwcsInput;
@@ -115,16 +93,16 @@ int main(int argc, char** argv)
   }
 
   const Graph& gg = mwcsInput.getGraph();
-  lemon::ArcLookUp<Graph> arcLookUp(gg);
   for (EdgeIt e(g); e != lemon::INVALID; ++e)
   {
     Node u = g.u(e);
     Node v = g.v(e);
     
-    Node uu = *mwcsInput.getNodeByLabel(mwcsSolution.getLabel(u)).begin();
-    Node vv = *mwcsInput.getNodeByLabel(mwcsSolution.getLabel(v)).begin();
+    const std::string& label_u = mwcsSolution.getLabel(u);
+    const std::string& label_v = mwcsSolution.getLabel(v);
 
-    if (arcLookUp(uu, vv) == lemon::INVALID)
+    if (mwcsInput.getNodeByLabel(label_u + "--" + label_v).size() == 0 &&
+        mwcsInput.getNodeByLabel(label_v + "--" + label_u).size() == 0)
     {
       std::cerr << "Edge (" << mwcsSolution.getLabel(u) << "," << mwcsSolution.getLabel(v) << ")" << " missing in input file" << std::endl;
       return 1;
@@ -136,6 +114,18 @@ int main(int argc, char** argv)
   {
     std::cerr << "Solution graph is not connected" << std::endl;
     return 1;
+  }
+  
+  // check if the solution graph contains the root nodes
+  const NodeSet& roots = pParserInput->getRootNodes();
+  for (NodeSetIt rootIt = roots.begin(); rootIt != roots.end(); ++rootIt)
+  {
+    Node root = *rootIt;
+    if (mwcsSolution.getNodeByLabel(mwcsInput.getLabel(root)).size() == 0)
+    {
+      std::cerr << "Missing root node '" << mwcsInput.getLabel(root) << "'" << std::endl;
+      return 1;
+    }
   }
   
   delete pParserInput;

@@ -205,6 +205,36 @@ target_link_libraries( heinz_rpcst_no_pre ${CommonLibs} )
 add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( print emon OGDF pthread )
 
-add_executable( check_solution src/check_solution.cpp src/utils.cpp )
-target_link_libraries( check_solution emon OGDF pthread )
+add_executable( check_mwcs_solution EXCLUDE_FROM_ALL src/dimacs/check_mwcs_solution.cpp src/utils.cpp )
+target_link_libraries( check_mwcs_solution emon OGDF pthread )
 
+add_executable( check_pcst_solution EXCLUDE_FROM_ALL src/dimacs/check_pcst_solution.cpp src/utils.cpp )
+target_link_libraries( check_pcst_solution emon OGDF pthread )
+
+enable_testing()
+add_test( heinz_mwcs_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_no_dc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
+add_test( heinz_mwcs_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_dc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
+add_test( heinz_mwcs_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_no_pre ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
+add_test( heinz_mwcs_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_mc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
+add_test( heinz_pcst_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_no_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+add_test( heinz_pcst_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+add_test( heinz_pcst_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_no_pre ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+add_test( heinz_pcst_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_mc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+add_test( heinz_rpcst_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_no_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
+add_test( heinz_rpcst_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_no_pre ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
+add_test( heinz_rpcst_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_mc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
+add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS 
+  check_mwcs_solution 
+  check_pcst_solution 
+  heinz_pcst_dc 
+  heinz_pcst_mc 
+  heinz_pcst_no_dc 
+  heinz_pcst_no_pre 
+  heinz_rpcst_mc 
+  heinz_rpcst_no_dc 
+  heinz_rpcst_no_pre 
+  heinz_mwcs_dc 
+  heinz_mwcs_mc 
+  heinz_mwcs_no_dc 
+  heinz_mwcs_no_pre 
+)
