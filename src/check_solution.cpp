@@ -104,15 +104,37 @@ int main(int argc, char** argv)
   }
   
   // check if the solution graph is a subgraph of the input graph
-  for (NodeIt v(mwcsSolution.getGraph()); v != lemon::INVALID; ++v)
+  const Graph& g = mwcsSolution.getGraph();
+  for (NodeIt v(g); v != lemon::INVALID; ++v)
   {
-    if (mwcsInput.getNodeByLabel(mwcsSolution.getLabel(v)).size() == 0)
+    if (mwcsInput.getNodeByLabel(mwcsSolution.getLabel(v)).size() != 1)
+    {
+      std::cerr << "Node " << mwcsSolution.getLabel(v) << " missing in input file" << std::endl;
       return 1;
+    }
+  }
+
+  const Graph& gg = mwcsInput.getGraph();
+  lemon::ArcLookUp<Graph> arcLookUp(gg);
+  for (EdgeIt e(g); e != lemon::INVALID; ++e)
+  {
+    Node u = g.u(e);
+    Node v = g.v(e);
+    
+    Node uu = *mwcsInput.getNodeByLabel(mwcsSolution.getLabel(u)).begin();
+    Node vv = *mwcsInput.getNodeByLabel(mwcsSolution.getLabel(v)).begin();
+
+    if (arcLookUp(uu, vv) == lemon::INVALID)
+    {
+      std::cerr << "Edge (" << mwcsSolution.getLabel(u) << "," << mwcsSolution.getLabel(v) << ")" << " missing in input file" << std::endl;
+      return 1;
+    }
   }
   
   // check if the solution graph is connected
-  if (!lemon::connected(mwcsSolution.getGraph()))
+  if (!lemon::connected(g))
   {
+    std::cerr << "Solution graph is not connected" << std::endl;
     return 1;
   }
   
