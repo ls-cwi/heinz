@@ -13,13 +13,14 @@ output_file = sys.argv[4]
 time_limit = 10
 threads = 1
 
-#print "Running " + executable + " on " + input_file
-print(executable + " " + input_file + " " + str(time_limit) + " " + str(threads) + " " + output_file + " &> /dev/null")
-status = subprocess.call(executable + " " + input_file + " " + str(time_limit) + " " + str(threads) + " " + output_file + " &> /dev/null", shell=True)
+print "Running " + executable + " on " + input_file
+print(executable + " " + input_file + " " + str(time_limit) + " " + str(threads) + " " + output_file)
+status = subprocess.call(executable + " " + input_file + " " + str(time_limit) + " " + str(threads) + " " + output_file, shell=True)
 if status != 0:
     sys.exit(status)
 else:
-    #print "Checking solution " + output_file
+    print "Checking solution " + output_file
+    print(check_executable + " -stp " + input_file + " -s " + output_file)
     status = subprocess.call(check_executable + " -stp " + input_file + " -s " + output_file, shell=True)
 
 sys.exit(status)
