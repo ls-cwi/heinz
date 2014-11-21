@@ -48,10 +48,11 @@ Next, Heinz can be compiled:
     cmake ..
     make
     
-In case auto-detection of LEMON or CPLEX fails, do
+In case auto-detection of LEMON, OGDF or CPLEX fails, do
 
     cmake \
     -DLIBLEMON_ROOT=~/lemon \
+    -DLIBOGDF_ROOT=~/root \
     -DCPLEX_INC_DIR=~/ILOG/cplex/include/ \
     -DCPLEX_LIB_DIR=~/ILOG/cplex/lib/x86-64_osx/static_pic \
     -DCONCERT_LIB_DIR=~/ILOG/concert/lib/x86-64_osx/static_pic \
@@ -63,3 +64,7 @@ Running heinz
 To run heinz on the test instances:
 
     ./heinz -n ../data/test/NodesPCST.txt -e ../data/test/EdgesPCST.txt
+
+Or do:
+
+    make check

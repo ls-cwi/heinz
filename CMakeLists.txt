@@ -163,10 +163,10 @@ set( CommonLibs
 	OGDF
 )
 
-add_executable( heinz-mc src/mwcs-mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
+add_executable( heinz-mc EXCLUDE_FROM_ALL src/mwcs-mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
 target_link_libraries( heinz-mc emon OGDF pthread )
 
-add_executable( heinz src/mwcs.cpp ${Heinz_Src} ${Heinz_Hdr} )
+add_executable( heinz EXCLUDE_FROM_ALL src/mwcs.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz ${CommonLibs} )
 
 add_executable( heinz_mwcs_mc src/dimacs/heinz_mwcs_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
@@ -202,7 +202,7 @@ target_link_libraries( heinz_rpcst_no_dc ${CommonLibs} )
 add_executable( heinz_rpcst_no_pre src/dimacs/heinz_rpcst_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz_rpcst_no_pre ${CommonLibs} )
 
-add_executable( print ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
+add_executable( print EXCLUDE_FROM_ALL ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( print emon OGDF pthread )
 
 add_executable( check_mwcs_solution EXCLUDE_FROM_ALL src/dimacs/check_mwcs_solution.cpp src/utils.cpp )
