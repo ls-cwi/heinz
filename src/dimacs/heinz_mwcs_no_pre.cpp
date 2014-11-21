@@ -83,7 +83,9 @@ int main(int argc, char** argv)
     std_out_used = true;
     g_pOut = &std::cout;
   }
-  
+  g_pOut->setf(std::ios_base::fixed);
+  g_pOut->precision(9);
+
   g_verbosity = VERBOSE_NONE;
   g_verbosity = VERBOSE_NON_ESSENTIAL;
   StpParserType parser(input);
