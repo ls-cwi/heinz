@@ -4,6 +4,9 @@
 #include <lemon/list_graph.h>
 #include <lemon/time_measure.h>
 #include <ostream>
+#include <set>
+
+#include "mwcsgraph.h"
 
 namespace nina {
 namespace mwcs {
@@ -25,6 +28,9 @@ void printCommentSection(const std::string& name,
                          const std::string& version);
 
 void printRunSection(int threads, double primalObjValue, double dualObjValue);
+  
+double reEvaluatePCST(const MwcsGraph<Graph>& mwcsGraph,
+                      const std::set<Node>& solution);
   
 typedef enum {
                VERBOSE_NONE = 0,

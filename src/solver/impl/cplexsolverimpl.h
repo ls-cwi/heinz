@@ -52,13 +52,15 @@ public:
             int maxNumberOfCuts,
             int timeLimit,
             int multiThreading,
-            int memoryLimit)
+            int memoryLimit,
+            bool pcst)
       : _backOff(backOff)
       , _analysis(analysis)
       , _maxNumberOfCuts(maxNumberOfCuts)
       , _timeLimit(timeLimit)
       , _multiThreading(multiThreading)
       , _memoryLimit(memoryLimit)
+      , _pcst(pcst)
     {
     }
     
@@ -68,6 +70,7 @@ public:
     int _timeLimit;
     int _multiThreading;
     int _memoryLimit;
+    bool _pcst;
   };
 
 protected:

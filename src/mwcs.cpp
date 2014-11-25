@@ -217,7 +217,8 @@ int main(int argc, char** argv)
                   maxNumberOfCuts,
                   timeLimit,
                   multiThreading,
-                  memoryLimit);
+                  memoryLimit,
+                  !stpPcstFile.empty());
   
   if (rootNodeSet.size() == 0 && !root.empty())
   {

@@ -13,6 +13,7 @@
 #include "cplex_cut/nodecutrooted.h"
 #include "cplex_heuristic/heuristicrooted.h"
 #include "cplex_incumbent/incumbent.h"
+#include "cplex_incumbent/pcstincumbent.h"
 
 #include <ilconcert/ilothread.h>
 
@@ -49,6 +50,7 @@ public:
   typedef NodeCutRootedLazyConstraint<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutRootedLazyConstraintType;
   typedef NodeCutRootedUserCut<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutRootedUserCutType;
   typedef HeuristicRooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicRootedType;
+  typedef PcstIncumbent<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap>  PcstIncumbentType;
   
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   
@@ -201,7 +203,12 @@ inline bool CutSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
                                               _n, _m, pMutex);
   
   if (g_pOut)
-    pIncumbent = new (_env) Incumbent(_env, pMutex);
+  {
+    if (_options._pcst)
+      pIncumbent = new (_env) Incumbent(_env, pMutex);
+    else
+      pIncumbent = new (_env) PcstIncumbentType(_env, *_pMwcsGraph, _x, pMutex);
+  }
 
   _cplex.setParam(IloCplex::MIPInterval, 1);
 

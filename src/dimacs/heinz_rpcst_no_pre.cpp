@@ -104,7 +104,8 @@ int main(int argc, char** argv)
                   10,
                   timelimit,
                   threads,
-                  MEMORY_LIMIT);
+                  MEMORY_LIMIT,
+                  true);
 
   printCommentSection(parser.getName(), PROBLEM, METHOD, HEINZ_VERSION);
   

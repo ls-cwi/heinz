@@ -90,3 +90,9 @@ void nina::mwcs::printRunSection(int threads, double primalObjValue, double dual
   *g_pOut << "End" << std::endl;
   *g_pOut << std::endl;
 }
+
+double nina::mwcs::reEvaluatePCST(const MwcsGraph<Graph>& mwcsGraph,
+                                  const std::set<Node>& solution)
+{
+  return 0;
+}
