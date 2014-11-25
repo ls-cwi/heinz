@@ -726,7 +726,6 @@ inline void MwcsGraph<GR, NWGHT, NLBL, EWGHT>::printSTP(const std::string& name,
 {
   const Graph& g = orig ? getOrgGraph() : getGraph();
   const WeightNodeMap& weight = orig ? getOrgScores() : getScores();
-  const LabelNodeMap& label = orig ? getOrgLabels() : getLabels();
 
   out << "33D32945 STP File, STP Format Version 1.0" << std::endl;
   out << std::endl;

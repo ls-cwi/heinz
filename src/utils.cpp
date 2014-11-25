@@ -91,8 +91,54 @@ void nina::mwcs::printRunSection(int threads, double primalObjValue, double dual
   *g_pOut << std::endl;
 }
 
-double nina::mwcs::reEvaluatePCST(const MwcsGraph<Graph>& mwcsGraph,
+template<typename MWCSGR>
+double nina::mwcs::reEvaluatePCST(const MWCSGR& mwcsGraph,
                                   const std::set<Node>& solution)
 {
+  typedef std::set<Node> NodeSet;
+  typedef NodeSet::const_iterator NodeSetIt;
+  
+  NodeSet solutionEdges;
+  NodeSet solutionNodes;
+  
+  double cost = 0;
+  for (NodeSetIt nodeIt = solution.begin(); nodeIt != solution.end(); ++nodeIt)
+  {
+    const NodeSet& orgNodes = mwcsGraph.getOrgNodes(*nodeIt);
+    for (NodeSetIt orgNodeIt = orgNodes.begin(); orgNodeIt != orgNodes.end(); ++orgNodeIt)
+    {
+      Node orgNode = *orgNodeIt;
+      const std::string& label = mwcsGraph.getOrgLabel(orgNode);
+      int idU = -1, idV = -1;
+      char c = '\0';
+      if (sscanf(label.c_str(), "%d--%d%c", &idU, &idV, &c) == 2)
+      {
+        // edge
+        solutionEdges.insert(orgNode);
+        cost += -1 * mwcsGraph.getOrgWeight(orgNode);
+      }
+      else if (sscanf(label.c_str(), "%d%c", &idU, &c) == 1)
+      {
+        // node
+        solutionNodes.insert(*orgNodeIt);
+      }
+    }
+  }
+  
+  const Graph& orgG = mwcsGraph.getOrgGraph();
+  for (NodeIt v(orgG); v != lemon::INVALID; ++v)
+  {
+    const std::string& label = mwcsGraph.getOrgLabel(v);
+    
+    int idU = -1;
+    char c = '\0';
+    if (solutionEdges.find(v) == solutionEdges.end() &&
+        solutionNodes.find(v) == solutionNodes.end() &&
+        sscanf(label.c_str(), "%d%c", &idU, &c) == 1)
+    {
+      cost -= mwcsGraph.getOrgWeight(v);
+    }
+  }
+  
   return 0;
 }

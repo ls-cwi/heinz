@@ -6,8 +6,6 @@
 #include <ostream>
 #include <set>
 
-#include "mwcsgraph.h"
-
 namespace nina {
 namespace mwcs {
 
@@ -28,8 +26,9 @@ void printCommentSection(const std::string& name,
                          const std::string& version);
 
 void printRunSection(int threads, double primalObjValue, double dualObjValue);
-  
-double reEvaluatePCST(const MwcsGraph<Graph>& mwcsGraph,
+
+template<typename MWCSGR>
+double reEvaluatePCST(const MWCSGR& mwcsGraph,
                       const std::set<Node>& solution);
   
 typedef enum {
