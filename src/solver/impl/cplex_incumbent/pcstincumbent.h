@@ -11,6 +11,7 @@
 #include <ilcplex/ilocplex.h>
 #include <ilcplex/ilocplexi.h>
 #include <ilconcert/ilothread.h>
+#include <lemon/tolerance.h>
 #include <limits>
 #include <set>
 #include "utils.h"
@@ -40,30 +41,23 @@ public:
   
 public:
   PcstIncumbent(IloEnv env,
-                const MwcsGraphType& mwcsGraph,
-                IloBoolVarArray x,
+                double pT,
                 IloFastMutex* pMutex)
     : IloCplex::IncumbentCallbackI(env)
-    , _mwcsGraph(mwcsGraph)
-    , _x(x)
+    , _pT(pT)
     , _pMutex(pMutex)
   {
   }
   
   PcstIncumbent(const PcstIncumbent& other)
     : IloCplex::IncumbentCallbackI(other._env)
-    , _mwcsGraph(other._mwcsGraph)
-    , _x(other._x)
+    , _pT(other._pT)
     , _pMutex(other._pMutex)
   {
   }
-  
-  static double reEvaluate(const MwcsGraphType& mwcsGraph,
-                           const NodeSet& solution);
-  
+
 protected:
-  const MwcsGraphType& _mwcsGraph;
-  IloBoolVarArray _x;
+  const double _pT;
   IloFastMutex* _pMutex;
   
   virtual void main()
@@ -72,7 +66,7 @@ protected:
     if (getObjValue() > _highestObj)
     {
       _highestObj = getObjValue();
-      *g_pOut << "Solution " << g_timer.realTime() << " " << getObjValue() << std::endl;
+      *g_pOut << "Solution " << g_timer.realTime() << " " << -1 * _highestObj + _pT << std::endl;
     }
     unlock();
   }

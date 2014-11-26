@@ -161,7 +161,8 @@ protected:
   
   void setCplexSolution(IloBoolVarArray solutionVar, IloNumArray solution, double solutionWeight)
   {
-    setSolution(solutionVar, solution, solutionWeight);
+    // we can't provide CPLEX the solutionWeight because in the PCST case we use a different objective
+    setSolution(solutionVar, solution);
   }
   
   void computeEdgeWeights()

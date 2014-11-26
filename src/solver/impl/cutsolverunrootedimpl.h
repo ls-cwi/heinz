@@ -13,6 +13,7 @@
 #include "cplex_cut/nodecutunrooted.h"
 #include "cplex_heuristic/heuristicunrooted.h"
 #include "cplex_incumbent/incumbent.h"
+#include "cplex_incumbent/pcstincumbent.h"
 
 namespace nina {
 namespace mwcs {
@@ -47,6 +48,7 @@ public:
   typedef NodeCutUnrootedLazyConstraint<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutUnrootedLazyConstraintType;
   typedef NodeCutUnrootedUserCut<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutUnrootedUserCutType;
   typedef HeuristicUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicUnrootedType;
+  typedef PcstIncumbent<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap>  PcstIncumbentType;
   
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
   
@@ -210,6 +212,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
   // must be part of the solution as well
   // if you get in, you have to get out as well
   // BIG FAT WARNING: not true for xHeinz!!!
+  if (_n > 5000 && 
   if (g_verbosity >= VERBOSE_DEBUG)
   {
     std::cout << std::endl;
@@ -302,7 +305,12 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
                                                 _n, _m, pMutex);
   
   if (g_pOut)
-    pIncumbent = new (_env) Incumbent(_env, pMutex);
+  {
+    if (_options._pcst)
+      pIncumbent = new (_env) PcstIncumbentType(_env, _pMwcsGraph->getTotalNodeProfitPCST(), pMutex);
+    else
+      pIncumbent = new (_env) Incumbent(_env, pMutex);
+  }
 
   _cplex.setParam(IloCplex::MIPInterval, 1);
   

@@ -74,12 +74,18 @@ public:
     return _rootNodes;
   }
   
+  double getTotalNodeProfit() const
+  {
+    return _pV;
+  }
+  
 protected:
   std::string _name;
   int _nOrgNodes;
   int _nOrgEdges;
   int _nTerminals;
   NodeSet _rootNodes;
+  double _pV;
 };
 
 template<typename GR>
@@ -274,6 +280,7 @@ inline bool StpPcstParser<GR>::parseGraph(std::istream& in, int& lineNumber)
     return false;
   }
 
+  _pV = 0;
   for (int i = 0; i < _nTerminals; i++)
   {
     if (!parseTerminal(in, lineNumber))
@@ -388,6 +395,7 @@ inline bool StpPcstParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
       
       Node u = _pG->nodeFromId(idU - 1);
       _pWeightNodeMap->set(u, weightU);
+      _pV += weightU;
     }
 
     return true;

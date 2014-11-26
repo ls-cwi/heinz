@@ -309,6 +309,8 @@ public:
       return lemon::INVALID;
   }
   
+  double getTotalNodeProfitPCST() const;
+  
   virtual void printNodeList(std::ostream& out,
                              bool orig = false) const;
   virtual void printEdgeList(std::ostream& out,
@@ -799,6 +801,27 @@ inline bool MwcsGraph<GR, NWGHT, NLBL, EWGHT>::init(Graph* pG,
   return true;
 }
 
+template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
+inline double MwcsGraph<GR, NWGHT, NLBL, EWGHT>::getTotalNodeProfitPCST() const
+{
+  double res = 0;
+  
+  const Graph& orgG = getOrgGraph();
+  for (NodeIt v(orgG); v != lemon::INVALID; ++v)
+  {
+    const std::string& label = getOrgLabel(v);
+    
+    int idU = -1;
+    char c = '\0';
+    if (sscanf(label.c_str(), "%d%c", &idU, &c) == 1)
+    {
+      res += getOrgScore(v);
+    }
+  }
+  
+  return res;
+}
+  
 } // namespace mwcs
 } // namespace nina
 

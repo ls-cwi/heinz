@@ -232,9 +232,10 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
 {
   const Graph& g = mwcsGraph.getGraph();
   const WeightNodeMap& weight = mwcsGraph.getScores();
+
+  IloExpr expr(_env);
   
   // objective function
-  IloExpr expr(_env);
   for (int i = 0; i < _n ; i++)
   {
     expr += _x[i] * weight[_invNode[i]];

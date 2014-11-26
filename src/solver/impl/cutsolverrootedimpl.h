@@ -205,9 +205,9 @@ inline bool CutSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   if (g_pOut)
   {
     if (_options._pcst)
-      pIncumbent = new (_env) Incumbent(_env, pMutex);
+      pIncumbent = new (_env) PcstIncumbentType(_env, _pMwcsGraph->getTotalNodeProfitPCST(), pMutex);
     else
-      pIncumbent = new (_env) PcstIncumbentType(_env, *_pMwcsGraph, _x, pMutex);
+      pIncumbent = new (_env) Incumbent(_env, pMutex);
   }
 
   _cplex.setParam(IloCplex::MIPInterval, 1);

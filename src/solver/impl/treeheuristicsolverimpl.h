@@ -369,7 +369,7 @@ inline bool TreeHeuristicSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveMonteCarlo(con
       
       if (g_pOut)
       {
-        *g_pOut << "Solution " << g_timer.realTime() << " " << score << std::endl;
+        *g_pOut << "Solution " << g_timer.realTime() << " " << reEvaluatePCST(mwcsGraph, solutionSet) << std::endl;
       }
     }
     

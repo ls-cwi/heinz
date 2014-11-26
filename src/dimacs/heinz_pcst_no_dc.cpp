@@ -115,7 +115,8 @@ int main(int argc, char** argv)
   solver.solve(instance);
   *g_pOut << "End" << std::endl << std::endl;
   
-  printRunSection(threads, solver.getSolutionWeight(), solver.getSolutionWeightUB());
+  printRunSection(1, -1 * solver.getSolutionWeight() + parser.getTotalNodeProfit(),
+                  -1 * solver.getSolutionWeightUB() + parser.getTotalNodeProfit());
   
   *g_pOut << "SECTION Finalsolution" << std::endl;
   instance.printPcstDimacs(solver.getSolutionModule(), *g_pOut);

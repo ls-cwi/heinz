@@ -110,7 +110,7 @@ int main(int argc, char** argv)
   solver.solve(instance);
   *g_pOut << "End" << std::endl << std::endl;
   
-  printRunSection(1, reEvaluatePCST(instance, solver.getSolutionModule()), -1);
+  printRunSection(1, -1 * solver.getSolutionWeight() + parser.getTotalNodeProfit(), -1);
   
   *g_pOut << "SECTION Finalsolution" << std::endl;
   instance.printPcstDimacs(solver.getSolutionModule(), *g_pOut);

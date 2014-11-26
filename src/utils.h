@@ -28,8 +28,56 @@ void printCommentSection(const std::string& name,
 void printRunSection(int threads, double primalObjValue, double dualObjValue);
 
 template<typename MWCSGR>
-double reEvaluatePCST(const MWCSGR& mwcsGraph,
-                      const std::set<Node>& solution);
+inline double reEvaluatePCST(const MWCSGR& mwcsGraph,
+                             const std::set<Node>& solution)
+{
+  typedef std::set<Node> NodeSet;
+  typedef NodeSet::const_iterator NodeSetIt;
+  
+  NodeSet solutionEdges;
+  NodeSet solutionNodes;
+  
+  double cost = 0;
+  for (NodeSetIt nodeIt = solution.begin(); nodeIt != solution.end(); ++nodeIt)
+  {
+    const NodeSet& orgNodes = mwcsGraph.getOrgNodes(*nodeIt);
+    for (NodeSetIt orgNodeIt = orgNodes.begin(); orgNodeIt != orgNodes.end(); ++orgNodeIt)
+    {
+      Node orgNode = *orgNodeIt;
+      const std::string& label = mwcsGraph.getOrgLabel(orgNode);
+      int idU = -1, idV = -1;
+      char c = '\0';
+      if (sscanf(label.c_str(), "%d--%d%c", &idU, &idV, &c) == 2)
+      {
+        // edge
+        solutionEdges.insert(orgNode);
+        cost += -1 * mwcsGraph.getOrgScore(orgNode);
+      }
+      else if (sscanf(label.c_str(), "%d%c", &idU, &c) == 1)
+      {
+        // node
+        solutionNodes.insert(*orgNodeIt);
+      }
+    }
+  }
+  
+  const Graph& orgG = mwcsGraph.getOrgGraph();
+  for (NodeIt v(orgG); v != lemon::INVALID; ++v)
+  {
+    const std::string& label = mwcsGraph.getOrgLabel(v);
+    
+    int idU = -1;
+    char c = '\0';
+    if (solutionEdges.find(v) == solutionEdges.end() &&
+        solutionNodes.find(v) == solutionNodes.end() &&
+        sscanf(label.c_str(), "%d%c", &idU, &c) == 1)
+    {
+      cost += mwcsGraph.getOrgScore(v);
+    }
+  }
+  
+  return cost;
+}
   
 typedef enum {
                VERBOSE_NONE = 0,
