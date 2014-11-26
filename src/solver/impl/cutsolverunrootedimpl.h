@@ -212,47 +212,49 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
   // must be part of the solution as well
   // if you get in, you have to get out as well
   // BIG FAT WARNING: not true for xHeinz!!!
-  if (_n > 5000 && 
-  if (g_verbosity >= VERBOSE_DEBUG)
-  {
-    std::cout << std::endl;
-  }
-  int idx = 1;
-  for (NodeIt i(g); i != lemon::INVALID; ++i, ++idx)
+  if (_n < 5000 || !_options._pcst)
   {
     if (g_verbosity >= VERBOSE_DEBUG)
     {
-      std::cout << "\rAdding symmetry breaking constraints " << idx << "/" << _n << std::flush;
+      std::cout << std::endl;
     }
-    if (weight[i] <= 0)
+    int idx = 1;
+    for (NodeIt i(g); i != lemon::INVALID; ++i, ++idx)
     {
-      expr.clear();
-      for (IncEdgeIt e(g, i); e != lemon::INVALID; ++e)
+      if (g_verbosity >= VERBOSE_DEBUG)
       {
-        Node j = g.oppositeNode(i, e);
-        expr += _x[(*_pNode)[j]];
+        std::cout << "\rAdding symmetry breaking constraints " << idx << "/" << _n << std::flush;
       }
-      _model.add(2 * _x[(*_pNode)[i]] <= expr);
+      if (weight[i] <= 0)
+      {
+        expr.clear();
+        for (IncEdgeIt e(g, i); e != lemon::INVALID; ++e)
+        {
+          Node j = g.oppositeNode(i, e);
+          expr += _x[(*_pNode)[j]];
+        }
+        _model.add(2 * _x[(*_pNode)[i]] <= expr);
+      }
+      else
+      {
+        // symmetry breaking
+        // sum_{j > i, w_j > 0} y_j <= 1 - x_i
+        int id_i = (*_pNode)[i];
+        expr.clear();
+        for (int id_j = id_i + 1; id_j < _n; ++id_j)
+        {
+          Node j = _invNode[id_j];
+          if (weight[j] < 0) continue;
+          expr += _y[id_j];
+          _model.add(_y[id_j] <= 1 - _x[id_i]);
+        }
+        _model.add(expr <= 1 - _x[id_i]);
+      }
     }
-    else
+    if (g_verbosity >= VERBOSE_DEBUG)
     {
-      // symmetry breaking
-      // sum_{j > i, w_j > 0} y_j <= 1 - x_i
-      int id_i = (*_pNode)[i];
-      expr.clear();
-      for (int id_j = id_i + 1; id_j < _n; ++id_j)
-      {
-        Node j = _invNode[id_j];
-        if (weight[j] < 0) continue;
-        expr += _y[id_j];
-        _model.add(_y[id_j] <= 1 - _x[id_i]);
-      }
-      _model.add(expr <= 1 - _x[id_i]);
+      std::cout << std::endl;
     }
-  }
-  if (g_verbosity >= VERBOSE_DEBUG)
-  {
-    std::cout << std::endl;
   }
 }
   
