@@ -37,6 +37,7 @@ public:
   typedef typename Parent::WeightNodeMap WeightNodeMap;
   typedef typename Parent::WeightEdgeMap WeightEdgeMap;
 
+  using Parent::safeGetline;
   using Parent::_filename;
   using Parent::_pG;
   using Parent::_pIdNodeMap;
@@ -92,7 +93,7 @@ inline bool MwcsParser<GR>::parseNodes()
 
   int lineNumber = 0;
 
-  while (std::getline(inFile, line))
+  while (safeGetline(inFile, line))
   {
     ++lineNumber;
     if ((!line.empty() && line[0] == '#') || line.empty())
@@ -171,7 +172,7 @@ inline bool MwcsParser<GR>::parseEdges()
 
   int lineNumber = 0;
 
-  while (std::getline(inFile, line))
+  while (safeGetline(inFile, line))
   {
     ++lineNumber;
     if ((!line.empty() && line[0] == '#') || line.empty())

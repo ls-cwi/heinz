@@ -38,6 +38,7 @@ public:
   typedef typename Parent::WeightNodeMap WeightNodeMap;
   typedef typename Parent::WeightEdgeMap WeightEdgeMap;
 
+  using Parent::safeGetline;
   using Parent::_filename;
   using Parent::_pG;
   using Parent::_pIdNodeMap;
@@ -77,7 +78,7 @@ inline bool DimacsParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
 {
   std::string line;
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
@@ -106,7 +107,7 @@ inline bool DimacsParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
 {
   std::string line;
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
@@ -137,7 +138,7 @@ inline bool DimacsParser<GR>::parseGraph(std::istream& in, int& lineNumber)
   std::string line;
   
   // skip until "Name"
-  while (std::getline(in, line) && line.substr(0, 4) != "Name")
+  while (safeGetline(in, line) && line.substr(0, 4) != "Name")
     lineNumber++;
   
   if (line.size() < 6)
@@ -148,7 +149,7 @@ inline bool DimacsParser<GR>::parseGraph(std::istream& in, int& lineNumber)
   _name = line.substr(5);
 
   // skip until "SECTION Finalsolution"
-  while (std::getline(in, line) && line != "SECTION Finalsolution")
+  while (safeGetline(in, line) && line != "SECTION Finalsolution")
     lineNumber++;
 
   if (line != "SECTION Finalsolution")
@@ -194,7 +195,7 @@ inline bool DimacsParser<GR>::parseNode(std::istream& in, int& lineNumber)
   std::string line;
   char buf[1024];
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
@@ -238,7 +239,7 @@ inline bool DimacsParser<GR>::parseEdge(std::istream& in, int& lineNumber)
 {
   std::string line;
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);

@@ -43,6 +43,7 @@ public:
   typedef typename Parent::WeightNodeMap WeightNodeMap;
   typedef typename Parent::WeightEdgeMap WeightEdgeMap;
 
+  using Parent::safeGetline;
   using Parent::_filename;
   using Parent::_pG;
   using Parent::_pIdNodeMap;
@@ -103,7 +104,7 @@ template<typename GR>
 inline bool StpPcstParser<GR>::parseHeader(std::istream& in, int& lineNumber)
 {
   std::string line;
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     lineNumber++;
     return line.substr(0, 8) == "33D32945";
@@ -119,7 +120,7 @@ inline bool StpPcstParser<GR>::parseNrTerminals(std::istream& in, int& lineNumbe
 {
   std::string line;
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
@@ -153,7 +154,7 @@ inline bool StpPcstParser<GR>::parseNrNodes(std::istream& in, int& lineNumber)
 {
   std::string line;
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
@@ -181,7 +182,7 @@ inline bool StpPcstParser<GR>::parseNrEdges(std::istream& in, int& lineNumber)
 {
   std::string line;
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
@@ -220,7 +221,7 @@ inline bool StpPcstParser<GR>::parseGraph(std::istream& in, int& lineNumber)
   char buf[1024];
   
   // skip until "Name"
-  while (std::getline(in, line) && line.substr(0, 4) != "Name")
+  while (safeGetline(in, line) && line.substr(0, 4) != "Name")
     lineNumber++;
   
   if (line.size() < 6)
@@ -231,7 +232,7 @@ inline bool StpPcstParser<GR>::parseGraph(std::istream& in, int& lineNumber)
   _name = line.substr(5);
 
   // skip until "SECTION Graph"
-  while (std::getline(in, line) && line != "SECTION Graph")
+  while (safeGetline(in, line) && line != "SECTION Graph")
     lineNumber++;
 
   if (line != "SECTION Graph")
@@ -266,7 +267,7 @@ inline bool StpPcstParser<GR>::parseGraph(std::istream& in, int& lineNumber)
   }
 
   // skip until "SECTION Terminals"
-  while (std::getline(in, line) && line != "SECTION Terminals")
+  while (safeGetline(in, line) && line != "SECTION Terminals")
     lineNumber++;
 
   if (line != "SECTION Terminals")
@@ -298,7 +299,7 @@ inline bool StpPcstParser<GR>::parseEdge(std::istream& in, int& lineNumber)
   std::string line;
   char buf[1024];
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
@@ -354,7 +355,7 @@ inline bool StpPcstParser<GR>::parseTerminal(std::istream& in, int& lineNumber)
 {
   std::string line;
 
-  if (std::getline(in, line))
+  if (safeGetline(in, line))
   {
     std::string text;
     std::stringstream ss(line);
