@@ -212,7 +212,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
   // must be part of the solution as well
   // if you get in, you have to get out as well
   // BIG FAT WARNING: not true for xHeinz!!!
-//  if (_n < 5000 || !_options._pcst)
+  if (_n < 5000 || !_options._pcst)
   {
     if (g_verbosity >= VERBOSE_DEBUG)
     {
