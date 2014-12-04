@@ -149,9 +149,9 @@ protected:
     y_values.end();
   }
   
-  bool computeMaxWeightConnectedSubtree(IloBoolVarArray& solutionVar,
-                                        IloNumArray& solution,
-                                        double& solutionWeight)
+  virtual bool computeMaxWeightConnectedSubtree(IloBoolVarArray& solutionVar,
+                                                IloNumArray& solution,
+                                                double& solutionWeight)
   {
     _pMwcsSubTreeUnrootedSolver->init(*_pMwcsSubGraph);
     
