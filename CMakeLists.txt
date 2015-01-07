@@ -167,7 +167,7 @@ set( CommonLibs
 add_executable( heinz-mc EXCLUDE_FROM_ALL src/mwcs-mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
 target_link_libraries( heinz-mc emon OGDF pthread )
 
-add_executable( heinz EXCLUDE_FROM_ALL src/mwcs.cpp ${Heinz_Src} ${Heinz_Hdr} )
+add_executable( heinz src/mwcs.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz ${CommonLibs} )
 
 add_executable( heinz_mwcs_mc src/dimacs/heinz_mwcs_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
