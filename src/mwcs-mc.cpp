@@ -43,6 +43,7 @@ typedef NegEdge<Graph> NegEdgeType;
 typedef NegCircuit<Graph> NegCircuitType;
 typedef NegDiamond<Graph> NegDiamondType;
 typedef NegMirroredHubs<Graph> NegMirroredHubsType;
+typedef NegDominatedHubs<Graph> NegDominatedHubsType;
 typedef PosDeg01<Graph> PosDeg01Type;
 typedef PosDiamond<Graph> PosDiamondType;
 

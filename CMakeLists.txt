@@ -21,6 +21,7 @@ set( Heinz_Hdr
   src/preprocessing/negcircuit.h
   src/preprocessing/negdiamond.h
   src/preprocessing/negmirroredhubs.h
+  src/preprocessing/negdominatedhubs.h
   src/preprocessing/posdeg01.h
   src/preprocessing/posdiamond.h
   src/preprocessing/shortestpath.h

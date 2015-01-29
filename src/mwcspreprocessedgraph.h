@@ -21,6 +21,7 @@
 #include "preprocessing/negcircuit.h"
 #include "preprocessing/negdiamond.h"
 #include "preprocessing/negmirroredhubs.h"
+#include "preprocessing/negdominatedhubs.h"
 #include "preprocessing/posdeg01.h"
 #include "preprocessing/posdiamond.h"
 #include "preprocessing/shortestpath.h"
@@ -96,6 +97,7 @@ protected:
   typedef NegCircuit<Graph> NegCircuitType;
   typedef NegDiamond<Graph> NegDiamondType;
   typedef NegMirroredHubs<Graph> NegMirroredHubsType;
+  typedef NegDominatedHubs<Graph> NegDominatedHubsType;
   typedef PosDeg01<Graph> PosDeg01Type;
   typedef PosDiamond<Graph> PosDiamondType;
   typedef ShortestPath<Graph> ShortestPathType;
@@ -542,9 +544,13 @@ inline MwcsPreprocessedGraph<GR, NWGHT, NLBL, EWGHT>::MwcsPreprocessedGraph()
 //  addPreprocessRule(1, new NegCircuitType());
 //  addPreprocessRule(1, new NegDiamondType());
   addPreprocessRule(1, new PosDeg01Type());
+  
   addPreprocessRule(2, new PosDiamondType());
   addPreprocessRule(2, new NegMirroredHubsType());
+  //addPreprocessRule(2, new NegDominatedHubsType());
+  
   addPreprocessRule(3, new ShortestPathType());
+  
 }
 
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
