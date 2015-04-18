@@ -670,7 +670,17 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::processBlock2(MwcsPreGrap
     }
     
     const NodePair& cutPair = spqr.getCutPair(RootedSpqrTreeInArcIt(rootedT, triCompIt->second));
-    result |= solveTriComp(mwcsGraph, cutPair, orgNodesInSubTree[triCompIt->second], orgC);
+    bool cutPairConnected = false;
+    for (IncEdgeIt e(mwcsGraph.getGraph(), cutPair.first); e != lemon::INVALID; ++e)
+    {
+      if (mwcsGraph.getGraph().target(e) == cutPair.second)
+      {
+        cutPairConnected = true;
+        break;
+      }
+    }
+    if (!cutPairConnected)
+      result |= solveTriComp(mwcsGraph, cutPair, orgNodesInSubTree[triCompIt->second], orgC);
   }
   
 //  std::cout << T.id(triComponents.begin()->second) << " " << triComponents.begin()->first << std::endl;
@@ -757,7 +767,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveTriComp(MwcsPreGraph
 //  mwcsSubGraph.print(std::cout);
   assert(lemon::connected(subG));
   assert(mwcsGraph.getComponentCount() == lemon::countConnectedComponents(mwcsGraph.getGraph()));
-  
+   
   NodeSet subSolutionSet;
   double solutionScore;
   double solutionScoreUB;
@@ -1460,7 +1470,7 @@ inline bool EnumSolverUnrooted<GR, WGHT, NLBL, EWGHT>::solveUnrooted(MwcsPreGrap
   }
   
   // are we done?
-  if (mwcsGraph.getNodeCount() == 0)
+  if (mwcsGraph.getNodeCount() == 0 || mwcsGraph.allNodesNegative())
   {
     solutionSet.clear();
     solutionScore = 0;

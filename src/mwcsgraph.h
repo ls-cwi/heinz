@@ -309,6 +309,19 @@ public:
       return lemon::INVALID;
   }
   
+  bool allNodesNegative() const
+  {
+    const Graph& g = getGraph();
+    for (NodeIt v(g); v != lemon::INVALID; ++v)
+    {
+      if (getScore(v) > 0)
+      {
+        return false;
+      }
+    }
+    return true;
+  }
+  
   double getTotalNodeProfitPCST() const;
   
   virtual void printNodeList(std::ostream& out,
