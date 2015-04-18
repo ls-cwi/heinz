@@ -81,3 +81,11 @@ To run heinz on the test instances:
 Or do:
 
     make check
+    
+To run heinz on the DIMACS MWCS instances, do:
+
+    ./heinz -stp ../data/DIMACS/mwcs/ACTMOD/HCMV.stp
+    
+For the PCST DIMACS instances use:
+
+    ./heinz -stp-pcst ../data/DIMACS/pcst/PCSPG-JMP/K100.2.stp
