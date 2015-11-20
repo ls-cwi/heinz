@@ -2,7 +2,7 @@
  * cutsolverunrootedimpl.h
  *
  *  Created on: 22-aug-2014
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. Klau
  */
 
 #ifndef CUTSOLVERUNROOTEDIMPL_H
@@ -30,28 +30,28 @@ public:
   typedef NWGHT WeightNodeMap;
   typedef NLBL LabelNodeMap;
   typedef EWGHT WeightEdgeMap;
-  
+
   typedef SolverUnrootedImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent1;
   typedef CplexSolverImpl<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> Parent2;
 
   typedef typename Parent1::MwcsGraphType MwcsGraphType;
   typedef typename Parent1::NodeSet NodeSet;
   typedef typename Parent1::NodeSetIt NodeSetIt;
-  
+
   typedef typename Parent2::NodeVector NodeVector;
   typedef typename Parent2::NodeVectorIt NodeVectorIt;
   typedef typename Parent2::MwcsAnalyzeType MwcsAnalyzeType;
   typedef typename Parent2::InvNodeIntMap InvNodeIntMap;
   typedef typename Parent2::InvArcIntMap InvArcIntMap;
   typedef typename Parent2::Options Options;
-  
+
   typedef NodeCutUnrootedLazyConstraint<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutUnrootedLazyConstraintType;
   typedef NodeCutUnrootedUserCut<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> NodeCutUnrootedUserCutType;
   typedef HeuristicUnrooted<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> HeuristicUnrootedType;
   typedef PcstIncumbent<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap>  PcstIncumbentType;
-  
+
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  
+
   using Parent1::_pMwcsGraph;
   using Parent2::_options;
   using Parent2::_n;
@@ -66,7 +66,7 @@ public:
   using Parent2::initConstraints;
   using Parent2::clean;
   using Parent2::solveCplex;
-  
+
 public:
   CutSolverUnrootedImpl(const Options& options)
     : Parent1()
@@ -74,11 +74,11 @@ public:
     , _y()
   {
   }
-  
+
   virtual ~CutSolverUnrootedImpl()
   {
   }
-  
+
   virtual void printVariables(const MwcsGraphType& mwcsGraph,
                               std::ostream& out)
   {
@@ -91,14 +91,14 @@ public:
       << std::endl;
     }
   }
-  
+
   void init(const MwcsGraphType& mwcsGraph)
   {
     Parent1::init(mwcsGraph);
     initVariables(mwcsGraph);
     initConstraints(mwcsGraph);
   }
-  
+
   bool solve(double& score, double& scoreUB, BoolNodeMap& solutionMap, NodeSet& solutionSet)
   {
     return Parent2::solveCplex(*_pMwcsGraph, score, scoreUB, solutionMap, solutionSet);
@@ -106,21 +106,21 @@ public:
 
 protected:
   IloBoolVarArray _y;
-  
+
   virtual void initVariables(const MwcsGraphType& mwcsGraph);
   virtual void initConstraints(const MwcsGraphType& mwcsGraph);
-  
+
   bool solveModel();
 };
-  
+
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initVariables(const MwcsGraphType& mwcsGraph)
 {
   Parent2::initVariables(mwcsGraph);
-  
+
   _n = mwcsGraph.getNodeCount();
   _y = IloBoolVarArray(_env, _n);
-  
+
   char buf[1024];
   int i = 0;
   for (NodeVectorIt it = _invNode.begin(); it != _invNode.end(); ++it, ++i)
@@ -134,15 +134,15 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initVariables(const M
     _y[i].setName(buf);
   }
 }
-  
+
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsGraphType& mwcsGraph)
 {
   Parent2::initConstraints(mwcsGraph);
-  
+
   const Graph& g = mwcsGraph.getGraph();
   const WeightNodeMap& weight = mwcsGraph.getScores();
-  
+
   IloExpr expr(_env);
 
   // there is at most one root node
@@ -152,11 +152,11 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
     expr += _y[i];
   }
   IloConstraint c1;
-  _model.add(c1 = (expr == 1));
-  c1.setName("one_root");
-  
+  _model.add(c1 = (expr == _k));
+  c1.setName("k_roots");
+
   // TODO maybe equality up there, but need to double check whether there are positive nodes
-  
+
   // the root node has to be one of the selected nodes
   // in the final graph
   // y_i <= x_i for all nodes i in V
@@ -166,7 +166,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
     _model.add(c2 = (_y[i] <= _x[i]));
     c2.setName("root_in_x");
   }
-  
+
   // root node has to be positive
   expr.clear();
   for (int i = 0; i < _n; i++)
@@ -178,7 +178,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
     }
   }
   _model.add(expr == 0);
-  
+
   // objective must be positive
   expr.clear();
   for (int i = 0; i < _n ; i++)
@@ -186,7 +186,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
     expr += _x[i] * weight[_invNode[i]];
   }
   _model.add(expr >= 0);
-  
+
   // if you pick a node then it must be the root node
   // or at least one of its direct neighbors must be part
   // of the solution as well
@@ -197,17 +197,17 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
     {
       Node j = g.oppositeNode(i, e);
       expr += _x[(*_pNode)[j]];
-      
+
       // if i is negative then its positive neighbors must be in
       if (weight[i] < 0 && weight[j] > 0)
         _model.add(_x[(*_pNode)[i]] <= _x[(*_pNode)[j]]);
     }
-    
+
     expr += _y[(*_pNode)[i]];
-    
+
     _model.add(_x[(*_pNode)[i]] <= expr);
   }
-  
+
   // if you pick a negative node, then at least two of its direct neighbors
   // must be part of the solution as well
   // if you get in, you have to get out as well
@@ -257,7 +257,7 @@ inline void CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const
     }
   }
 }
-  
+
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 {
@@ -305,7 +305,7 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
                                                 g, weight,
                                                 *_pNode, //*_pEdge,
                                                 _n, _m, pMutex);
-  
+
   if (g_pOut)
   {
     if (_options._pcst)
@@ -315,7 +315,7 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   }
 
   _cplex.setParam(IloCplex::MIPInterval, 1);
-  
+
   IloCplex::Callback cb(pLazyCut);
   _cplex.use(cb);
 
@@ -324,11 +324,11 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 
   IloCplex::Callback cb3(pUserCut);
   _cplex.use(cb3);
-  
+
   IloCplex::Callback cb4(pIncumbent);
   if (pIncumbent)
     _cplex.use(cb4);
-  
+
 //  // determine degrees
 //  IntNodeMap deg(g, 0);
 //  IntNodeMap posDeg(g, 0);
@@ -341,11 +341,11 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
 //      if (weight[j] >= 0) ++posDeg[i];
 //    }
 //  }
-//  
+//
 //  IloCplex::BranchCallbackI* pBranch = new Branch<GR, NWGHT, NLBL, EWGHT>(_env, _x, g, weight, *_pNode, _n, deg, posDeg);
 //  IloCplex::Callback cb4(pBranch);
 ////  _cplex.use(cb4);
-  
+
   //exportModel("/tmp/model.lp");
   bool res = _cplex.solve();
   cb.end();
@@ -355,7 +355,7 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   {
     cb4.end();
   }
-  
+
   if (res)
   {
     if (g_verbosity > VERBOSE_NONE)

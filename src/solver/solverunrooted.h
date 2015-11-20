@@ -2,7 +2,7 @@
  * solverunrooted.h
  *
  *  Created on: 7-aug-2012
- *     Authors: C.I. Bucur, M. El-Kebir
+ *     Authors: C.I. Bucur, M. El-Kebir, G. W. Klau
  */
 
 #ifndef SOLVERUNROOTED_H
@@ -33,14 +33,14 @@ public:
   typedef typename Parent::NodeSetIt NodeSetIt;
   typedef typename Parent::NodeVector NodeVector;
   typedef typename Parent::NodeVectorIt NodeVectorIt;
-  
+
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   using Parent::_score;
   using Parent::_scoreUB;
   using Parent::_pSolutionMap;
   using Parent::_solutionSet;
-  
+
 public:
   SolverUnrooted(SolverUnrootedImplType* pImpl)
     : _pImpl(pImpl)
@@ -51,16 +51,16 @@ public:
   {
     delete _pImpl;
   }
-  
+
   virtual bool solve(const MwcsGraphType& mwcsGraph)
   {
     delete _pSolutionMap;
     _pSolutionMap = new BoolNodeMap(mwcsGraph.getGraph(), false);
-    
+
     _pImpl->init(mwcsGraph);
     return _pImpl->solve(_score, _scoreUB, *_pSolutionMap, _solutionSet);
   }
-  
+
 protected:
   SolverUnrootedImplType* _pImpl;
 };

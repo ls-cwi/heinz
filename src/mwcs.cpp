@@ -2,7 +2,7 @@
  *  mwcs.cpp
  *
  *   Created on: 27-jul-2012
- *      Authors: C.I. Bucur and M. El-Kebir
+ *      Authors: C.I. Bucur, M. El-Kebir, G. W. Klau
  */
 
 #include <iostream>
@@ -74,6 +74,7 @@ int main(int argc, char** argv)
   int maxNumberOfCuts = 3;
   int timeLimit = -1;
   int memoryLimit = -1;
+  int k = 1;
   bool noPreprocess = false;
   bool noEnum = false;
   int multiThreading = 1;
@@ -95,8 +96,9 @@ int main(int argc, char** argv)
     .boolOption("version", "Show version number")
     .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
     .refOption("ml", "Memory limit (in MB, default: -1)", memoryLimit, false)
-    .refOption("e", "Edge list file", edgeFile, false)
-    .refOption("n", "Node file", nodeFile, false)
+    .refOption("e", "Edge list file", edgeFile, true)
+    .refOption("n", "Node file", nodeFile, true)
+    .refOption("k", "number of modules (1)", k, false)
     .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
     .refOption("b", "Back-off function:\n"
                         "     0 - Constant waiting (period: 1, override with '-period')\n"
@@ -104,7 +106,7 @@ int main(int argc, char** argv)
                         "     2 - Quadratic waiting\n"
                         "     3 - Exponential waiting\n"
                         "     4 - Infinite waiting", backOffFunction, false)
-    .refOption("p", "Disable preprocessing", noPreprocess, false)
+    .refOption("no-pre", "Disable preprocessing", noPreprocess, false)
     .refOption("no-enum", "Disable enumerator", noEnum, false)
     .refOption("stp", "STP file", stpFile, false)
     .refOption("stp-pcst", "STP-PCST file", stpPcstFile, false)
@@ -129,7 +131,7 @@ int main(int argc, char** argv)
     std::cout << "Version number: " << HEINZ_VERSION << std::endl;
     return 0;
   }
-  
+
   if (!(ap.given("n") && ap.given("e")) && !ap.given("stp") &&  !ap.given("stp-pcst"))
   {
     std::cerr << "Please specify either '-n' and '-e', or '-stp', or '-stp-pcst'" << std::endl;
@@ -204,14 +206,14 @@ int main(int argc, char** argv)
   // Solve
   const NodeSet rootNodeSet = pMwcs->getNodeByLabel(root);
   assert(rootNodeSet.size() == 0 || rootNodeSet.size() == 1);
-  
+
   if (pPreprocessedMwcs && (noEnum || rootNodeSet.size() > 0))
   {
     pPreprocessedMwcs->preprocess(rootNodeSet);
   }
-  
+
   SolverType* pSolver = NULL;
-  
+
   Options options(createBackOff(backOffFunction, backOffPeriod),
                   true,
                   maxNumberOfCuts,
@@ -219,13 +221,13 @@ int main(int argc, char** argv)
                   multiThreading,
                   memoryLimit,
                   !stpPcstFile.empty());
-  
+
   if (rootNodeSet.size() == 0 && !root.empty())
   {
     std::cerr << "No node with label '" << root
               << "' present. Defaulting to unrooted formulation." << std::endl;
   }
-  
+
   if (rootNodeSet.size() == 1)
   {
     SolverRootedType* pSolverRooted = new SolverRootedType(new CutSolverRootedImplType(options));
@@ -246,7 +248,7 @@ int main(int argc, char** argv)
     pSolverUnrooted->solve(*pMwcs);
     pSolver = pSolverUnrooted;
   }
-  
+
   if (outputFile != "-" && !outputFile.empty())
   {
     std::ofstream outFile(outputFile.c_str());
@@ -263,7 +265,7 @@ int main(int argc, char** argv)
   }
 
   delete pSolver;
-  
+
 //  if (rootNode == lemon::INVALID)
 //  {
 //    MwcsEnumerateType mwcsEnumerate(*pMwcs);
@@ -272,7 +274,7 @@ int main(int argc, char** argv)
 //    mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
 //    mwcsEnumerate.setBackOff(createBackOff(backOffFunction, backOffPeriod));
 //    mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), !noPreprocess);
-//    
+//
 //    const Graph& g = pMwcs->getOrgGraph();
 //    double maxScore = 0;
 //    int maxIdx = -1;
@@ -285,7 +287,7 @@ int main(int argc, char** argv)
 //        maxIdx = mwcsEnumerate.getModuleIndex(v);
 //      }
 //    }
-//    
+//
 //    if (maxIdx != -1)
 //    {
 //      if (outputFile != "-" && !outputFile.empty())

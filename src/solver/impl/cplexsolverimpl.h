@@ -2,7 +2,7 @@
  * cplexsolverimpl.h
  *
  *  Created on: 10-aug-2012
- *     Authors: M. El-Kebir
+ *     Authors: M. El-Kebir, G. W. Klau
  */
 
 #ifndef CPLEXSOLVERIMPL_H
@@ -35,16 +35,16 @@ public:
 
   typedef MwcsGraph<Graph, WeightNodeMap, LabelNodeMap, WeightEdgeMap> MwcsGraphType;
   typedef MwcsAnalyze<Graph> MwcsAnalyzeType;
-  
+
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
-  
+
   typedef std::set<Node> NodeSet;
   typedef typename NodeSet::const_iterator NodeSetIt;
   typedef std::vector<Node> NodeVector;
   typedef typename NodeVector::const_iterator NodeVectorIt;
   typedef std::vector<Node> InvNodeIntMap;
   typedef std::vector<Arc> InvArcIntMap;
-  
+
   struct Options
   {
     Options(const BackOff& backOff,
@@ -53,7 +53,8 @@ public:
             int timeLimit,
             int multiThreading,
             int memoryLimit,
-            bool pcst)
+            bool pcst,
+            int k)
       : _backOff(backOff)
       , _analysis(analysis)
       , _maxNumberOfCuts(maxNumberOfCuts)
@@ -61,9 +62,10 @@ public:
       , _multiThreading(multiThreading)
       , _memoryLimit(memoryLimit)
       , _pcst(pcst)
+      , _k(k)
     {
     }
-    
+
     const BackOff& _backOff;
     bool _analysis;
     int _maxNumberOfCuts;
@@ -71,6 +73,7 @@ public:
     int _multiThreading;
     int _memoryLimit;
     bool _pcst;
+    int _k;
   };
 
 protected:
@@ -87,7 +90,7 @@ protected:
     , _x()
   {
   }
-  
+
   virtual ~CplexSolverImpl()
   {
     _env.end();
@@ -131,7 +134,7 @@ protected:
                           double& scoreUB,
                           BoolNodeMap& solutionMap,
                           NodeSet& solutionSet);
-  
+
   virtual bool solveModel() = 0;
 
 private:
@@ -151,18 +154,18 @@ private:
       return _deg[u] > _deg[v];
     }
   };
-  
+
   struct NodesWeightComp
   {
   private:
     const DoubleNodeMap& _weight;
-    
+
   public:
     NodesWeightComp(const DoubleNodeMap& weight)
     : _weight(weight)
     {
     }
-    
+
     bool operator ()(Node u, Node v)
     {
       return _weight[u] > _weight[v];
@@ -226,7 +229,7 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initVariables(const MwcsGra
     (*_pNode)[v] = i;
   }
 }
-  
+
 template<typename GR, typename NWGHT, typename NLBL, typename EWGHT>
 inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsGraphType& mwcsGraph)
 {
@@ -234,7 +237,7 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
   const WeightNodeMap& weight = mwcsGraph.getScores();
 
   IloExpr expr(_env);
-  
+
   // objective function
   for (int i = 0; i < _n ; i++)
   {
@@ -260,7 +263,7 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
         }
       }
     }
-    
+
     if (g_verbosity >= VERBOSE_ESSENTIAL)
     {
       std::cout << "// Added " << nAnalyzeConstraints << " analyze constraints" << std::endl;
@@ -288,19 +291,19 @@ inline bool CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::solveCplex(const MwcsGraphT
     _cplex.setWarning(std::cerr);
     _cplex.setError(std::cerr);
   }
-  
+
   if (_options._timeLimit > 0)
   {
     int limit = _options._timeLimit - g_timer.realTime();
     limit = std::max(1, limit);
     _cplex.setParam(IloCplex::TiLim, limit);
   }
-  
+
   if (_options._memoryLimit > 0)
   {
     _cplex.setParam(IloCplex::TreLim, _options._memoryLimit);
   }
-  
+
   if (_options._multiThreading > 1)
   {
     _cplex.setParam(IloCplex::ParallelMode, -1);
