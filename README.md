@@ -24,7 +24,7 @@ First, LEMON 1.3 needs to be installed:
     cmake -DCMAKE_INSTALL_PREFIX=~/lemon
     make install
     
-Note: On Mac OS 10.9, comment out the following two lines and add the code below at line 162 in `CMakeLists.txt` before doing `make install`.
+Note: On Mac OS 10.9, comment out the following two lines and add the code below at line 159 in `CMakeLists.txt` before doing `make install`.
 
     #ADD_SUBDIRECTORY(demo) 
     #ADD_SUBDIRECTORY(tools)
