@@ -192,9 +192,9 @@ inline bool CutSolverRootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   _cplex.setParam( IloCplex::MIPEmphasis, IloCplex::MIPEmphasisBestBound );
 
   pLazyCut = new (_env) NodeCutRootedLazyConstraintType(_env, _x, g, weight, _rootNodes, *_pNode,
-                                                        _n, _options._maxNumberOfCuts, pMutex);
+                                                        _n, _options._k, _options._maxNumberOfCuts, pMutex);
   pUserCut = new (_env) NodeCutRootedUserCutType(_env, _x, g, weight, _rootNodes, *_pNode,
-                                                 _n, _options._maxNumberOfCuts, pMutex,
+                                                 _n, _options._k, _options._maxNumberOfCuts, pMutex,
                                                  _options._backOff);
     
   pHeuristic = new (_env) HeuristicRootedType(_env, _x, //_z,

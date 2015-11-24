@@ -2,7 +2,7 @@
  * nodecutunrooted.h
  *
  *  Created on: 18-feb-2014
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. Klau
  */
 
 #ifndef NODECUTUNROOTED_H
@@ -44,6 +44,7 @@ protected:
   using Parent::_weight;
   using Parent::_nodeMap;
   using Parent::_n;
+  using Parent::_k;
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
@@ -72,9 +73,10 @@ public:
                                 const WeightNodeMap& weight,
                                 const IntNodeMap& nodeMap,
                                 int n,
+                                int k,
                                 int maxNumberOfCuts,
                                 IloFastMutex* pMutex)
-    : Parent(env, x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
+    : Parent(env, x, y, g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex)
   {
   }
 
@@ -117,7 +119,9 @@ protected:
       }
     }
     
-    assert(rootNodes.size() == 1);
+    cout << "[in lazy callback] k = " << _k << endl;
+    
+    assert(rootNodes.size() <= _k);
     
     // determine connected components
     NodeSetVector nonZeroComponents = determineConnectedComponents(x_values);
@@ -193,6 +197,7 @@ protected:
   using Parent::_weight;
   using Parent::_nodeMap;
   using Parent::_n;
+  using Parent::_k;
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
@@ -236,10 +241,11 @@ public:
                          const WeightNodeMap& weight,
                          const IntNodeMap& nodeMap,
                          int n,
+                         int k,
                          int maxNumberOfCuts,
                          IloFastMutex* pMutex,
                          BackOff backOff)
-    : Parent(env, x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex, backOff)
+    : Parent(env, x, y, g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex, backOff)
   {
     lock();
     _pG2hRootArc = new NodeDiArcMap(_g);
@@ -564,6 +570,7 @@ protected:
   
   void separate()
   {
+    cout << "*** [construction area] in user callback" << endl;
     IloNumArray x_values(getEnv(), _n);
     getValues(x_values, _x);
     

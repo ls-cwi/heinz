@@ -44,6 +44,7 @@ public:
   using Parent::_weight;
   using Parent::_nodeMap;
   using Parent::_n;
+  using Parent::_k;
   using Parent::_maxNumberOfCuts;
   using Parent::_tol;
   using Parent::_pNodeBoolMap;
@@ -114,11 +115,12 @@ public:
               const WeightNodeMap& weight,
               const IntNodeMap& nodeMap,
               int n,
+              int k,
               int maxNumberOfCuts,
               IloFastMutex* pMutex,
               const BackOff& backOff)
     : IloCplex::UserCutCallbackI(env)
-    , Parent(x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
+    , Parent(x, y, g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex)
     , _h()
     , _cap(_h)
     , _pG2h1(NULL)

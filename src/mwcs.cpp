@@ -96,8 +96,8 @@ int main(int argc, char** argv)
     .boolOption("version", "Show version number")
     .refOption("t", "Time limit (in seconds, default: -1)", timeLimit, false)
     .refOption("ml", "Memory limit (in MB, default: -1)", memoryLimit, false)
-    .refOption("e", "Edge list file", edgeFile, true)
-    .refOption("n", "Node file", nodeFile, true)
+    .refOption("e", "Edge list file", edgeFile, false)
+    .refOption("n", "Node file", nodeFile, false)
     .refOption("k", "number of modules (1)", k, false)
     .refOption("period", "Back-off period (default: 1)", backOffPeriod, false)
     .refOption("b", "Back-off function:\n"
@@ -124,6 +124,8 @@ int main(int argc, char** argv)
     .refOption("FDR", "Specifies fdr", fdr, false)
     .refOption("maxCuts", "Specifies the number of cut iterations per node in the B&B tree (default: 3)\n",
                maxNumberOfCuts, false);
+  
+  
   ap.parse();
 
   if (ap.given("version"))
@@ -220,7 +222,8 @@ int main(int argc, char** argv)
                   timeLimit,
                   multiThreading,
                   memoryLimit,
-                  !stpPcstFile.empty());
+                  !stpPcstFile.empty(),
+                  k);
 
   if (rootNodeSet.size() == 0 && !root.empty())
   {

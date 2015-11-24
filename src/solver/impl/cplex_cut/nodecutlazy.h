@@ -49,6 +49,7 @@ public:
   using Parent::_pComp;
   using Parent::_pMutex;
   using Parent::_epsilon;
+  using Parent::_k;
   
   using Parent::lock;
   using Parent::unlock;
@@ -66,10 +67,11 @@ public:
               const WeightNodeMap& weight,
               const IntNodeMap& nodeMap,
               int n,
+              int k,
               int maxNumberOfCuts,
               IloFastMutex* pMutex)
     : IloCplex::LazyConstraintCallbackI(env)
-    , Parent(x, y, g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
+    , Parent(x, y, g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex)
   {
   }
   

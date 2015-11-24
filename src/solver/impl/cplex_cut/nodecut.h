@@ -2,7 +2,7 @@
  * nodecut.h
  *
  *  Created on: 17-feb-2014
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. Klau
  */
 
 #ifndef NODECUT_H
@@ -49,6 +49,7 @@ protected:
   const WeightNodeMap& _weight;
   const IntNodeMap& _nodeMap;
   const int _n;
+  const int _k;
   const int _maxNumberOfCuts;
   const lemon::Tolerance<double> _tol;
   BoolNodeMap* _pNodeBoolMap;
@@ -69,6 +70,7 @@ public:
           const WeightNodeMap& weight,
           const IntNodeMap& nodeMap,
           int n,
+          int k,
           int maxNumberOfCuts,
           IloFastMutex* pMutex)
     : _x(x)
@@ -77,6 +79,7 @@ public:
     , _weight(weight)
     , _nodeMap(nodeMap)
     , _n(n)
+    , _k(k)
     , _maxNumberOfCuts(maxNumberOfCuts)
     , _tol(_epsilon)
     , _pNodeBoolMap(NULL)
@@ -98,6 +101,7 @@ public:
     , _weight(other._weight)
     , _nodeMap(other._nodeMap)
     , _n(other._n)
+    , _k(other._k)
     , _maxNumberOfCuts(other._maxNumberOfCuts)
     , _tol(other._tol)
     , _pNodeBoolMap(NULL)

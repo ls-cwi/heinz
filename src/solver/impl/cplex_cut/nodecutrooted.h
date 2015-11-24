@@ -71,9 +71,10 @@ public:
                               NodeSet rootNodes,
                               const IntNodeMap& nodeMap,
                               int n,
+                              int k,
                               int maxNumberOfCuts,
                               IloFastMutex* pMutex)
-    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, maxNumberOfCuts, pMutex)
+    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex)
     , _rootNodes(rootNodes)
   {
   }
@@ -220,10 +221,11 @@ public:
                        NodeSet rootNodes,
                        const IntNodeMap& nodeMap,
                        int n,
+                       int k,
                        int maxNumberOfCuts,
                        IloFastMutex* pMutex,
                        BackOff backOff)
-    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, maxNumberOfCuts, pMutex, backOff)
+    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex, backOff)
     , _rootNodes(rootNodes)
   {
     init();

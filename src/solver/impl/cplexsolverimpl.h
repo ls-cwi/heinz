@@ -81,6 +81,7 @@ protected:
     : _options(options)
     , _pAnalysis(NULL)
     , _n(0)
+    , _n_neg(0)
     , _m(0)
     , _pNode(NULL)
     , _invNode()
@@ -116,7 +117,7 @@ protected:
   const Options& _options;
   MwcsAnalyzeType* _pAnalysis;
 
-  int _n;
+  int _n, _n_neg;
   int _m;
   IntNodeMap* _pNode;
   InvNodeIntMap _invNode;
@@ -236,6 +237,9 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
   const Graph& g = mwcsGraph.getGraph();
   const WeightNodeMap& weight = mwcsGraph.getScores();
 
+  // get negative nodes
+  for (int i = 0; i < _n ; i++) if (weight[_invNode[i]] < 0) ++ _n_neg;
+  
   IloExpr expr(_env);
 
   // objective function
