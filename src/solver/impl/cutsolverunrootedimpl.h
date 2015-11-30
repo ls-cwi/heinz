@@ -326,18 +326,18 @@ namespace nina {
       
       IloCplex::Callback cb2(pHeuristic);
       // gwk, put back. OBACHT
-      cout << "*** [construction area] disabling heuristic callback. put back later" << endl;
-      //_cplex.use(cb2);
+      if (_options._k != 1) cout << "*** [construction area] disabling heuristic callback. put back later" << endl;
+      else _cplex.use(cb2);
       
       IloCplex::Callback cb3(pUserCut);
       // gwk, put back. OBACHT
-      cout << "*** [construction area] disabling user callback. put back later" << endl;
-      _cplex.use(cb3);
+      if (_options._k != 1) cout << "*** [construction area] disabling user callback. put back later" << endl;
+      else _cplex.use(cb3);
       
       IloCplex::Callback cb4(pIncumbent);
       // gwk, put back. OBACHT
-      cout << "*** [construction area] disabling incumbent callback. put back later" << endl;
-      // if (pIncumbent) _cplex.use(cb4);
+      if (_options._k != 1) cout << "*** [construction area] disabling incumbent callback. put back later" << endl;
+      else if (pIncumbent) _cplex.use(cb4);
       
       //  // determine degrees
       //  IntNodeMap deg(g, 0);
