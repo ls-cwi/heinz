@@ -320,14 +320,13 @@ inline bool CutSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solveModel()
   _cplex.use(cb);
 
   IloCplex::Callback cb2(pHeuristic);
-  _cplex.use(cb2);
+  //_cplex.use(cb2);
 
   IloCplex::Callback cb3(pUserCut);
-  _cplex.use(cb3);
+  //_cplex.use(cb3);
   
   IloCplex::Callback cb4(pIncumbent);
-  if (pIncumbent)
-    _cplex.use(cb4);
+  //if (pIncumbent) _cplex.use(cb4);
   
 //  // determine degrees
 //  IntNodeMap deg(g, 0);
