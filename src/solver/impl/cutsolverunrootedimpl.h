@@ -121,6 +121,7 @@ namespace nina {
       
       _n = mwcsGraph.getNodeCount();
       _y = IloBoolVarArray(_env, _n);
+      cout << _options._k;
       
       char buf[1024];
       int i = 0;
