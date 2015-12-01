@@ -85,9 +85,9 @@ namespace nina {
         for (int id_v = 0; id_v < _n; id_v++)
         {
           out << "Node '" << mwcsGraph.getLabel(_invNode[id_v])
-          << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v])
-          << ", y = " << _cplex.getValue(_y[id_v])
-          << ", w = " << mwcsGraph.getScore(_invNode[id_v])
+          << "', x_" << id_v << " = " << _cplex.getValue(_x[id_v]);
+          for (int k = 0; k < _options._k; ++k) out << ", y[" << k << "] = " << _cplex.getValue(_y[k][id_v]);
+          out << ", w = " << mwcsGraph.getScore(_invNode[id_v])
           << std::endl;
         }
       }
@@ -105,7 +105,7 @@ namespace nina {
       }
       
     protected:
-      IloBoolVarArray _y;
+      IloArray<IloBoolVarArray> _y;
       
       
       virtual void initVariables(const MwcsGraphType& mwcsGraph);
@@ -120,22 +120,22 @@ namespace nina {
       Parent2::initVariables(mwcsGraph);
       
       _n = mwcsGraph.getNodeCount();
-      _y = IloBoolVarArray(_env, _n);
-      cout << _options._k;
+      _y = IloArray<IloBoolVarArray>(_env, _options._k);
+      for (int k = 0; k < _options._k; ++k) _y[k] = IloBoolVarArray(_env, _n);
       
       char buf[1024];
-      int i = 0;
-      for (NodeVectorIt it = _invNode.begin(); it != _invNode.end(); ++it, ++i)
+      for (int k = 0; k < _options._k; ++k)
       {
-        Node v = *it;
-        
-        // y_i = 0 if node i is not the root node
-        // y_i = 1 if node i is picked as the root node
-        snprintf(buf, 1024, "y_%s", mwcsGraph.getLabel(v).c_str());
-        //snprintf(buf, 1024, "y_%d", g.id(v));
-        _y[i].setName(buf);
+        int i = 0; for (NodeVectorIt it = _invNode.begin(); it != _invNode.end(); ++it, ++i)
+        {
+          Node v = *it;
+          
+          // y_i = 0 if node i is not the root node
+          // y_i = 1 if node i is picked as the root node
+          snprintf(buf, 1024, "y_%d_%s", k, mwcsGraph.getLabel(v).c_str());
+          _y[k][i].setName(buf);
+        }
       }
-      
       
     }
     
@@ -150,29 +150,38 @@ namespace nina {
       IloExpr expr(_env);
       
       // there are at most k root nodes
-      // \sum_{i \in V} y_i <= k
-      for (int i = 0; i < _n; i++)
+      // \sum_{i \in V} y_k_i <= 1 for all k
+      cout << "*** [construction area] sum_i y[k][i] <= 1 for all k, could be == again one day, maybe performs better?" << endl;
+      IloConstraintArray c1(_env, _options._k); char buf[1024];
+      for (int k = 0; k < _options._k; ++k)
       {
-        expr += _y[i];
+        for (int i = 0; i < _n; ++i) expr += _y[k][i];
+        _model.add(c1[k] = (expr <= 1));
+        snprintf(buf, 1024, "1_root (%d)", k);
+        c1[k].setName(buf);
       }
-      IloConstraint c1;
-      cout << "*** [construction area] sum y <= k, could be == again one day" << endl;
-      _model.add(c1 = (expr <= _options._k));
-      c1.setName("k_roots");
+      
+      // a vertex may only be the root node of _one_ component
+      cout << "*** [construction area] add that roots have to be different (crucial!!!)" << endl;
       
       // TODO maybe equality up there, but need to double check whether there are positive nodes
       
       // a root node has to be one of the selected nodes
       // in the final graph
-      // y_i <= x_i for all nodes i in V
+      // sum_k y_k_i <= x_i for all nodes i in V
+      expr.clear();
       for (int i = 0; i < _n; i++)
       {
+        for (int k = 0; k < _options._k; ++k)
+        {
+          expr += _y[k][i];
+        }
         IloConstraint c2;
-        _model.add(c2 = (_y[i] <= _x[i]));
+        _model.add(c2 = (expr <= _x[i]));
         c2.setName("root_in_x");
       }
       
-      // root node has to be positive
+      // (7): root node has to be positive
       cout << "*** [construction area] we could also omit generating these variables right away --> smaller model" << endl;
       expr.clear();
       for (int i = 0; i < _n; i++)
@@ -180,7 +189,7 @@ namespace nina {
         double weight_i = weight[_invNode[i]];
         if (weight_i < 0)
         {
-          expr += _y[i];
+          for (int k = 0; k < _options._k; ++k) expr += _y[k][i];
         }
       }
       _model.add(expr == 0);
@@ -193,6 +202,7 @@ namespace nina {
       }
       _model.add(expr >= 0);
       
+      // (11) (special case of (4) for |S| = 1):
       // if you pick a node then it must be a root node
       // or at least one of its direct neighbors must be part
       // of the solution as well
@@ -209,15 +219,18 @@ namespace nina {
             _model.add(_x[(*_pNode)[i]] <= _x[(*_pNode)[j]]);
         }
         
-        expr += _y[(*_pNode)[i]];
+        for (int k = 0; k < _options._k; ++k) expr += _y[k][(*_pNode)[i]];
         
         _model.add(_x[(*_pNode)[i]] <= expr);
       }
       
-      // if you pick a negative node, then at least two of its direct neighbors
+      cout << "*** [construction area] check if constraints (9) are in" << endl;
+      
+      // (10): if you pick a negative node, then at least two of its direct neighbors
       // must be part of the solution as well
       // if you get in, you have to get out as well
       // BIG FAT WARNING: not true for xHeinz!!!
+      cout << "*** [construction area] check the limit of 5000 nodes for symm breaking (discuss these first with M)" << endl;
       if (_n < 5000 || !_options._pcst)
       {
         if (g_verbosity >= VERBOSE_DEBUG)
@@ -238,11 +251,10 @@ namespace nina {
             }
             _model.add(2 * _x[(*_pNode)[i]] <= expr);
           }
-          else
+          else // positive node
           {
-            // symmetry breaking, currently only for k == 1, have to figure out how to do this for k > 1
+            // (8): symmetry breaking
             // sum_{j > i, w_j > 0} y_j <= 1 - x_i
-            if (_options._k == 1) {
               no_symmetry++;
               int id_i = (*_pNode)[i];
               expr.clear();
@@ -250,11 +262,10 @@ namespace nina {
               {
                 Node j = _invNode[id_j];
                 if (weight[j] < 0) continue;
-                expr += _y[id_j];
-                _model.add(_y[id_j] <= 1 - _x[id_i]);
+                for (int k = 0; k < _options._k; ++k) expr += _y[k][id_j];
               }
               _model.add(expr <= 1 - _x[id_i]);
-            }}
+            }
         }
         if (g_verbosity >= VERBOSE_DEBUG)
         {

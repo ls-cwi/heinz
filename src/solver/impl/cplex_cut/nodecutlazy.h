@@ -2,7 +2,7 @@
  * nodecutlazy.h
  *
  *  Created on: 24-feb-2014
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. Klau
  */
 
 #ifndef NODECUTLAZY_H
@@ -62,7 +62,7 @@ protected:
 public:
   NodeCutLazy(IloEnv env,
               IloBoolVarArray x,
-              IloBoolVarArray y,
+              IloArray<IloBoolVarArray> y,
               const Graph& g,
               const WeightNodeMap& weight,
               const IntNodeMap& nodeMap,

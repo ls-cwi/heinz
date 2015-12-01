@@ -74,7 +74,7 @@ public:
                               int k,
                               int maxNumberOfCuts,
                               IloFastMutex* pMutex)
-    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex)
+    : Parent(env, x, IloArray<IloBoolVarArray()>(), g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex)
     , _rootNodes(rootNodes)
   {
   }
@@ -225,7 +225,7 @@ public:
                        int maxNumberOfCuts,
                        IloFastMutex* pMutex,
                        BackOff backOff)
-    : Parent(env, x, IloBoolVarArray(), g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex, backOff)
+    : Parent(env, x, IloArray<IloBoolVarArray()>(), g, weight, nodeMap, n, k, maxNumberOfCuts, pMutex, backOff)
     , _rootNodes(rootNodes)
   {
     init();

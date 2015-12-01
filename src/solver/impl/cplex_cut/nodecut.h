@@ -44,7 +44,7 @@ protected:
 
 protected:
   IloBoolVarArray _x;
-  IloBoolVarArray _y;
+  IloArray<IloBoolVarArray> _y;
   const Graph& _g;
   const WeightNodeMap& _weight;
   const IntNodeMap& _nodeMap;
@@ -65,7 +65,7 @@ protected:
 
 public:
   NodeCut(IloBoolVarArray x,
-          IloBoolVarArray y,
+          IloArray<IloBoolVarArray> y,
           const Graph& g,
           const WeightNodeMap& weight,
           const IntNodeMap& nodeMap,

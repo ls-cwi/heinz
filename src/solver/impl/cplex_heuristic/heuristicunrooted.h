@@ -68,7 +68,7 @@ protected:
 public:
   HeuristicUnrooted(IloEnv env,
                     IloBoolVarArray x,
-                    IloBoolVarArray y,
+                    IloArray<IloBoolVarArray> y,
 //                    IloBoolVarArray z,
                     const Graph& g,
                     const WeightNodeMap& weight,
@@ -211,7 +211,7 @@ protected:
 
   
 protected:
-  IloBoolVarArray _y;
+  IloArray<IloBoolVarArray> _y;
   const lemon::Tolerance<double> _tol;
   TreeSolverUnrootedImplType* _pMwcsSubTreeUnrootedSolver;
   

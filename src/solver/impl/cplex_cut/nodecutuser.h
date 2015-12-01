@@ -110,7 +110,7 @@ protected:
 public:
   NodeCutUser(IloEnv env,
               IloBoolVarArray x,
-              IloBoolVarArray y,
+              IloArray<IloBoolVarArray> y,
               const Graph& g,
               const WeightNodeMap& weight,
               const IntNodeMap& nodeMap,

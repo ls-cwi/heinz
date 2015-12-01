@@ -2,7 +2,7 @@
  * solverunrootedimpl.h
  *
  *  Created on: 25-aug-2014
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. Klau
  */
 
 #ifndef SOLVERUNROOTEDIMPL_H

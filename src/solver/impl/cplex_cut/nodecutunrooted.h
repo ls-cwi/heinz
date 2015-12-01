@@ -68,7 +68,7 @@ protected:
 public:
   NodeCutUnrootedLazyConstraint(IloEnv env,
                                 IloBoolVarArray x,
-                                IloBoolVarArray y,
+                                IloArray<IloBoolVarArray> y,
                                 const Graph& g,
                                 const WeightNodeMap& weight,
                                 const IntNodeMap& nodeMap,
@@ -105,8 +105,17 @@ protected:
     IloNumArray x_values(getEnv(), _n);
     getValues(x_values, _x);
     
-    IloNumArray y_values(getEnv(), _n);
-    getValues(y_values, _y);
+    // this is how it looked like before:
+    //IloNumArray y_values(getEnv(), _n);
+    //getValues(y_values, _y);
+    IloArray<IloNumArray> y_values(getEnv(), _k);
+    for (int k = 0; k < _k; ++k)
+    {
+      y_values[k] = IloNumarray(getEnv(), _n);
+      getValues(y_values[k], _y[k]);
+    }
+    
+    
     
     // determine non-zero y-vars
     NodeSet rootNodes;
@@ -236,7 +245,7 @@ protected:
 public:
   NodeCutUnrootedUserCut(IloEnv env,
                          IloBoolVarArray x,
-                         IloBoolVarArray y,
+                         IloArray<IloBoolVarArray> y,
                          const Graph& g,
                          const WeightNodeMap& weight,
                          const IntNodeMap& nodeMap,

@@ -238,7 +238,7 @@ inline void CplexSolverImpl<GR, NWGHT, NLBL, EWGHT>::initConstraints(const MwcsG
   const WeightNodeMap& weight = mwcsGraph.getScores();
 
   // get negative nodes
-  for (int i = 0; i < _n ; i++) if (weight[_invNode[i]] < 0) ++ _n_neg;
+  for (int i = 0; i < _n ; i++) if (weight[_invNode[i]] < 0) ++_n_neg;
   
   IloExpr expr(_env);
 

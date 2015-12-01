@@ -2,7 +2,7 @@
  * cutsolverrootedimpl.h
  *
  *  Created on: 22-aug-2014
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. KLAU
  */
 
 #ifndef CUTSOLVERROOTEDIMPL_H
