@@ -9,6 +9,10 @@
 #include <lemon/arg_parser.h>
 #include <lemon/time_measure.h>
 
+#include <stdio.h>
+#include <string.h>
+
+
 // ILOG stuff
 #include <ilconcert/iloalg.h>
 #include <ilcplex/ilocplex.h>
