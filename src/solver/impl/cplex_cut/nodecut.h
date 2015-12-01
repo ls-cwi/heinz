@@ -163,7 +163,7 @@ protected:
   void separateConnectedComponent(const NodeSet& S,
                                   const NodeSet rootNodes,
                                   const IloNumArray& x_values,
-                                  const IloNumArray& y_values,
+                                  //const IloArray<IloNumArray>& y_values,
                                   CBK& cbk,
                                   int& nCuts)
   {
@@ -402,7 +402,7 @@ protected:
     
     for (NodeSetIt nodeIt = S.begin(); nodeIt != S.end(); nodeIt++)
     {
-      rhs += _y[_nodeMap[*nodeIt]];
+      for (int k = 0; k < _k; ++k) rhs += _y[k][_nodeMap[*nodeIt]];
     }
   }
 

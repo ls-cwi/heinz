@@ -111,10 +111,9 @@ protected:
     IloArray<IloNumArray> y_values(getEnv(), _k);
     for (int k = 0; k < _k; ++k)
     {
-      y_values[k] = IloNumarray(getEnv(), _n);
+      y_values[k] = IloNumArray(getEnv(), _n);
       getValues(y_values[k], _y[k]);
     }
-    
     
     
     // determine non-zero y-vars
@@ -122,10 +121,7 @@ protected:
     for (NodeIt i(_g); i != lemon::INVALID; ++i)
     {
       int idx_i = _nodeMap[i];
-      if (_tol.nonZero(y_values[idx_i]))
-      {
-        rootNodes.insert(i);
-      }
+      for (int k = 0; k < _k; ++k) if (_tol.nonZero(y_values[k][idx_i])) rootNodes.insert(i);
     }
     
     cout << "[in lazy callback] k = " << _k << endl;
@@ -147,7 +143,10 @@ protected:
       
       if (intersection.size() == 0)
       {
-        separateConnectedComponent(*it, rootNodes, x_values, y_values, *this, nCuts);
+        // obacht. guwek: was
+        // separateConnectedComponent(*it, rootNodes, x_values, y_values, *this, nCuts);
+        separateConnectedComponent(*it, rootNodes, x_values, *this, nCuts);
+        // but we did not need the yvalues here, so I removed them
       }
     }
     
@@ -580,63 +579,68 @@ protected:
   void separate()
   {
     cout << "*** [construction area] in user callback" << endl;
-    IloNumArray x_values(getEnv(), _n);
-    getValues(x_values, _x);
-    
-    IloNumArray y_values(getEnv(), _n);
-    getValues(y_values, _y);
-    
-    // determine connected components
-    NodeSet rootNodes = computeCapacities(_cap, x_values, y_values);
-    NodeSetVector nonZeroComponents = determineConnectedComponents(x_values);
-    
-    int nCuts = 0;
-    int nBackCuts = 0;
-    int nNestedCuts = 0;
-
-    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
-    {
-      const NodeSet& nonZeroComponent = *it;
-      
-      NodeSet intersection;
-      std::set_intersection(rootNodes.begin(), rootNodes.end(),
-                            nonZeroComponent.begin(), nonZeroComponent.end(),
-                            std::inserter(intersection, intersection.begin()));
-      
-      if (_nodeNumber == 0 || intersection.size() > 0)
-      {
-        separateMinCut(nonZeroComponent, x_values, y_values, nCuts, nBackCuts, nNestedCuts);
-      }
-      else
-      {
-        separateConnectedComponent(nonZeroComponent, rootNodes, x_values, y_values, *this, nCuts);
-      }
-    }
-    
-    x_values.end();
-    y_values.end();
-    
-//    std::cerr << "[";
+    // commented out for now. have to understand how this works first
+//    IloNumArray x_values(getEnv(), _n);
+//    getValues(x_values, _x);
+//    
+//    IloArray<IloNumArray> y_values(getEnv(), _k);
+//    for (int k = 0; k < _k; ++k)
+//    {
+//      y_values[k] = IloNumArray(getEnv(), _n);
+//      getValues(y_values[k], _y[k]);
+//    }
+//      
+//    // determine connected components
+//    NodeSet rootNodes = computeCapacities(_cap, x_values, y_values);
+//    NodeSetVector nonZeroComponents = determineConnectedComponents(x_values);
+//    
+//    int nCuts = 0;
+//    int nBackCuts = 0;
+//    int nNestedCuts = 0;
+//
 //    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
 //    {
+//      const NodeSet& nonZeroComponent = *it;
+//      
 //      NodeSet intersection;
 //      std::set_intersection(rootNodes.begin(), rootNodes.end(),
-//                            it->begin(), it->end(),
+//                            nonZeroComponent.begin(), nonZeroComponent.end(),
 //                            std::inserter(intersection, intersection.begin()));
 //      
-//      std::cerr << " " << it->size();
-//      if (intersection.size() > 0) std::cerr << "*";
+//      if (_nodeNumber == 0 || intersection.size() > 0)
+//      {
+//        separateMinCut(nonZeroComponent, x_values, y_values, nCuts, nBackCuts, nNestedCuts);
+//      }
+//      else
+//      {
+//        separateConnectedComponent(nonZeroComponent, rootNodes, x_values, *this, nCuts);
+//      }
 //    }
-//    std::cerr << " ]" << std::endl;
-    
-//    if (nCuts != 0 )
-//    {
-//      std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
-//                << ": generated " << nCuts
-//                << " user cuts of which " << nBackCuts << " are back-cuts and "
-//                << nNestedCuts << " are nested cuts" << std::endl;
-//    }
-    //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
+//    
+//    x_values.end();
+//    y_values.end();
+//    
+////    std::cerr << "[";
+////    for (NodeSetVectorIt it = nonZeroComponents.begin(); it != nonZeroComponents.end(); ++it)
+////    {
+////      NodeSet intersection;
+////      std::set_intersection(rootNodes.begin(), rootNodes.end(),
+////                            it->begin(), it->end(),
+////                            std::inserter(intersection, intersection.begin()));
+////      
+////      std::cerr << " " << it->size();
+////      if (intersection.size() > 0) std::cerr << "*";
+////    }
+////    std::cerr << " ]" << std::endl;
+//    
+////    if (nCuts != 0 )
+////    {
+////      std::cerr <<  "#" << _cutCount << ", #comp = " << nonZeroComponents.size()
+////                << ": generated " << nCuts
+////                << " user cuts of which " << nBackCuts << " are back-cuts and "
+////                << nNestedCuts << " are nested cuts" << std::endl;
+////    }
+//    //std::cerr << "Time: " << t.realTime() << "s" << std::endl;
   }
   
   

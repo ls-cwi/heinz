@@ -2,7 +2,7 @@
  * heuristicunrooted.h
  *
  *  Created on: 27-feb-2014
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. Klau
  */
 
 #ifndef HEURISTICUNROOTED_H
@@ -42,6 +42,7 @@ public:
   using Parent::_nodeMap;
 //  using Parent::_edgeMap;
   using Parent::_n;
+  using Parent::_k;
   using Parent::_m;
   using Parent::_pMutex;
   using Parent::_pMwcsSubGraph;
@@ -75,10 +76,11 @@ public:
                     const IntNodeMap& nodeMap,
 //                    const IntEdgeMap& edgeMap,
                     int n,
+                    int k,
                     int m,
                     IloFastMutex* pMutex)
 //    : Parent(env, x, z, g, weight, lemon::INVALID, nodeMap, edgeMap, n, m, pMutex)
-    : Parent(env, x, g, weight, NodeSet(), nodeMap, n, m, pMutex)
+    : Parent(env, x, g, weight, NodeSet(), nodeMap, n, k, m, pMutex)
     , _y(y)
     , _tol(_epsilon)
     , _pMwcsSubTreeUnrootedSolver(NULL)
@@ -167,8 +169,9 @@ protected:
       solutionVar.add(_x);
       solution.add(_x.getSize(), 0);
       
-      solutionVar.add(_y);
-      solution.add(_y.getSize(), 0);
+      // guwek: changed for k-Heinz.  Have to look at this.
+      for (int k = 0; k < _k; ++k) solutionVar.add(_y[k]);
+      solution.add(_y.getSize() * _y[0].getSize(), 0);
       
       //      solutionVar.add(_z);
       //      solution.add(_z.getSize(), 0);

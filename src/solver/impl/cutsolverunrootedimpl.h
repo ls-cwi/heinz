@@ -181,7 +181,7 @@ namespace nina {
         c2.setName("root_in_x");
       }
       
-      // (7): root node has to be positive
+      // (7): each root node has to be positive
       cout << "*** [construction area] we could also omit generating these variables right away --> smaller model" << endl;
       expr.clear();
       for (int i = 0; i < _n; i++)
@@ -201,6 +201,9 @@ namespace nina {
         expr += _x[i] * weight[_invNode[i]];
       }
       _model.add(expr >= 0);
+      
+      
+      // (9)
       
       // (11) (special case of (4) for |S| = 1):
       // if you pick a node then it must be a root node
@@ -230,7 +233,7 @@ namespace nina {
       // must be part of the solution as well
       // if you get in, you have to get out as well
       // BIG FAT WARNING: not true for xHeinz!!!
-      cout << "*** [construction area] check the limit of 5000 nodes for symm breaking (discuss these first with M)" << endl;
+      cout << "*** [construction area] check the limit of 5000 nodes for symm breaking. this is just for PCST though, forget it" << endl;
       if (_n < 5000 || !_options._pcst)
       {
         if (g_verbosity >= VERBOSE_DEBUG)
@@ -321,7 +324,7 @@ namespace nina {
       pHeuristic = new (_env) HeuristicUnrootedType(_env, _x, _y, //_z,
                                                     g, weight,
                                                     *_pNode, //*_pEdge,
-                                                    _n, _m, pMutex);
+                                                    _n, _options._k, _m, pMutex);
       
       if (g_pOut)
       {
@@ -338,17 +341,17 @@ namespace nina {
       
       IloCplex::Callback cb2(pHeuristic);
       // gwk, put back. OBACHT
-      if (_options._k != 1) cout << "*** [construction area] disabling heuristic callback. put back later" << endl;
+      if (_options._k != 0) cout << "*** [construction area] disabling heuristic callback. put back later" << endl;
       else _cplex.use(cb2);
       
       IloCplex::Callback cb3(pUserCut);
       // gwk, put back. OBACHT
-      if (_options._k != 1) cout << "*** [construction area] disabling user callback. put back later" << endl;
+      if (_options._k != 0) cout << "*** [construction area] disabling user callback. put back later" << endl;
       else _cplex.use(cb3);
       
       IloCplex::Callback cb4(pIncumbent);
       // gwk, put back. OBACHT
-      if (_options._k != 1) cout << "*** [construction area] disabling incumbent callback. put back later" << endl;
+      if (_options._k != 0) cout << "*** [construction area] disabling incumbent callback. put back later" << endl;
       else if (pIncumbent) _cplex.use(cb4);
       
       //  // determine degrees
