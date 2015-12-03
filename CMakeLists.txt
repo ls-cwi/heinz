@@ -149,8 +149,7 @@ add_definitions( -DIL_STD )
 configure_file( src/config.h.in ${PROJECT_SOURCE_DIR}/src/config.h )
 
 if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
-  #set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static-libstdc++ " )
+  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
 endif()
 
 
