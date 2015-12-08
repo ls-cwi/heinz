@@ -31,3 +31,11 @@ Not done:
 * Construct local h at every call! Slower...
 * Branch on stars... cplex does a better job
 * Break ties: smallest deg[i] - posDeg[i]
+
+-----------
+# v 2.1
+
+## Low priority
+* adapt make check to Heinz executable.  Test different things.  remove dimacs exectuables altogether
+
+

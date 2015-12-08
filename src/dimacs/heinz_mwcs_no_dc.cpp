@@ -100,6 +100,7 @@ int main(int argc, char** argv)
   Options options(BackOff(1), // linear waiting
                   true,
                   10,
+                  0,  // enum_scheme = 0 (off)
                   timelimit,
                   threads,
                   MEMORY_LIMIT,

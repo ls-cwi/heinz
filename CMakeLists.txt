@@ -70,7 +70,7 @@ set( Heinz_Monte_Carlo_Hdr
   src/solver/impl/treeheuristicsolverunrootedimpl.h
 )
 
-set( Heinz_Monte_Carlo_Src 
+set( Heinz_Monte_Carlo_Src
   src/utils.cpp
 )
 
@@ -167,44 +167,44 @@ set( CommonLibs
 	dl  # since CPLEX 12.8
 )
 
-add_executable( heinz-mc EXCLUDE_FROM_ALL src/mwcs-mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
-target_link_libraries( heinz-mc emon OGDF pthread )
+#add_executable( heinz-mc EXCLUDE_FROM_ALL src/mwcs-mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
+#target_link_libraries( heinz-mc emon OGDF pthread )
 
 add_executable( heinz src/mwcs.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz ${CommonLibs} )
 
-add_executable( heinz_mwcs_mc src/dimacs/heinz_mwcs_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
-target_link_libraries( heinz_mwcs_mc emon OGDF pthread )
+#add_executable( heinz_mwcs_mc src/dimacs/heinz_mwcs_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
+#target_link_libraries( heinz_mwcs_mc emon OGDF pthread )
 
-add_executable( heinz_mwcs_dc src/dimacs/heinz_mwcs_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
-target_link_libraries( heinz_mwcs_dc ${CommonLibs} )
+#add_executable( heinz_mwcs_dc src/dimacs/heinz_mwcs_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
+#target_link_libraries( heinz_mwcs_dc ${CommonLibs} )
 
 add_executable( heinz_mwcs_no_dc src/dimacs/heinz_mwcs_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
 target_link_libraries( heinz_mwcs_no_dc ${CommonLibs} )
 
-add_executable( heinz_mwcs_no_pre src/dimacs/heinz_mwcs_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
-target_link_libraries( heinz_mwcs_no_pre ${CommonLibs} )
+#add_executable( heinz_mwcs_no_pre src/dimacs/heinz_mwcs_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
+#target_link_libraries( heinz_mwcs_no_pre ${CommonLibs} )
 
-add_executable( heinz_pcst_mc src/dimacs/heinz_pcst_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
-target_link_libraries( heinz_pcst_mc emon OGDF pthread )
+#add_executable( heinz_pcst_mc src/dimacs/heinz_pcst_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
+#target_link_libraries( heinz_pcst_mc emon OGDF pthread )
 
-add_executable( heinz_pcst_dc src/dimacs/heinz_pcst_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
-target_link_libraries( heinz_pcst_dc ${CommonLibs} )
+#add_executable( heinz_pcst_dc src/dimacs/heinz_pcst_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
+#target_link_libraries( heinz_pcst_dc ${CommonLibs} )
 
-add_executable( heinz_pcst_no_dc src/dimacs/heinz_pcst_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
-target_link_libraries( heinz_pcst_no_dc ${CommonLibs} )
+#add_executable( heinz_pcst_no_dc src/dimacs/heinz_pcst_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
+#target_link_libraries( heinz_pcst_no_dc ${CommonLibs} )
 
-add_executable( heinz_pcst_no_pre src/dimacs/heinz_pcst_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
-target_link_libraries( heinz_pcst_no_pre ${CommonLibs} )
+#add_executable( heinz_pcst_no_pre src/dimacs/heinz_pcst_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
+#target_link_libraries( heinz_pcst_no_pre ${CommonLibs} )
 
-add_executable( heinz_rpcst_mc src/dimacs/heinz_rpcst_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
-target_link_libraries( heinz_rpcst_mc emon OGDF pthread )
+#add_executable( heinz_rpcst_mc src/dimacs/heinz_rpcst_mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
+#target_link_libraries( heinz_rpcst_mc emon OGDF pthread )
 
-add_executable( heinz_rpcst_no_dc src/dimacs/heinz_rpcst_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
-target_link_libraries( heinz_rpcst_no_dc ${CommonLibs} )
+#add_executable( heinz_rpcst_no_dc src/dimacs/heinz_rpcst_no_dc.cpp ${Heinz_Src} ${Heinz_Hdr} )
+#target_link_libraries( heinz_rpcst_no_dc ${CommonLibs} )
 
-add_executable( heinz_rpcst_no_pre src/dimacs/heinz_rpcst_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
-target_link_libraries( heinz_rpcst_no_pre ${CommonLibs} )
+#add_executable( heinz_rpcst_no_pre src/dimacs/heinz_rpcst_no_pre.cpp ${Heinz_Src} ${Heinz_Hdr} )
+#target_link_libraries( heinz_rpcst_no_pre ${CommonLibs} )
 
 add_executable( print EXCLUDE_FROM_ALL ${Heinz_Print_Graph_Src} ${Heinz_Hdr} ${CommonObjs} )
 target_link_libraries( print emon OGDF pthread )
@@ -217,28 +217,28 @@ target_link_libraries( check_pcst_solution emon OGDF pthread )
 
 enable_testing()
 add_test( heinz_mwcs_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_no_dc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
-add_test( heinz_mwcs_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_dc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
-add_test( heinz_mwcs_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_no_pre ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
-add_test( heinz_mwcs_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_mc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
-add_test( heinz_pcst_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_no_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
-add_test( heinz_pcst_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
-add_test( heinz_pcst_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_no_pre ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
-add_test( heinz_pcst_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_mc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
-add_test( heinz_rpcst_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_no_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
-add_test( heinz_rpcst_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_no_pre ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
-add_test( heinz_rpcst_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_mc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
-add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS 
-  check_mwcs_solution 
-  check_pcst_solution 
-  heinz_pcst_dc 
-  heinz_pcst_mc 
-  heinz_pcst_no_dc 
-  heinz_pcst_no_pre 
-  heinz_rpcst_mc 
-  heinz_rpcst_no_dc 
-  heinz_rpcst_no_pre 
-  heinz_mwcs_dc 
-  heinz_mwcs_mc 
-  heinz_mwcs_no_dc 
-  heinz_mwcs_no_pre 
+#add_test( heinz_mwcs_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_dc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
+#add_test( heinz_mwcs_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_no_pre ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
+#add_test( heinz_mwcs_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_mwcs_mc ./check_mwcs_solution ${PROJECT_SOURCE_DIR}/test/lymphoma.stp lymphoma.dimacs )
+#add_test( heinz_pcst_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_no_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+#add_test( heinz_pcst_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+#add_test( heinz_pcst_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_no_pre ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+#add_test( heinz_pcst_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_pcst_mc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i640-003.stp i640-003.dimacs )
+#add_test( heinz_rpcst_no_dc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_no_dc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
+#add_test( heinz_rpcst_no_pre ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_no_pre ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
+#add_test( heinz_rpcst_mc ${PROJECT_SOURCE_DIR}/test/run.py ./heinz_rpcst_mc ./check_pcst_solution ${PROJECT_SOURCE_DIR}/test/i101M2.stp i101M2.dimacs )
+add_custom_target( check COMMAND ${CMAKE_CTEST_COMMAND} DEPENDS
+  check_mwcs_solution
+  check_pcst_solution
+  #heinz_pcst_dc
+  #heinz_pcst_mc
+  #heinz_pcst_no_dc
+  #heinz_pcst_no_pre
+  #heinz_rpcst_mc
+  #heinz_rpcst_no_dc
+  #heinz_rpcst_no_pre
+  #heinz_mwcs_dc
+  #heinz_mwcs_mc
+  heinz_mwcs_no_dc
+  #heinz_mwcs_no_pre
 )
