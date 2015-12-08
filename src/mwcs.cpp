@@ -2,7 +2,7 @@
  *  mwcs.cpp
  *
  *   Created on: 27-jul-2012
- *      Authors: C.I. Bucur and M. El-Kebir
+ *      Authors: C.I. Bucur, M. El-Kebir, G. W. Klau
  */
 
 #include <iostream>
@@ -79,7 +79,7 @@ int main(int argc, char** argv)
   int timeLimit = -1;
   int memoryLimit = -1;
   bool noPreprocess = false;
-  bool noEnum = false;
+  int enum_scheme = 1;
   int multiThreading = 1;
   int backOffFunction = 1;
   int backOffPeriod = 1;
@@ -108,8 +108,13 @@ int main(int argc, char** argv)
                         "     2 - Quadratic waiting\n"
                         "     3 - Exponential waiting\n"
                         "     4 - Infinite waiting", backOffFunction, false)
-    .refOption("p", "Disable preprocessing", noPreprocess, false)
-    .refOption("no-enum", "Disable enumerator", noEnum, false)
+    .refOption("no-pre", "Disable preprocessing", noPreprocess, false)
+//    .synonym("no-pre", "p")  // backwards compatability
+    //.refOption("no-enum", "Disable graph-based decomposition/enumeration scheme", noEnum, false)
+    .refOption("enum", "Graph-based decomposition/enumeration:\n"
+                        "     0 - off\n"
+                        "     1 - biconnected components (default)\n"
+                        "     2 - triconnected components", enum_scheme, false)
     .refOption("stp", "STP file", stpFile, false)
     .refOption("stp-pcst", "STP-PCST file", stpPcstFile, false)
     .refOption("v", "Specifies the verbosity level:\n"
@@ -124,7 +129,7 @@ int main(int argc, char** argv)
     .refOption("lambda", "Specifies lambda", lambda, false)
     .refOption("a", "Specifies a", a, false)
     .refOption("FDR", "Specifies fdr", fdr, false)
-    .refOption("maxCuts", "Specifies the number of cut iterations per node in the B&B tree (default: 3)\n",
+    .refOption("maxCuts", "Specifies the number of cut iterations per node in the B&B tree (default: 3)",
                maxNumberOfCuts, false);
   ap.parse();
 
@@ -133,7 +138,7 @@ int main(int argc, char** argv)
     std::cout << "Version number: " << HEINZ_VERSION << std::endl;
     return 0;
   }
-  
+
   if (!(ap.given("n") && ap.given("e")) && !ap.given("stp") &&  !ap.given("stp-pcst"))
   {
     std::cerr << "Please specify either '-n' and '-e', or '-stp', or '-stp-pcst'" << std::endl;
@@ -208,35 +213,36 @@ int main(int argc, char** argv)
   // Solve
   const NodeSet rootNodeSet = pMwcs->getNodeByLabel(root);
   assert(rootNodeSet.size() == 0 || rootNodeSet.size() == 1);
-  
-  if (pPreprocessedMwcs && (noEnum || rootNodeSet.size() > 0))
+
+  if (pPreprocessedMwcs && (enum_scheme == 0 || rootNodeSet.size() > 0))
   {
     pPreprocessedMwcs->preprocess(rootNodeSet);
   }
-  
+
   SolverType* pSolver = NULL;
-  
+
   Options options(createBackOff(backOffFunction, backOffPeriod),
                   true,
                   maxNumberOfCuts,
+                  enum_scheme,
                   timeLimit,
                   multiThreading,
                   memoryLimit,
                   !stpPcstFile.empty());
-  
+
   if (rootNodeSet.size() == 0 && !root.empty())
   {
     std::cerr << "No node with label '" << root
               << "' present. Defaulting to unrooted formulation." << std::endl;
   }
-  
+
   if (rootNodeSet.size() == 1)
   {
     SolverRootedType* pSolverRooted = new SolverRootedType(new CutSolverRootedImplType(options));
     pSolverRooted->solve(*pMwcs, rootNodeSet);
     pSolver = pSolverRooted;
   }
-  else if (noEnum)
+  else if (enum_scheme == 0)
   {
     SolverUnrootedType* pSolverUnrooted = new SolverUnrootedType(new CutSolverUnrootedImplType(options));
     pSolverUnrooted->solve(*pMwcs);
@@ -246,11 +252,11 @@ int main(int argc, char** argv)
   {
     SolverUnrootedType* pSolverUnrooted = new EnumSolverUnrootedType(new CutSolverUnrootedImplType(options),
                                                                      new CutSolverRootedImplType(options),
-                                                                     !noPreprocess);
+                                                                     !noPreprocess, enum_scheme);
     pSolverUnrooted->solve(*pMwcs);
     pSolver = pSolverUnrooted;
   }
-  
+
   if (outputFile != "-" && !outputFile.empty())
   {
     std::ofstream outFile(outputFile.c_str());
@@ -267,7 +273,7 @@ int main(int argc, char** argv)
   }
 
   delete pSolver;
-  
+
 //  if (rootNode == lemon::INVALID)
 //  {
 //    MwcsEnumerateType mwcsEnumerate(*pMwcs);
@@ -276,7 +282,7 @@ int main(int argc, char** argv)
 //    mwcsEnumerate.setMaxNumberOfCuts(maxNumberOfCuts);
 //    mwcsEnumerate.setBackOff(createBackOff(backOffFunction, backOffPeriod));
 //    mwcsEnumerate.enumerate(static_cast<MwcsSolverEnum>(formulation), !noPreprocess);
-//    
+//
 //    const Graph& g = pMwcs->getOrgGraph();
 //    double maxScore = 0;
 //    int maxIdx = -1;
@@ -289,7 +295,7 @@ int main(int argc, char** argv)
 //        maxIdx = mwcsEnumerate.getModuleIndex(v);
 //      }
 //    }
-//    
+//
 //    if (maxIdx != -1)
 //    {
 //      if (outputFile != "-" && !outputFile.empty())

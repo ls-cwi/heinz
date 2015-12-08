@@ -50,6 +50,7 @@ public:
     Options(const BackOff& backOff,
             bool analysis,
             int maxNumberOfCuts,
+            int enum_scheme,
             int timeLimit,
             int multiThreading,
             int memoryLimit,
@@ -57,6 +58,7 @@ public:
       : _backOff(backOff)
       , _analysis(analysis)
       , _maxNumberOfCuts(maxNumberOfCuts)
+      , _enumScheme(enum_scheme)
       , _timeLimit(timeLimit)
       , _multiThreading(multiThreading)
       , _memoryLimit(memoryLimit)
@@ -67,6 +69,7 @@ public:
     const BackOff& _backOff;
     bool _analysis;
     int _maxNumberOfCuts;
+    int _enumScheme;
     int _timeLimit;
     int _multiThreading;
     int _memoryLimit;
