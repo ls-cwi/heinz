@@ -2,7 +2,7 @@
  * negdeg01.h
  *
  *  Created on: 14-jan-2013
- *      Author: M. El-Kebir
+ *      Author: M. El-Kebir, G. W. Klau
  */
 
 #ifndef NEGDEG01_H
@@ -36,6 +36,7 @@ public:
   TEMPLATE_GRAPH_TYPEDEFS(Graph);
 
   using Parent::remove;
+  using Parent::removeSet;
 
   NegDeg01();
   virtual ~NegDeg01() {}
@@ -118,32 +119,25 @@ inline int NegDeg01<GR, WGHT>::apply(Graph& g,
                                      DegreeNodeMap& degree,
                                      DegreeNodeSetVector& degreeVector,
                                      int d)
-{
-  if (static_cast<int>(degreeVector.size()) <= d)
-    return 0;
-
-  const NodeSet& nodes = degreeVector[d];
-
-  for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end();)
   {
-    NodeSetIt nextNodeIt = nodeIt;
-    nextNodeIt++;
+    if (static_cast<int>(degreeVector.size()) <= d)
+      return 0;
     
-    Node v = *nodeIt;
-    // remove if negative and not the root node
-    if (score[v] < 0 && rootNodes.find(v) == rootNodes.end())
+    const NodeSet& nodes = degreeVector[d];
+    
+    NodeSet D;
+    
+    for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
     {
-      remove(g, mapToPre, preOrigNodes, neighbors,
-             nNodes, nArcs, nEdges,
-             degree, degreeVector, v);
-      return 1;
+      // remove if negative and not the root node
+      if (score[*nodeIt] < 0 && rootNodes.find(*nodeIt) == rootNodes.end()) D.insert(*nodeIt);
     }
-
-    nodeIt = nextNodeIt;
+    removeSet(g, mapToPre, preOrigNodes, neighbors,
+              nNodes, nArcs, nEdges,
+              degree, degreeVector, D);
+    
+    return D.size();
   }
-
-  return 0;
-}
 
 } // namespace mwcs
 } // namespace nina
