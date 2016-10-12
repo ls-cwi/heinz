@@ -101,7 +101,7 @@ protected:
   int _nodeNumber;
   
 protected:
-  static const double _cutEpsilon = 0.00001 * _epsilon;
+  static constexpr double _cutEpsilon = 0.00001 * _epsilon;
   const lemon::Tolerance<double> _cutTol;
   BackOff _backOff;
   bool _makeAttempt;
