@@ -445,8 +445,8 @@ public:
     }
     
     // merge the labels
-    (*_pGraph->_pLabel)[v] += "\t" + (*_pGraph->_pLabel)[u];
-    
+    (*_pGraph->_pLabel)[v] += "_" + (*_pGraph->_pLabel)[u];
+
     // erase minNode
     g.contract(v, u, true);
     --_pGraph->_nNodes;
@@ -507,7 +507,7 @@ public:
       
       if (!first)
       {
-        (*_pGraph->_pLabel)[res] += "\t";
+        (*_pGraph->_pLabel)[res] += "_";
       }
       else
       {
