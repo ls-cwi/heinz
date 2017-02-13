@@ -242,7 +242,7 @@ protected:
     }
     
     // merge the labels
-    label[maxNode] += "\t" + label[minNode];
+    label[maxNode] += "_" + label[minNode];
     
     // erase minNode
     g.contract(maxNode, minNode, true);
