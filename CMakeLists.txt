@@ -93,7 +93,7 @@ set( LIBLEMON_ROOT "$ENV{HOME}/lemon" CACHE PATH "Additional search directory fo
 set( MEMORY_LIMIT 10240 CACHE STRING "Memory limit in MB" )
 
 if( NOT CPLEX_INC_DIR OR NOT CPLEX_LIB_DIR OR NOT CONCERT_INC_DIR OR NOT CONCERT_LIB_DIR )
-	set( CPLEX_AUTODETECTION_PREFIXES "$ENV{HOME}/ILOG;/opt/ibm/ILOG;$ENV{HOME}/Applications/IBM/ILOG" CACHE STRING "CPLEX automatic lookup directories" )
+	set( CPLEX_AUTODETECTION_PREFIXES "/Applications;$ENV{HOME}/ILOG;/opt/ibm/ILOG;$ENV{HOME}/Applications/IBM/ILOG" CACHE STRING "CPLEX automatic lookup directories" )
 	foreach( CplexInstallPrefix ${CPLEX_AUTODETECTION_PREFIXES} )
 		file( GLOB_RECURSE CplexLibraryPaths ${CplexInstallPrefix}/*/cplex/lib/*/libcplex.a )
 		if( CplexLibraryPaths )
@@ -139,7 +139,7 @@ if(NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build, options are: Debug Release Profile" FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
 
-SET(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libstdc++")
+#SET(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libstdc++")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -g -ggdb -O0 -DDEBUG -DVERBOSE")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS} -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -DNDEBUG")
 set(CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wno-long-long -Wno-unused-parameter -Wno-unknown-pragmas -O3 -g -ggdb -DNDEBUG")
@@ -148,9 +148,9 @@ set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wno-write-strings -Wno-unus
 add_definitions( -DIL_STD )
 configure_file( src/config.h.in ${PROJECT_SOURCE_DIR}/src/config.h )
 
-if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
-  set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
-endif()
+#if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
+  #set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
+#endif()
 
 
 include_directories( ${CPLEX_INC_DIR} ${CONCERT_INC_DIR} "${LIBLEMON_ROOT}/include" "${LIBOGDF_ROOT}/include" "src" "src/externlib" )
