@@ -164,6 +164,7 @@ set( CommonLibs
 	pthread
 	emon
 	OGDF
+	dl  # since CPLEX 12.8
 )
 
 add_executable( heinz-mc EXCLUDE_FROM_ALL src/mwcs-mc.cpp ${Heinz_Monte_Carlo_Src} ${Heinz_Monte_Carlo_Hdr} ${Heinz_Hdr} )
