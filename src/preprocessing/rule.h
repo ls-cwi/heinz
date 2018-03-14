@@ -101,86 +101,17 @@ namespace nina {
         
         //    assert(isValid(g, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector));
       }
-    }
-    
-    // now update the neighbor sets
-    maxNodeNeighbors.insert(minNodeNeighbors.begin(), minNodeNeighbors.end());
-    
-    // update degree of maxNode
-    int d = degree[maxNode] = static_cast<int>(maxNodeNeighbors.size());
-    
-    if (degreeVector.size() <= static_cast<size_t>(d))
-    {
-      // add node sets to degreeVector
-      int len = d - degreeVector.size() + 1;
-      for (int i = 0; i < len; i++)
-        degreeVector.push_back(NodeSet());
-    }
-    
-    degreeVector[d].insert(maxNode);
-    
-    // update score of maxNode
-    score[maxNode] += score[minNode];
-    
-    // update set of original nodes corresponding to maxNode
-    const NodeSet& minOrgNodeSet = preOrigNodes[minNode];
-    for (NodeSetIt nodeIt = minOrgNodeSet.begin(); nodeIt != minOrgNodeSet.end(); nodeIt++)
-    {
-      preOrigNodes[maxNode].insert(*nodeIt);
-      mapToPre[*nodeIt].erase(minNode);
-      mapToPre[*nodeIt].insert(maxNode);
-    }
-    
-    // merge the labels
-    label[maxNode] += "_" + label[minNode];
-    
-    // erase minNode
-    g.contract(maxNode, minNode, true);
-    nNodes--;
-    nEdges--;
-    nArcs -= 2;
-    
-    // update LB if necessary
-    if (LB < score[maxNode])
-    {
-      LB = score[maxNode];
-    }
-    
-#ifdef DEBUG
-    int d2 = 0;
-    for (IncEdgeIt e(g, maxNode); e != lemon::INVALID; ++e)
-    {
-      ++d2;
-    }
-    assert(lemon::countEdges(g) == nEdges);
-    assert(neighbors[maxNode].size() == static_cast<size_t>(d2));
-    assert(degree[maxNode] == static_cast<int>(neighbors[maxNode].size()));
-    assert(degree[maxNode] >= 0);
-    assert(lemon::simpleGraph(g));
-//    assert(isValid(g, mapToPre, preOrigNodes, neighbors, nNodes, nArcs, nEdges, degree, degreeVector));
-#endif
-    
-    return maxNode;
-  }
-  
-  bool isValid(Graph& g,
-               NodeSetMap& mapToPre,
-               NodeSetMap& preOrigNodes,
-               NodeSetMap& neighbors,
-               int& nNodes,
-               int& nArcs,
-               int& nEdges,
-               DegreeNodeMap& degree,
-               DegreeNodeSetVector& degreeVector)
-  {
-    if (!lemon::simpleGraph(g))
-      return false;
-    
-    IntNodeMap newDeg(g, 0);
-    NodeSetMap newNeighbors(g);
-    for (NodeIt v(g); v != lemon::INVALID; ++v)
-    {
-      for (IncEdgeIt e(g, v); e != lemon::INVALID; ++e)
+      
+      void removeSet(Graph& g,
+                     NodeSetMap& mapToPre,
+                     NodeSetMap& preOrigNodes,
+                     NodeSetMap& neighbors,
+                     int& nNodes,
+                     int& nArcs,
+                     int& nEdges,
+                     DegreeNodeMap& degree,
+                     DegreeNodeSetVector& degreeVector,
+                     NodeSet& nodes)
       {
         // decrease the degrees of adjacent nodes and update neighbors
         for (NodeSetIt nodeIt = nodes.begin(); nodeIt != nodes.end(); ++nodeIt)
