@@ -88,51 +88,43 @@ inline bool TreeSolverUnrootedImpl<GR, NWGHT, NLBL, EWGHT>::solve(double& score,
   const Graph& g = _pMwcsGraph->getGraph();
   const WeightNodeMap& weight = _pMwcsGraph->getScores();
   
-  for (NodeIt root(g); root != lemon::INVALID; ++root)
+  NodeIt root(g);
   {
-    if (_pMwcsGraph->getScore(root) > 0)
+    Parent2::init(*_pMwcsGraph, root);
+    // work bottom-up
+    for (NodeSetVectorRevIt nodeSetIt = _nodesPerLevel.rbegin();
+        nodeSetIt != _nodesPerLevel.rend(); nodeSetIt++)
     {
-      Parent2::init(*_pMwcsGraph, root);
-      // work bottom-up
-      for (NodeSetVectorRevIt nodeSetIt = _nodesPerLevel.rbegin();
-           nodeSetIt != _nodesPerLevel.rend(); nodeSetIt++)
+      for (NodeSetIt nodeIt = nodeSetIt->begin(); nodeIt != nodeSetIt->end(); nodeIt++)
       {
-        for (NodeSetIt nodeIt = nodeSetIt->begin(); nodeIt != nodeSetIt->end(); nodeIt++)
-        {
-          Node node = *nodeIt;
-          (*_pDpMap)[node]._solution.insert(node);
-          (*_pDpMap)[node]._weight = weight[node];
-          
-          const NodeSet& children = (*_pDpMap)[node]._children;
-          for (NodeSetIt childIt = children.begin(); childIt != children.end(); childIt++)
-          {
-            double childWeight = (*_pDpMap)[*childIt]._weight;
-            if (childWeight > 0 || *childIt == root)
-            {
+         Node node = *nodeIt;
+         (*_pDpMap)[node]._solution.insert(node);
+         (*_pDpMap)[node]._weight = weight[node];  
+         const NodeSet& children = (*_pDpMap)[node]._children;
+         for (NodeSetIt childIt = children.begin(); childIt != children.end(); childIt++)
+         {
+           double childWeight = (*_pDpMap)[*childIt]._weight;
+           if (childWeight > 0 || *childIt == root)
+           {
               (*_pDpMap)[node]._weight += childWeight;
               (*_pDpMap)[node]._solution.insert(
               (*_pDpMap)[*childIt]._solution.begin(), (*_pDpMap)[*childIt]._solution.end());
             }
           }
+	        if ((*_pDpMap)[node]._weight > score)
+      	  {
+           score = (*_pDpMap)[node]._weight;
+        	 solutionSet = (*_pDpMap)[node]._solution;
+        	 for (NodeSetIt nodeIt = solutionSet.begin(); nodeIt != solutionSet.end(); nodeIt++)
+        	  {
+          		solutionMap[*nodeIt] = true;
+        	  }
+          }
         }
-      }
-      
-      // construct the solution
-      if ((*_pDpMap)[root]._weight > score)
-      {
-        score = (*_pDpMap)[root]._weight;
-        solutionSet = (*_pDpMap)[root]._solution;
-        for (NodeSetIt nodeIt = solutionSet.begin(); nodeIt != solutionSet.end(); nodeIt++)
-        {
-          solutionMap[*nodeIt] = true;
-        }
-      }
+      return true;
     }
   }
-  
-  return true;
 }
-  
 } // namespace mwcs
 } // namespace nina
 
