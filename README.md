@@ -6,7 +6,7 @@ Dependencies
 
 * LEMON 1.3
 * ILOG CPLEX (>= 12.0)
-* OGDF (v. 2012.07)
+* OGDF (v. 2015.05)
 
 Compiling
 ---------
@@ -22,37 +22,33 @@ First, LEMON 1.3 needs to be installed:
     tar xvzf lemon-1.3.tar.gz
     cd lemon-1.3
     cmake -DCMAKE_INSTALL_PREFIX=~/lemon
-    make install
-    
-Note: On Mac OS 10.9, comment out the following two lines and add the code below at line 159 in `CMakeLists.txt` before doing `make install`.
 
-    #ADD_SUBDIRECTORY(demo) 
+Note: On Mac OS, comment out the following two lines.
+
+    #ADD_SUBDIRECTORY(demo)
     #ADD_SUBDIRECTORY(tools)
-    
+
+On earlier Mac OS versions also add the code below at line 159 in `CMakeLists.txt`. 
+   
     if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
       set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
     endif()
 
+Finally, run
+
+    make install
+    
 You can remove the LEMON sources now, i.e., `rm -rf lemon-1.3`.
 
 Next, OGDF needs to be installed:
 
-    wget http://www.ogdf.net/lib/exe/fetch.php/tech:ogdf.v2012.07.zip
+    wget http://www.ogdf.net/lib/exe/fetch.php/tech:ogdf-snapshot-2018-03-28.zip
     unzip tech\:ogdf.v2012.07.zip
-    cd OGDF
-    ./makeMakefile.sh 
-    mkdir ~/ogdf
-    mkdir ~/ogdf/lib
-    mkdir ~/ogdf/include
-    make
-    cp _release/libOGDF.a ~/ogdf/lib/
-    cp -R ogdf ~/ogdf/include/
+    cd OGDF-snapshot
+    cmake .
+    make -j8
     
-Note: On Mac OS 10.9, before doing `./makeMakefile.sh` edit line 40 in `makeMakefile.config` as follows.
-
-    release = -stdlib=libstdc++ -O2
-
-You can remove the OGDF sources now, i.e., `rm -rf OGDF`. 
+You can remove the OGDF sources now, i.e., `rm -rf OGDF-snapshot`. 
 
 Next, Heinz can be compiled:
 
