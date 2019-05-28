@@ -50,7 +50,7 @@ Next, OGDF needs to be installed:
     
 You can remove the OGDF sources now, i.e., `rm -rf OGDF-snapshot`. 
 
-Next, Heinz can be compiled:
+Next, Heinz can be compiled. Execute the following commands from within the heinz directory:
 
     mkdir build
     cd build
