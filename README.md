@@ -1,87 +1,84 @@
-Compilation instructions
-========================
+# Heinz
 
-Dependencies
-------------
+## Compilation Instructions
 
-* LEMON 1.3
-* ILOG CPLEX (>= 12.0)
-* OGDF (v. 2015.05)
+### Dependencies
 
-Compiling
----------
+#### Libraries
 
-Get heinz from github:
+* LEMON 1.3.1
+* IBM ILOG CPLEX >= 12.0, works at least up to 22.1.0
+* OGDF 2015-06-29
 
-    git clone <HTTPS clone URL (see on the right side of this page)>
+### Compiling
 
+#### macOS Specifics
 
-First, LEMON 1.3 needs to be installed:
+You need to install `cmake`, e. g. using `brew`, and the Command Line Developer Tools, which you already have if you installed `cmake` using `brew`. MacOS works at least up to Monterey 12.4.
 
-    wget http://lemon.cs.elte.hu/pub/sources/lemon-1.3.tar.gz
-    tar xvzf lemon-1.3.tar.gz
-    cd lemon-1.3
-    cmake -DCMAKE_INSTALL_PREFIX=~/lemon
+#### Linux Specifics
 
-Note: On Mac OS, comment out the following two lines.
+On a Debian-derived Linux you need to install `git`, `cmake`, `make`, `g++`, `unzip`, `curl`, and `ca-certificates`. Debian 9 to 11 are known to work as well as Ubuntu 22.04.
 
-    #ADD_SUBDIRECTORY(demo)
-    #ADD_SUBDIRECTORY(tools)
+#### General Instructions
 
-On earlier Mac OS versions also add the code below at line 159 in `CMakeLists.txt`. 
-   
-    if( ${CMAKE_SYSTEM_NAME} MATCHES "Darwin" )
-      set( CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libstdc++ " )
-    endif()
+This guide shows you how to compile heinz, and its dependencies. Because OGDF has to be an old version, the guide places it into a non-standard location, so that it doesn't interfere with the rest of your system.
 
-Finally, run
+Get CPLEX from the IBM web-site. For reference, the _Part Number_ for Linux is M04HKML. For macOS it's M04HMML. If you install it into its default location, it should automatically be detected during the `cmake` invocation of the heinz step.
 
+First, LEMON 1.3.1 needs to be installed:
+
+    curl https://lemon.cs.elte.hu/pub/sources/lemon-1.3.1.tar.gz | tar --extract --gunzip
+    cd lemon-1.3.1
+    cmake -DCMAKE_INSTALL_PREFIX=$HOME/heinz-dependencies
     make install
-    
-You can remove the LEMON sources now, i.e., `rm -rf lemon-1.3`.
+    cd ..
 
-Next, OGDF needs to be installed:
+Once LEMON is installed, you can remove the source files, i. e. `rm -rf lemon-1.3.1`.
+Next, OGDF needs to be built:
 
-    wget http://www.ogdf.net/lib/exe/fetch.php/tech:ogdf-snapshot-2018-03-28.zip
-    unzip tech\:ogdf.v2012.07.zip
+    curl --remote-name https://ogdf.uos.de/wp-content/uploads/2019/04/ogdf-snapshot-2015-06-29.zip
+    unzip ogdf-snapshot-2015-06-29.zip
     cd OGDF-snapshot
     cmake .
-    make -j8
-    
-You can remove the OGDF sources now, i.e., `rm -rf OGDF-snapshot`. 
+    make
+    cp -r include/* $HOME/heinz-dependencies/include
+    cp *.a $HOME/heinz-dependencies/lib/
+    cd ..
 
-Next, Heinz can be compiled. Execute the following commands from within the heinz directory:
+You can remove the OGDF sources now, i.e., `rm -rf OGDF-snapshot ogdf-snapshot-2015-06-29.zip`.
 
+Get heinz, and compile it:
+
+    git clone https://github.com/ls-cwi/heinz
+    cd heinz
     mkdir build
     cd build
-    cmake ..
+    cmake -DLIBLEMON_ROOT=$HOME/heinz-dependencies -DLIBOGDF_ROOT=$HOME/heinz-dependencies ..
     make
-    
-In case auto-detection of LEMON, OGDF or CPLEX fails, do
+
+In case the auto-detection of LEMON, OGDF, or CPLEX fails, you can manually specify they paths:
 
     cmake \
     -DLIBLEMON_ROOT=~/lemon \
-    -DLIBOGDF_ROOT=~/root \
+    -DLIBOGDF_ROOT=~/ogdf \
     -DCPLEX_INC_DIR=~/ILOG/cplex/include/ \
     -DCPLEX_LIB_DIR=~/ILOG/cplex/lib/x86-64_osx/static_pic \
     -DCONCERT_LIB_DIR=~/ILOG/concert/lib/x86-64_osx/static_pic \
     -DCONCERT_INC_DIR=~/ILOG/concert/include/ ..
 
-Running heinz
-=============
+When you are done compiling heinz, you can remove the dependencies, i. e. `rm -rf $HOME/heinz-dependencies`.
+
+## Running heinz
 
 To run heinz on the test instances:
 
     ./heinz -n ../data/test/NodesPCST.txt -e ../data/test/EdgesPCST.txt
 
-Or do:
-
-    make check
-    
 To run heinz on the DIMACS MWCS instances, do:
 
     ./heinz -stp ../data/DIMACS/mwcs/ACTMOD/HCMV.stp
-    
+
 For the PCST DIMACS instances use:
 
     ./heinz -stp-pcst ../data/DIMACS/pcst/PCSPG-JMP/K100.2.stp
